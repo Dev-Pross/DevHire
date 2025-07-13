@@ -41,41 +41,47 @@ def search_web_dev_jobs():
                 job_cards = page.query_selector_all('a, button, [role="button"]')
                 print(f"Using fallback: Found {len(job_cards)} clickable elements")
             
-            print(f"Processing {len(job_cards)} potential job listings")
-            
+            print(f"\n===== JOB CARD DEBUGGING =====")
+            for i, card in enumerate(job_cards[:5]):
+                try:
+                    print(f"\n--- Card {i} ---")
+                    text_content = card.inner_text().strip()
+                    print(f"Text: {text_content[:200]}{'...' if len(text_content) > 200 else ''}")
+                    # Print classes of the card
+                    card_class = card.get_attribute('class')
+                    print(f"Card class: {card_class}")
+                    # Print classes and text of children
+                    children = card.query_selector_all('*')
+                    for j, child in enumerate(children[:5]):
+                        child_class = child.get_attribute('class')
+                        child_text = child.inner_text().strip()
+                        print(f"  Child {j} class: {child_class}, text: {child_text[:60]}")
+                except Exception as e:
+                    print(f"Error printing card {i}: {e}")
+            print(f"\n===== END JOB CARD DEBUGGING =====\n")
+
             web_dev_jobs = []
-            
-            # Keywords for web development roles
             web_dev_keywords = [
                 'web developer', 'frontend', 'backend', 'full stack', 'fullstack',
                 'javascript', 'react', 'angular', 'vue', 'node.js', 'python',
                 'html', 'css', 'php', 'ruby', 'java', 'developer', 'programmer',
                 'software engineer', 'engineer', 'development', 'coding', 'programming'
             ]
-            
+
             for i, card in enumerate(job_cards[:20]):  # Check first 20 cards
                 try:
-                    # Get text content
                     text_content = card.inner_text().strip()
-                    
                     if not text_content:
                         continue
-                    
-                    # Check if it contains web development keywords
                     has_web_dev_keyword = any(keyword in text_content.lower() for keyword in web_dev_keywords)
-                    
                     if has_web_dev_keyword:
-                        # Try multiple strategies to get job title
                         title = "Title not found"
                         company = "Company not found"
                         job_link = "Link not found"
-                        
-                        # Strategy 1: Look for heading elements
+                        # Title extraction
                         title_elements = card.query_selector_all('h1, h2, h3, h4, h5, h6')
                         if title_elements:
                             title = title_elements[0].inner_text().strip()
-                        
-                        # Strategy 2: Look for elements with title-related classes
                         if title == "Title not found":
                             title_selectors = [
                                 '[class*="title"]', '[class*="job-title"]', '[class*="position"]',
@@ -86,48 +92,78 @@ def search_web_dev_jobs():
                                 if title_elem:
                                     title = title_elem.inner_text().strip()
                                     break
-                        
-                        # Strategy 3: If still no title, use first line of text
                         if title == "Title not found":
                             lines = text_content.split('\n')
                             if lines:
                                 title = lines[0].strip()
-                        
-                        # Strategy 4: Look for company name
-                        company_selectors = [
-                            '[class*="company"]', '[class*="employer"]', '[class*="organization"]',
-                            '[class*="brand"]', '[class*="logo"]'
-                        ]
-                        for selector in company_selectors:
-                            company_elem = card.query_selector(selector)
-                            if company_elem:
-                                company = company_elem.inner_text().strip()
-                                break
-                        
-                        # Strategy 5: If no company found, try to extract from text
+                        # Debug: print all direct children classes and text
+                        print(f"\n--- Card {i} Children Debug ---")
+                        children = card.query_selector_all(':scope > *')
+                        for idx, child in enumerate(children):
+                            child_class = child.get_attribute('class')
+                            child_text = child.inner_text().strip()
+                            print(f"  Child {idx}: class='{child_class}', text='{child_text[:60]}")
+                        print(f"--- End Card {i} Children Debug ---\n")
+                        # Company extraction: try to get from a different child than the title
+                        company = "Company not found"
+                        if len(children) > 1:
+                            # Try the first or second child (not the one used for title)
+                            for idx, child in enumerate(children):
+                                child_text = child.inner_text().strip()
+                                if child_text and child_text != title and len(child_text) < 50:
+                                    company = child_text
+                                    print(f"  [Debug] Using child {idx} as company: {company}")
+                                    break
+                        # Fallback: try previous selectors
                         if company == "Company not found":
-                            # Look for patterns like "Company Name •" or "at Company Name"
+                            company_selectors = [
+                                '[class*="block font-bold md:inline"]',
+                                '.block.font-bold.md\\:inline'
+                            ]
+                            for selector in company_selectors:
+                                company_elem = card.query_selector(selector)
+                                if company_elem:
+                                    company_text = company_elem.inner_text().strip()
+                                    if company_text and company_text != title and len(company_text) < 50:
+                                        company = company_text
+                                        break
+                        # Fallback: regex and line-based
+                        if company == "Company not found":
                             import re
                             company_patterns = [
-                                r'([A-Z][a-zA-Z\s&]+)\s*•',  # Company Name •
-                                r'at\s+([A-Z][a-zA-Z\s&]+)',  # at Company Name
-                                r'([A-Z][a-zA-Z\s&]+)\s*\(',  # Company Name (
+                                r'([A-Z][a-zA-Z\s&\.]+)\s*•',
+                                r'at\s+([A-Z][a-zA-Z\s&\.]+)',
+                                r'([A-Z][a-zA-Z\s&\.]+)\s*\(',
+                                r'([A-Z][a-zA-Z\s&\.]+)\s*\|',
+                                r'([A-Z][a-zA-Z\s&\.]+)\s*[-–—]',
+                                r'([A-Z][a-zA-Z\s&\.]+)\s*$',
+                                r'([A-Z][a-zA-Z\s&\.]+)\s*Remote',
+                                r'([A-Z][a-zA-Z\s&\.]+)\s*Full-time',
+                                r'([A-Z][a-zA-Z\s&\.]+)\s*Part-time',
                             ]
-                            for pattern in company_patterns:
-                                match = re.search(pattern, text_content)
-                                if match:
-                                    company = match.group(1).strip()
+                            
+                            # for pattern in company_patterns:
+                            #     match = re.search(pattern, text_content)
+                            #     if match:
+                            #         potential_company = match.group(1).strip()
+                            #         if (len(potential_company) > 2 and 
+                            #             potential_company.lower() not in ['remote', 'full-time', 'part-time', 'contract', 'internship'] and
+                            #             not any(word in potential_company.lower() for word in ['years', 'experience', 'salary', 'location']) and
+                            #             potential_company != title):
+                            #             company = potential_company
+                            #             break
+                        if company == "Company not found":
+                            lines = [line.strip() for line in text_content.split('\n') if line.strip()]
+                            for line in lines:
+                                if line != title and len(line) < 50:
+                                    company = line
                                     break
-                        
-                        # Get job link
                         if card.evaluate('el => el.tagName.toLowerCase()') == 'a':
                             job_link = card.get_attribute('href') or "Link not found"
                         else:
                             link_elem = card.query_selector('a[href*="job"], a[href*="apply"]')
                             if link_elem:
                                 job_link = link_elem.get_attribute('href') or "Link not found"
-                        
-                        # Clean up the data
                         if title and title != "Title not found":
                             job_info = {
                                 'title': title,
@@ -135,10 +171,10 @@ def search_web_dev_jobs():
                                 'link': job_link,
                                 'text_preview': text_content[:200] + "..." if len(text_content) > 200 else text_content
                             }
-                            
                             web_dev_jobs.append(job_info)
                             print(f"✅ Found web dev job: {title} at {company}")
-                
+                            print(f"   Link: {job_link}")
+                            print(f"   Preview: {job_info['text_preview']}")
                 except Exception as e:
                     print(f"Error processing job card {i}: {e}")
                     continue
