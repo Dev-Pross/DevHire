@@ -187,6 +187,10 @@ def search_web_dev_jobs():
                             link_elem = card.query_selector('a[href*="job"], a[href*="apply"]')
                             if link_elem:
                                 job_link = link_elem.get_attribute('href') or "Link not found"
+                        # Make job link absolute if needed
+                        base_url = "https://www.ycombinator.com"
+                        if job_link and not job_link.startswith("http"):
+                            job_link = base_url + job_link
                         if title and title != "Title not found":
                             job_info = {
                                 'title': title,
