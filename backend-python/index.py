@@ -106,16 +106,36 @@ def search_web_dev_jobs():
                         print(f"--- End Card {i} Children Debug ---\n")
                         # Company extraction: try to get from a different child than the title
                         company = "Company not found"
+                        company_candidates = []
                         if len(children) > 1:
-                            # Try the first or second child (not the one used for title)
                             for idx, child in enumerate(children):
                                 child_text = child.inner_text().strip()
-                                if child_text and child_text != title and len(child_text) < 50:
-                                    company = child_text
-                                    print(f"  [Debug] Using child {idx} as company: {company}")
-                                    break
+                                if child_text and child_text != title and 2 < len(child_text) < 50:
+                                    company_candidates.append((idx, child_text))
+                        if company_candidates:
+                            company = company_candidates[0][1]
+                            print(f"  [Debug] Using child {company_candidates[0][0]} as company: {company}")
+                        else:
+                            print(f"  [Warning] No company candidate found in children. Candidates: {[c[1] for c in company_candidates]}")
+                        # Try to extract company from job link
+                        if company == "Company not found" or company == title:
+                            if card.evaluate('el => el.tagName.toLowerCase()') == 'a':
+                                job_link = card.get_attribute('href')
+                                if job_link is None:
+                                    job_link = ""
+                            else:
+                                link_elem = card.query_selector('a[href*="job"], a[href*="apply"]')
+                                job_link = link_elem.get_attribute('href') if link_elem else ""
+                                if job_link is None:
+                                    job_link = ""
+                            import re
+                            m = re.match(r"/companies/([\w\-]+)/jobs/", job_link)
+                            if m:
+                                company_from_link = m.group(1).replace('-', ' ').title()
+                                company = company_from_link
+                                print(f"  [Debug] Extracted company from link: {company}")
                         # Fallback: try previous selectors
-                        if company == "Company not found":
+                        if company == "Company not found" or company == title:
                             company_selectors = [
                                 '[class*="block font-bold md:inline"]',
                                 '.block.font-bold.md\\:inline'
@@ -124,11 +144,12 @@ def search_web_dev_jobs():
                                 company_elem = card.query_selector(selector)
                                 if company_elem:
                                     company_text = company_elem.inner_text().strip()
-                                    if company_text and company_text != title and len(company_text) < 50:
+                                    if company_text and company_text != title and 2 < len(company_text) < 50:
                                         company = company_text
+                                        print(f"  [Debug] Using selector {selector} as company: {company}")
                                         break
-                        # Fallback: regex and line-based
-                        if company == "Company not found":
+                        # Fallback: regex and line-based, but filter out job titles
+                        if company == "Company not found" or company == title:
                             import re
                             company_patterns = [
                                 r'([A-Z][a-zA-Z\s&\.]+)\s*•',
@@ -141,23 +162,25 @@ def search_web_dev_jobs():
                                 r'([A-Z][a-zA-Z\s&\.]+)\s*Full-time',
                                 r'([A-Z][a-zA-Z\s&\.]+)\s*Part-time',
                             ]
-                            
-                            # for pattern in company_patterns:
-                            #     match = re.search(pattern, text_content)
-                            #     if match:
-                            #         potential_company = match.group(1).strip()
-                            #         if (len(potential_company) > 2 and 
-                            #             potential_company.lower() not in ['remote', 'full-time', 'part-time', 'contract', 'internship'] and
-                            #             not any(word in potential_company.lower() for word in ['years', 'experience', 'salary', 'location']) and
-                            #             potential_company != title):
-                            #             company = potential_company
-                            #             break
-                        if company == "Company not found":
+                            for pattern in company_patterns:
+                                match = re.search(pattern, text_content)
+                                if match:
+                                    potential_company = match.group(1).strip()
+                                    if (len(potential_company) > 2 and 
+                                        potential_company.lower() not in ['remote', 'full-time', 'part-time', 'contract', 'internship'] and
+                                        not any(word in potential_company.lower() for word in ['years', 'experience', 'salary', 'location']) and
+                                        potential_company != title):
+                                        company = potential_company
+                                        print(f"  [Debug] Using regex as company: {company}")
+                                        break
+                        if company == "Company not found" or company == title:
                             lines = [line.strip() for line in text_content.split('\n') if line.strip()]
                             for line in lines:
-                                if line != title and len(line) < 50:
+                                if line != title and 2 < len(line) < 50:
                                     company = line
+                                    print(f"  [Debug] Using line as company: {company}")
                                     break
+                        print(f"[RESULT] Card {i}: Title='{title}', Company='{company}'")
                         if card.evaluate('el => el.tagName.toLowerCase()') == 'a':
                             job_link = card.get_attribute('href') or "Link not found"
                         else:
