@@ -1,0 +1,7 @@
+supabase
+fastapi 
+uvicorn
+playwright
+python-dotenv
+sqlalchemy 
+psycopg2-binary
