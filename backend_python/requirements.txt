@@ -5,3 +5,6 @@ playwright
 python-dotenv
 sqlalchemy 
 psycopg2-binary
+requests
+google-generativeai
+PyMuPDF

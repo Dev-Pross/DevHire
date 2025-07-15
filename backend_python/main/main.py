@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from database.db_engine import Base, engine
 from contextlib import asynccontextmanager
-import database.SchemaModel  
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

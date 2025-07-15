@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Text, Integer, DateTime, ForeignKey, Tabl
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import ARRAY
 import uuid
 from database.db_engine import Base
 
@@ -13,7 +14,7 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(Text, unique=True, nullable=False)
-    name = Column(Text)
+    full_name = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class UploadedResume(Base):
@@ -27,6 +28,7 @@ class UploadedResume(Base):
     file_url = Column(Text)
     experience = Column(Integer)
     created_at = Column(DateTime, default=datetime.utcnow)
+    
     users_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE"))
 
 class ParsedTitle(Base):
@@ -37,7 +39,7 @@ class ParsedTitle(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    titles = Column(Text)
+    titles = Column(ARRAY(Text))
     resume_id = Column(UUID(as_uuid=True), ForeignKey("uploaded_resume.id", ondelete="CASCADE", onupdate="CASCADE"))
 
 class ScrapedJob(Base):

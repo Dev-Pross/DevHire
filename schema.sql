@@ -20,7 +20,7 @@ CREATE TABLE uploaded_resume (
 
 CREATE TABLE parsed_title (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    titles TEXT,
+    titles TEXT[],
     resume_id UUID REFERENCES uploaded_resume(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
