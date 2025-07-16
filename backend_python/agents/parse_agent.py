@@ -34,7 +34,7 @@ def resumeNotExist(resume_id : str):
     else:
         return True
 
-email = "tejabudumuru3@gmail.com"
+email = "vamsi@gmail.com"
 # print(email)
 
 
@@ -77,7 +77,6 @@ if userID:
         print((titles))
 
     # inserting data into tables
-        # titles = ['Full-Stack Developer', 'MERN Stack Developer', 'Software Engineer', 'Web Developer', 'Backend Developer', 'Frontend Developer', 'Java Developer', 'Python Developer', 'AI Engineer', 'Cloud Engineer', 'Software Developer', 'Junior Full-Stack Developer', 'Junior Software Engineer']
         if resumeNotExist(resume_id):
             newTitles = ParsedTitle(
                 id=uuid.uuid4(),
