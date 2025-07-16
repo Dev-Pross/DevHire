@@ -8,7 +8,7 @@ JOB_BOARDS = [
     # ("Indeed", "https://www.indeed.com/jobs?q=web+developer&l="),
     # ("Stack Overflow", "https://stackoverflow.com/jobs?r=true&q=web+developer"),
     # ("AngelList", "https://wellfound.com/jobs"),
-    ("Glassdoor", "https://www.glassdoor.com/Job/web-developer-jobs-SRCH_KO0,14.htm"),
+    # ("Glassdoor", "https://www.glassdoor.com/Job/web-developer-jobs-SRCH_KO0,14.htm"),
     ("Remote OK", "https://remoteok.com/remote-web+developer-jobs"),
     ("We Work Remotely", "https://weworkremotely.com/remote-jobs/search?term=web+developer"),
     # ("Dice", "https://www.dice.com/jobs?q=web+developer"),
