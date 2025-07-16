@@ -25,7 +25,7 @@ def search_web_dev_jobs():
                 'a[href*="/jobs/"]',  # Links to job pages
                 '[data-testid*="job"]',  # Data test IDs
                 '.job-card', '.job-listing', '.job-item',  # Common class names
-                'article', '.card', '.listing',  # Generic containers
+                'article', '.card', '.listing',  # Generic containersgit 
                 'div[class*="job"]', 'div[class*="listing"]',  # Partial class matches
                 'li',  # List items
             ]
