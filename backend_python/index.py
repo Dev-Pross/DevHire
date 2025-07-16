@@ -10,7 +10,9 @@ def search_web_dev_jobs():
         try:
             # Navigate to Y Combinator jobs page
             print("Navigating to Y Combinator jobs page...")
-            page.goto("https://www.ycombinator.com/jobs")
+            # page.goto("https://www.ycombinator.com/jobs")
+            page.goto("https://www.linkedin.com/jobs/search/?currentJobId=3945000000&geoId=90009590&keywords=web%20developer&location=United%20States&refresh=true")
+
             time.sleep(5)  # Wait for page to load
             
             print("Searching for job listings...")
@@ -23,7 +25,7 @@ def search_web_dev_jobs():
                 'a[href*="/jobs/"]',  # Links to job pages
                 '[data-testid*="job"]',  # Data test IDs
                 '.job-card', '.job-listing', '.job-item',  # Common class names
-                'article', '.card', '.listing',  # Generic containers
+                'article', '.card', '.listing',  # Generic containersgit 
                 'div[class*="job"]', 'div[class*="listing"]',  # Partial class matches
                 'li',  # List items
             ]
