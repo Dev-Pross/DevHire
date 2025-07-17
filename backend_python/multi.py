@@ -141,7 +141,7 @@ def scrape_recent_grad_jobs(url, selectors, board_name="Custom Board"):
             for selector in selectors:
                 cards = page.query_selector_all(selector)
                 if cards:
-                    print(f"Found {len(cards)} elements with selector: {selector}")
+                    print(f"Found {len(cards)} eleeeeeeeements with selector: {selector} in {board_name} [144]")
                     job_cards = cards
                     break
             if not job_cards:
@@ -286,6 +286,7 @@ def extract_jobs(page, board_name):
 def scrape_yc_jobs():
     from playwright.sync_api import sync_playwright
     import time
+    import re
     jobs = []
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
@@ -306,12 +307,15 @@ def scrape_yc_jobs():
             for selector in selectors_to_try:
                 cards = page.query_selector_all(selector)
                 if cards:
-                    print(f"Found {len(cards)} elements with selector: {selector}")
+                    print(f"Found {len(cards)} elements with selector: {selector} in [YC]")
                     job_cards = cards
+                    print(f'''------------------
+                          card in YC {job_cards[0].inner_text().strip()}\n
+                          -----------------------''')
                     break
             if not job_cards:
                 job_cards = page.query_selector_all('a, button, [role="button"]')
-                print(f"Using fallback: Found {len(job_cards)} clickable elements")
+                print(f"Using fallback: Found {len(job_cards)} clickable elements in [YC]")
             web_dev_keywords = [
                 'web developer', 'frontend', 'backend', 'full stack', 'fullstack',
                 'javascript', 'react', 'angular', 'vue', 'node.js', 'python',
@@ -321,6 +325,7 @@ def scrape_yc_jobs():
             for i, card in enumerate(job_cards[:40]):
                 try:
                     text_content = card.inner_text().strip()
+                    print("from YC text_content",text_content)
                     if not text_content:
                         continue
                     has_web_dev_keyword = any(keyword in text_content.lower() for keyword in web_dev_keywords)
@@ -630,6 +635,7 @@ def main():
     all_jobs_by_board = {}
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {executor.submit(scrape_board, name, url): name for name, url in JOB_BOARDS}
+        print(futures)
         for future in as_completed(futures):
             board = futures[future]
             jobs = future.result()

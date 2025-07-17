@@ -22,12 +22,7 @@ def search_web_dev_jobs():
             
             # Try different selectors to find job listings
             selectors_to_try = [
-                'a[href*="/jobs/"]',  # Links to job pages
-                '[data-testid*="job"]',  # Data test IDs
-                '.job-card', '.job-listing', '.job-item',  # Common class names
-                'article', '.card', '.listing',  # Generic containersgit 
-                'div[class*="job"]', 'div[class*="listing"]',  # Partial class matches
-                'li',  # List items
+                '.font-semibold', '.text-linkColor'  # List items
             ]
             
             job_cards = []
@@ -44,11 +39,13 @@ def search_web_dev_jobs():
                 print(f"Using fallback: Found {len(job_cards)} clickable elements")
             
             print(f"\n===== JOB CARD DEBUGGING =====")
-            for i, card in enumerate(job_cards[:5]):
+            for i, card in enumerate(job_cards):
                 try:
                     print(f"\n--- Card {i} ---")
                     text_content = card.inner_text().strip()
-                    print(f"Text: {text_content[:200]}{'...' if len(text_content) > 200 else ''}")
+                    print(f"Text: {text_content}{'...' if len(text_content) > 200 else ''}")
+                    print(f"""----------------
+                          text_content: {text_content}""")
                     # Print classes of the card
                     card_class = card.get_attribute('class')
                     print(f"Card class: {card_class}")
