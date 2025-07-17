@@ -10,8 +10,8 @@ def search_web_dev_jobs():
         try:
             # Navigate to Y Combinator jobs page
             print("Navigating to Y Combinator jobs page...")
-            # page.goto("https://www.ycombinator.com/jobs")
-            page.goto("https://www.linkedin.com/jobs/search/?currentJobId=3945000000&geoId=90009590&keywords=web%20developer&location=United%20States&refresh=true")
+            page.goto("https://www.ycombinator.com/jobs")
+            # page.goto("https://www.linkedin.com/jobs/search/?currentJobId=3945000000&geoId=90009590&keywords=web%20developer&location=United%20States&refresh=true")
 
             time.sleep(5)  # Wait for page to load
             
@@ -80,6 +80,7 @@ def search_web_dev_jobs():
                         title = "Title not found"
                         company = "Company not found"
                         job_link = "Link not found"
+                        job_description = "Description not found"
                         # Title extraction
                         title_elements = card.query_selector_all('h1, h2, h3, h4, h5, h6')
                         if title_elements:
@@ -193,17 +194,59 @@ def search_web_dev_jobs():
                         base_url = "https://www.ycombinator.com"
                         if job_link and not job_link.startswith("http"):
                             job_link = base_url + job_link
+                        # --- NEW: Fetch job description from job detail page ---
+                        if job_link and job_link != "Link not found":
+                            try:
+                                detail_page = browser.new_page()
+                                detail_page.goto(job_link)
+                                time.sleep(2)  # Wait for page to load
+                                # Try several selectors for job description
+                                desc_selectors = [
+                                    'article',
+                                    '[class*="description"]',
+                                    '[class*="job-description"]',
+                                    '[class*="desc"]',
+                                    '[data-testid*="description"]',
+                                    '.prose',
+                                    '.markdown',
+                                    '.job-body',
+                                    '.job-content',
+                                    '.listing',
+                                    '.card',
+                                ]
+                                desc_found = False
+                                for desc_selector in desc_selectors:
+                                    desc_elem = detail_page.query_selector(desc_selector)
+                                    if desc_elem:
+                                        desc_text = desc_elem.inner_text().strip()
+                                        if desc_text and len(desc_text) > 50:
+                                            job_description = desc_text
+                                            desc_found = True
+                                            print(f"  [Debug] Found job description with selector: {desc_selector}")
+                                            break
+                                if not desc_found:
+                                    # Fallback: get all text from body
+                                    body_text = detail_page.inner_text('body').strip()
+                                    if body_text and len(body_text) > 50:
+                                        job_description = body_text[:2000]  # Limit to 2000 chars
+                                        print("  [Debug] Used body text as job description fallback.")
+                                detail_page.close()
+                            except Exception as e:
+                                print(f"  [Warning] Could not fetch job description: {e}")
+                        # --- END NEW ---
                         if title and title != "Title not found":
                             job_info = {
                                 'title': title,
                                 'company': company,
                                 'link': job_link,
-                                'text_preview': text_content[:200] + "..." if len(text_content) > 200 else text_content
+                                'text_preview': text_content[:200] + "..." if len(text_content) > 200 else text_content,
+                                'description': job_description
                             }
                             web_dev_jobs.append(job_info)
                             print(f"✅ Found web dev job: {title} at {company}")
                             print(f"   Link: {job_link}")
                             print(f"   Preview: {job_info['text_preview']}")
+                            print(f"   Description: {job_description[:200]}{'...' if len(job_description) > 200 else ''}")
                 except Exception as e:
                     print(f"Error processing job card {i}: {e}")
                     continue
