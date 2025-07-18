@@ -10,3 +10,4 @@ google-generativeai
 PyMuPDF
 google
 google-genai
+fpdf
