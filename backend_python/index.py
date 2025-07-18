@@ -10,7 +10,7 @@ def search_web_dev_jobs():
         try:
             # Navigate to Y Combinator jobs page
             print("Navigating to Y Combinator jobs page...")
-            page.goto("https://www.ycombinator.com/jobs")
+            page.goto("https://www.ycombinator.com/jobs/role/software-engineer")
             # page.goto("https://www.linkedin.com/jobs/search/?currentJobId=3945000000&geoId=90009590&keywords=web%20developer&location=United%20States&refresh=true")
 
             time.sleep(5)  # Wait for page to load
@@ -22,7 +22,7 @@ def search_web_dev_jobs():
             
             # Try different selectors to find job listings
             selectors_to_try = [
-                '.font-semibold', '.text-linkColor'  # List items
+                 '.text-linkColor'  # List items
             ]
             
             job_cards = []
@@ -51,7 +51,7 @@ def search_web_dev_jobs():
                     print(f"Card class: {card_class}")
                     # Print classes and text of children
                     children = card.query_selector_all('*')
-                    for j, child in enumerate(children[:5]):
+                    for j, child in enumerate(children):
                         child_class = child.get_attribute('class')
                         child_text = child.inner_text().strip()
                         print(f"  Child {j} class: {child_class}, text: {child_text[:60]}")
@@ -67,7 +67,7 @@ def search_web_dev_jobs():
                 'software engineer', 'engineer', 'development', 'coding', 'programming'
             ]
 
-            for i, card in enumerate(job_cards[:20]):  # Check first 20 cards
+            for i, card in enumerate(job_cards):  # Check first 20 cards
                 try:
                     text_content = card.inner_text().strip()
                     if not text_content:
@@ -258,6 +258,7 @@ def search_web_dev_jobs():
                 print(f"   Company: {job['company']}")
                 print(f"   Link: {job['link']}")
                 print(f"   Preview: {job['text_preview']}")
+                print(f"   Job desc: {job['description']}")
                 print("-" * 50)
             
             if not web_dev_jobs:
