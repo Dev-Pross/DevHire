@@ -1,17 +1,18 @@
 import asyncio
-import random
-import re
 from playwright.async_api import async_playwright
-from fpdf import FPDF  # Assuming already installed (pip install fpdf)
+import json
+import google.generativeai as genai
+import json
+from urllib.parse import urlparse
+from config import GOOGLE_API
 
-# Platform configs (same as before)
 PLATFORMS = {
     "ycombinator": {
         "url_template": "https://www.ycombinator.com/jobs/role/{role}",
         "base_url": "https://www.ycombinator.com"
     },
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search/?keywords={role}&location=india&refresh=true",
+        "url_template": "https://www.linkedin.com/jobs/search/?keywords={role}-posted-at-&location=India&geoId=102713980&f_TPR=r3600&f_WT=1%2C2%2C3&position=1&pageNum=0",
         "base_url": "https://www.linkedin.com"
     },
 }
@@ -25,6 +26,7 @@ WEB_DEV_KEYWORDS = [
 
 async def scrape_platform(browser, platform_name, config, role):
     page = await browser.new_page()
+    job_dict = {}
     try:
         url = config["url_template"].format(role=role.replace(' ', '%20').lower())
         print(f"Navigating to {platform_name} jobs page: {url}")
@@ -53,89 +55,30 @@ async def scrape_platform(browser, platform_name, config, role):
             job_cards = await page.query_selector_all('a, button, [role="button"]')
             print(f"Using fallback: Found {len(job_cards)} clickable elements on {platform_name}")
 
-        print(f"\n===== JOB CARD DEBUGGING for {platform_name} =====")
-        for i, card in enumerate(job_cards[:5]):
-            try:
-                text_content = (await card.inner_text()).strip()
-                print(f"\n--- Card {i} ---")
-                print(f"Text: {text_content[:200]}{'...' if len(text_content) > 200 else ''}")
-                card_class = await card.get_attribute('class')
-                print(f"Card class: {card_class}")
-                children = await card.query_selector_all('*')
-                for j, child in enumerate(children[:5]):
-                    child_class = await child.get_attribute('class')
-                    child_text = (await child.inner_text()).strip()
-                    print(f"  Child {j} class: {child_class}, text: {child_text[:60]}")
-            except Exception as e:
-                print(f"Error printing card {i}: {e}")
-        print(f"\n===== END JOB CARD DEBUGGING for {platform_name} =====\n")
-
-        web_dev_jobs = []
-        max_jobs = 100
+        max_jobs = 100  # Max to process
         for i, card in enumerate(job_cards[:max_jobs]):
             try:
                 text_content = (await card.inner_text()).strip()
                 if not text_content:
                     continue
 
-                title_lower = "title not found"
+                # Basic webdev filtering
+                title = "title not found"
                 title_elements = await card.query_selector_all('h1, h2, h3, h4, h5, h6')
                 if title_elements:
-                    title_lower = (await title_elements[0].inner_text()).strip().lower()
+                    title = (await title_elements[0].inner_text()).strip().lower()
                 elif text_content:
                     lines = text_content.split('\n')
                     if lines:
-                        title_lower = lines[0].strip().lower()
-
-                has_web_dev_keyword = any(keyword in title_lower or keyword in text_content.lower() for keyword in WEB_DEV_KEYWORDS)
+                        title = lines[0].strip().lower()
+                has_web_dev_keyword = any(keyword in title or keyword in text_content.lower() for keyword in WEB_DEV_KEYWORDS)
                 if not has_web_dev_keyword:
                     print(f"Skipping irrelevant job card {i} on {platform_name}")
                     continue
 
-                title = "Title not found"
-                company = "Company not found"
-                job_link = "Link not found"
-                job_description = "Description not found"
-
-                title_elements = await card.query_selector_all('h1, h2, h3, h4, h5, h6')
-                if title_elements:
-                    title = (await title_elements[0].inner_text()).strip()
-                if title == "Title not found":
-                    title_selectors = [
-                        '[class*="title"]', '[class*="job-title"]', '[class*="position"]',
-                        '[class*="role"]', '[class*="name"]', '[class*="heading"]'
-                    ]
-                    for selector in title_selectors:
-                        title_elem = await card.query_selector(selector)
-                        if title_elem:
-                            title = (await title_elem.inner_text()).strip()
-                            break
-                if title == "Title not found":
-                    lines = text_content.split('\n')
-                    if lines:
-                        title = lines[0].strip()
-
-                print(f"\n--- Card {i} Children Debug ---")
-                children = await card.query_selector_all(':scope > *')
-                for idx, child in enumerate(children):
-                    child_class = await child.get_attribute('class')
-                    child_text = (await child.inner_text()).strip()
-                    print(f"  Child {idx}: class='{child_class}', text='{child_text[:60]}'")
-                print(f"--- End Card {i} Children Debug ---\n")
-
-                company_candidates = []
-                if len(children) > 1:
-                    for idx, child in enumerate(children):
-                        child_text = (await child.inner_text()).strip()
-                        if child_text and child_text != title and 2 < len(child_text) < 50:
-                            company_candidates.append((idx, child_text))
-                if company_candidates:
-                    company = company_candidates[0][1]
-                    print(f"  [Debug] Using child {company_candidates[0][0]} as company: {company}")
-                else:
-                    print(f"  [Warning] No company candidate found in children. Candidates: {[c[1] for c in company_candidates]}")
-
+                # URL extraction
                 tag_name = await card.evaluate('el => el.tagName.toLowerCase()')
+                job_link = "Link not found"
                 if tag_name == 'a':
                     job_link = await card.get_attribute('href') or "Link not found"
                 else:
@@ -144,432 +87,276 @@ async def scrape_platform(browser, platform_name, config, role):
                 if job_link != "Link not found" and not job_link.startswith("http"):
                     job_link = config["base_url"] + job_link
 
-                if company == "Company not found" or company == title:
-                    m = re.match(r"/companies/([\w\-]+)/jobs/", job_link)
-                    if m:
-                        company = m.group(1).replace('-', ' ').title()
-                        print(f"  [Debug] Extracted company from link: {company}")
+                # YC Additional filter: must have /companies/
+                should_add = True
+                if platform_name.lower() == "ycombinator":
+                    if "/companies/" not in job_link:
+                        print(f"Skipping YC non-job (not a /companies/ link): {job_link}")
+                        should_add = False
 
-                if company == "Company not found" or company == title:
-                    company_selectors = [
-                        '[class*="block font-bold md:inline"]',
-                        '.block.font-bold.md\\:inline'
-                    ]
-                    for selector in company_selectors:
-                        company_elem = await card.query_selector(selector)
-                        if company_elem:
-                            company_text = (await company_elem.inner_text()).strip()
-                            if company_text and company_text != title and 2 < len(company_text) < 50:
-                                company = company_text
-                                print(f"  [Debug] Using selector {selector} as company: {company}")
-                                break
-
-                if company == "Company not found" or company == title:
-                    company_patterns = [
-                        r'([A-Z][a-zA-Z\s&\.]+)\s*•',
-                        r'at\s+([A-Z][a-zA-Z\s&\.]+)',
-                        r'([A-Z][a-zA-Z\s&\.]+)\s*\(',
-                        r'([A-Z][a-zA-Z\s&\.]+)\s*\|',
-                        r'([A-Z][a-zA-Z\s&\.]+)\s*[-–—]',
-                        r'([A-Z][a-zA-Z\s&\.]+)\s*$',
-                        r'([A-Z][a-zA-Z\s&\.]+)\s*Remote',
-                        r'([A-Z][a-zA-Z\s&\.]+)\s*Full-time',
-                        r'([A-Z][a-zA-Z\s&\.]+)\s*Part-time',
-                    ]
-                    for pattern in company_patterns:
-                        match = re.search(pattern, text_content)
-                        if match:
-                            potential_company = match.group(1).strip()
-                            if (len(potential_company) > 2 and 
-                                potential_company.lower() not in ['remote', 'full-time', 'part-time', 'contract', 'internship'] and
-                                not any(word in potential_company.lower() for word in ['years', 'experience', 'salary', 'location']) and
-                                potential_company != title):
-                                company = potential_company
-                                print(f"  [Debug] Using regex as company: {company}")
-                                break
-
-                if company == "Company not found" or company == title:
-                    lines = [line.strip() for line in text_content.split('\n') if line.strip()]
-                    for line in lines:
-                        if line != title and 2 < len(line) < 50:
-                            company = line
-                            print(f"  [Debug] Using line as company: {company}")
-                            break
-
-                print(f"[RESULT] Card {i}: Title='{title}', Company='{company}'")
-
+                # Fetch job description
+                job_description = "Description not found"
                 if job_link != "Link not found":
-                    detail_page = await browser.new_page()
-                    await detail_page.goto(job_link)
-                    await asyncio.sleep(2)
-                    desc_selectors = [
-                        '[class*="description"]', '[class*="job-details"]',
-                        'article', '.prose', '.job-desc'
-                    ]
-                    for selector in desc_selectors:
-                        desc_elem = await detail_page.query_selector(selector)
-                        if desc_elem:
-                            job_description = (await desc_elem.inner_text()).strip()
-                            print(f"  [Debug] Found description with selector: {selector}")
-                            break
-                    await detail_page.close()
+                    try:
+                        detail_page = await browser.new_page()
+                        await detail_page.goto(job_link)
+                        await asyncio.sleep(2)
+                        desc_header_selector = ".ycdc-card.max-w-2xl"
+                        
+                        desc_selectors = [
+                            '[class*="description"]', '[class*="job-details"]',
+                            'article', '.prose', '.job-desc',
+                        ]
+                        
+                        for selector in desc_selectors:
+                            desc_elem = await detail_page.query_selector(selector)
+                            if desc_elem:
+                                if platform_name == "ycombinator":
+                                    desc_header = await detail_page.query_selector(desc_header_selector)
+                                    if desc_header:
+                                        job_description = (await desc_header.inner_text()).strip() + (await desc_elem.inner_text()).strip()
+                                    print(f"  [Debug] Found description + header with selector: {selector}, {desc_header_selector} ---{platform_name}")
+                                    break
+                                job_description = (await desc_elem.inner_text()).strip()
+                                print(f"  [Debug] Found description with selector: {selector} ---{platform_name}")
+                                break
+                        
+                        await detail_page.close()
+                    except Exception as e:
+                        print(f"Error fetching job description for {job_link}: {e}")
 
-                if title != "Title not found":
-                    job_info = {
-                        'platform': platform_name,
-                        'title': title,
-                        'company': company,
-                        'link': job_link,
-                        'description': job_description,
-                        'text_preview': text_content[:200] + "..." if len(text_content) > 200 else text_content
-                    }
-                    web_dev_jobs.append(job_info)
-                    print(f"✅ Found relevant web dev job on {platform_name}: {title} at {company}")
-                    print(f"   Link: {job_link}")
-                    print(f"   Preview: {job_info['text_preview']}")
-                    print(f"   Description: {job_description[:200]}{'...' if len(job_description) > 200 else ''}")
+                if should_add and job_link != "Link not found" and job_description != "Description not found":
+                    job_dict[job_link] = job_description
+                    print(f"✅ Stored: {job_link[:50]}... JD chars: {len(job_description)} --job card of {i}")
             except Exception as e:
                 print(f"Error processing job card {i} on {platform_name}: {e}")
                 continue
 
-        return web_dev_jobs
+        print(f"[{platform_name}] Extracted {len(job_dict)} jobs (url + JD).")
+        return job_dict
     except Exception as e:
         print(f"Error on {platform_name}: {e}")
-        return []
+        return {}
     finally:
         await page.close()
 
-def clean_text(text):
-    # Clean text for latin1 encoding by replacing unknown chars with '?'
-    return text.encode('latin-1', 'replace').decode('latin-1')
 
-def generate_pdf(jobs, filename="web_dev_jobs.pdf"):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
 
-    pdf.cell(200, 10, txt=clean_text("Web Development Jobs Report"), ln=1, align='C')
-    pdf.cell(200, 10, txt=clean_text(f"Total Jobs: {len(jobs)}"), ln=1, align='C')
-    pdf.ln(10)
 
-    for job in jobs:
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(200, 10, txt=clean_text(f"Job Title: {job['title']}"), ln=1)
-        pdf.set_font("Arial", size=10)
-        pdf.cell(200, 10, txt=clean_text(f"Platform: {job['platform']}"), ln=1)
-        pdf.cell(200, 10, txt=clean_text(f"Company: {job['company']}"), ln=1)
-        pdf.cell(200, 10, txt=clean_text(f"Link: {job['link']}"), ln=1)
-        desc = job['description'][:500] + "..." if len(job['description']) > 500 else job['description']
-        pdf.multi_cell(0, 10, txt=clean_text(f"Description: {desc}"))
-        pdf.ln(5)
+# Configure Gemini API
+genai.configure(api_key=GOOGLE_API)
+model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17')
 
-    pdf.output(filename)
-    print(f"PDF generated: {filename}")
 
-async def search_web_dev_jobs(role="web-developer", platforms=list(PLATFORMS.keys())):
+def extract_all_jobs_at_once(jobs_dict: dict) -> list:
+    """
+    Process all jobs in a single API call to Gemini
+    
+    Args:
+        jobs_dict: Dictionary with {url: job_description, ...}
+    
+    Returns:
+        List of extracted job data dictionaries
+    """
+    
+    print(f"Processing {len(jobs_dict)} jobs in a single API call...")
+    
+    try:
+        # Create the prompt with all jobs
+        prompt = create_bulk_prompt(jobs_dict)
+        
+        # Single API call for all jobs
+        response = model.generate_content(prompt)
+        
+        # Parse the response
+        extracted_jobs = parse_bulk_response(response.text, jobs_dict)
+        
+        print(f"Successfully processed {len(extracted_jobs)} jobs")
+        return extracted_jobs
+        
+    except Exception as e:
+        print(f"Error processing jobs: {e}")
+        # Return fallback data for all jobs
+        return [create_fallback_data_from_dict(url, jd) for url, jd in jobs_dict.items()]
+
+def create_bulk_prompt(jobs_dict: dict) -> str:
+
+    SYSTEM_PROMPT ="""You are a professional job data extraction specialist. You will receive a dictionary where keys are job URLs and values are job descriptions. Extract structured information for ALL jobs and return a JSON array.
+
+EXTRACTION RULES:
+- Process every URL-JD pair in the dictionary
+- Extract information ONLY from the job description text
+- If information is not explicitly mentioned, use "Not specified"
+- For Experience, look for experinece it may years like 3+,4+,5+0 or new grads or freshers etc
+- For locations, look for city names, state/country, or "Remote" indicators  
+- For posted_at or last_date to apply, look for phrases like "Posted 3 days ago", "2 weeks ago" or even timestamp or etc for posted date and deadline.
+- Company names are often mentioned in phrases like "Join [Company]", "About [Company] or it may specified in url after the phrase of '/companies/'"
+-  For Salary, look for salary it may specified in  usd or INR or any other currency dont use currency symbols code use direct symbol or just specify currency name like USD or INR or Yen etc
+- Infer platform/source from the URL domain (e.g., ycombinator.com → "ycombinator")
+
+REQUIRED OUTPUT FORMAT:
+Return a JSON array with one object per job:
+[
+  {
+    "title": "extracted job title",
+    "company_name": "extracted company name",
+    "location": "city, state/country or Remote", 
+    "Experience": "experience specified",
+    "Salary": "salary in currency value and amount with proper symbol DONT MENTION ANY SYSMBOL CODES or name of the currency"
+    "job_url": "the URL key from input",
+    "posted_at" or "last_date": "time posted" or "last date",
+    "job_description": "full job description text",
+    "source": "platform name inferred from URL",
+  }
+]
+
+IMPORTANT: 
+- Return ONLY the JSON array, no additional text
+- Process ALL jobs in the dictionary
+- Maintain the same order as the input dictionary"""
+
+    """Create a single prompt for all jobs"""
+    
+    prompt = f"""{SYSTEM_PROMPT}
+
+You will receive {len(jobs_dict)} job descriptions as URL-JD pairs. Process ALL of them and return a JSON array with {len(jobs_dict)} objects.
+
+JOBS TO PROCESS:
+"""
+    
+    for idx, (url, jd) in enumerate(jobs_dict.items(), 1):
+        prompt += f"""
+
+--- JOB {idx} ---
+URL: {url}
+JOB DESCRIPTION:
+{jd}
+--- END JOB {idx} ---
+"""
+    
+    prompt += f"""
+
+Return a JSON array with exactly {len(jobs_dict)} objects, one for each job in the same order they were provided above."""
+    
+    # print(prompt)
+    return prompt
+
+def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
+    """Parse Gemini's response for all jobs"""
+    
+    try:
+        # Clean the response
+        clean_response = response_text.strip()
+        if clean_response.startswith('```json'):
+            clean_response = clean_response[7:].lstrip()
+        elif clean_response.startswith('```'):
+            clean_response = clean_response[3:].lstrip()
+        if clean_response.endswith('```'):
+            clean_response = clean_response[:-3].rstrip()
+        
+        # Parse JSON
+        extracted_jobs = json.loads(clean_response)
+        
+        # Ensure it's a list
+        if not isinstance(extracted_jobs, list):
+            extracted_jobs = [extracted_jobs]
+            print(f"{"="*60} extracted job sample: {extracted_jobs[0]} {"="*60}")
+        
+        # Validate and ensure we have data for all jobs
+        job_urls = list(original_jobs.keys())
+        
+        for i, job in enumerate(extracted_jobs):
+            if i < len(job_urls):
+                # Ensure URL matches and add missing fields
+                job['job_url'] = job_urls[i]
+                job['job_description'] = original_jobs[job_urls[i]]
+                
+                # Infer source from URL if not present
+                if not job.get('source') or job['source'] == 'Not specified':
+                    job['source'] = infer_source_from_url(job_urls[i])
+        
+        # If we got fewer results than expected, add fallbacks
+        while len(extracted_jobs) < len(job_urls):
+            idx = len(extracted_jobs)
+            url = job_urls[idx]
+            fallback_job = create_fallback_data_from_dict(url, original_jobs[url])
+            extracted_jobs.append(fallback_job)
+        
+        return extracted_jobs
+        
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
+        print(f"Response was: {response_text[:500]}...")
+        return [create_fallback_data_from_dict(url, jd) for url, jd in original_jobs.items()]
+    except Exception as e:
+        print(f"Error parsing response: {e}")
+        return [create_fallback_data_from_dict(url, jd) for url, jd in original_jobs.items()]
+
+def create_fallback_data_from_dict(url: str, job_description: str) -> dict:
+    """Create fallback data when extraction fails"""
+    return {
+        "title": "Not extracted",
+        "company_name": "Not extracted",
+        "location": "Not extracted", 
+        "job_url": url,
+        "posted_at": "Not specified",
+        "job_description": job_description,
+        "source": infer_source_from_url(url)
+    }
+
+def infer_source_from_url(url: str) -> str:
+    """Extract platform name from URL"""
+    try:
+        domain = urlparse(url).netloc.lower()
+        if 'ycombinator' in domain:
+            return 'ycombinator'
+        elif 'linkedin' in domain:
+            return 'linkedin'
+        else:
+            return domain.replace('www.', '').split('.')
+    except:
+        return 'unknown'
+
+
+
+async def search_web_dev_jobs(role="web-developer", platforms=None):
+    if platforms is None:
+        platforms = list(PLATFORMS.keys())
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        tasks = [scrape_platform(browser, plat, PLATFORMS[plat], role) for plat in platforms]
-        all_jobs = await asyncio.gather(*tasks)
+        tasks = [
+            scrape_platform(browser, platform, PLATFORMS[platform], role)
+            for platform in platforms
+        ]
+        results = await asyncio.gather(*tasks)
         await browser.close()
+        # Merge all job dicts
+        all_jobs = {}
+        for platform_result in results:
+            all_jobs.update(platform_result)
+        print(f"\n{'='*60}\nTOTAL JOBS SCRAPED: {len(all_jobs)}\n{'='*60}")
 
-        flat_jobs = [job for sublist in all_jobs for job in sublist]
-        print(f"\n{'='*60}")
-        print(f"FOUND {len(flat_jobs)} RELEVANT WEB DEV JOBS:")
-        print(f"{'='*60}")
 
-        for i, job in enumerate(flat_jobs, 1):
-            print(f"\n{i}. {job['title']}")
-            print(f"   Platform: {job['platform']}")
-            print(f"   Company: {job['company']}")
-            print(f"   Link: {job['link']}")
-            print(f"   Preview: {job['text_preview']}")
-            print(f"   Description: {job['description'][:200]}{'...' if len(job['description']) > 200 else ''}")
-            print("-" * 50)
+        extractedJobs = await extract_all_jobs_at_once(all_jobs)
+        print(f"{"="*30} extrated job after gemini {extractedJobs[0]} {"="*30}")
 
-        if not flat_jobs:
-            print("No relevant web development jobs found.")
+        # Save to JSON
+        with open("jobs_urls_jds.json", "w", encoding="utf-8") as f:
+            json.dump(all_jobs, f, indent=2)
+        with open("jobs_after_gemini.json", "w", encoding="utf-8") as f:
+            json.dump(extractedJobs, f, indent=2)
+        print("Sample:")
+        for i, (url, jd) in enumerate(list(all_jobs.items())[:3]):
+            print(f"\nURL: {url}\nJD Preview: {jd[:200]}\n{'-'*40}")
+        return all_jobs
 
-        # Generate PDF with cleaned text
-        generate_pdf(flat_jobs)
-
-        print("\nPress Enter to close...")
-        input()
+async def main():
+    with open("jobs_urls_jds.json", "r", encoding="utf-8") as file:
+        data_dict = json.load(file)
+    extracted = extract_all_jobs_at_once(data_dict)
+    with open("extract_job_data.json", "w", encoding="utf-8") as file:
+        json.dump(extracted, file, indent=2, ensure_ascii=False)
 
 if __name__ == "__main__":
     asyncio.run(search_web_dev_jobs())
-
-
-
-# import asyncio
-# import random
-# import re
-# from playwright.async_api import async_playwright
-
-# # Platform configs (same as before)
-# PLATFORMS = {
-#     "ycombinator": {
-#         "url_template": "https://www.ycombinator.com/jobs/role/{role}",
-#         "base_url": "https://www.ycombinator.com"
-#     },
-#     "linkedin": {
-#         "url_template": "https://www.linkedin.com/jobs/search/?keywords={role}&location=india&refresh=true",
-#         "base_url": "https://www.linkedin.com"
-#     },
-# }
-
-# WEB_DEV_KEYWORDS = [
-#     'web developer', 'frontend', 'backend', 'full stack', 'fullstack',
-#     'javascript', 'react', 'angular', 'vue', 'node.js', 'python',
-#     'html', 'css', 'php', 'ruby', 'java', 'developer', 'programmer',
-#     'software engineer', 'engineer', 'development', 'coding', 'programming'
-# ]
-
-# async def scrape_platform(browser, platform_name, config, role):
-#     page = await browser.new_page()
-#     try:
-#         url = config["url_template"].format(role=role.replace(' ', '%20').lower())
-#         print(f"Navigating to {platform_name} jobs page: {url}")
-#         await page.goto(url)
-#         await asyncio.sleep(5)
-
-#         print(f"Searching for job listings on {platform_name}...")
-
-#         selectors_to_try = [
-#             'a[href*="/jobs/"]', '[data-testid*="job"]',
-#             '.job-card', '.job-listing', '.job-item',
-#             'article', '.card', '.listing',
-#             'div[class*="job"]', 'div[class*="listing"]',
-#             'li'
-#         ]
-
-#         job_cards = []
-#         for selector in selectors_to_try:
-#             cards = await page.query_selector_all(selector)
-#             if cards:
-#                 print(f"Found {len(cards)} elements with selector: {selector} on {platform_name}")
-#                 job_cards = cards
-#                 break
-
-#         if not job_cards:
-#             job_cards = await page.query_selector_all('a, button, [role="button"]')
-#             print(f"Using fallback: Found {len(job_cards)} clickable elements on {platform_name}")
-
-#         print(f"\n===== JOB CARD DEBUGGING for {platform_name} =====")
-#         for i, card in enumerate(job_cards[:5]):
-#             try:
-#                 text_content = (await card.inner_text()).strip()
-#                 print(f"\n--- Card {i} ---")
-#                 print(f"Text: {text_content[:200]}{'...' if len(text_content) > 200 else ''}")
-#                 card_class = await card.get_attribute('class')
-#                 print(f"Card class: {card_class}")
-#                 children = await card.query_selector_all('*')
-#                 for j, child in enumerate(children[:5]):
-#                     child_class = await child.get_attribute('class')
-#                     child_text = (await child.inner_text()).strip()
-#                     print(f"  Child {j} class: {child_class}, text: {child_text[:60]}")
-#             except Exception as e:
-#                 print(f"Error printing card {i}: {e}")
-#         print(f"\n===== END JOB CARD DEBUGGING for {platform_name} =====\n")
-
-#         web_dev_jobs = []
-#         max_jobs = 100  # Max to process, increase if needed
-#         for i, card in enumerate(job_cards[:max_jobs]):
-#             try:
-#                 text_content = (await card.inner_text()).strip()
-#                 if not text_content:
-#                     continue
-
-#                 # Stricter filter: Check keywords in title or text (to avoid irrelevant)
-#                 title = "Title not found"  # Temp for check
-#                 title_elements = await card.query_selector_all('h1, h2, h3, h4, h5, h6')
-#                 if title_elements:
-#                     title = (await title_elements[0].inner_text()).strip().lower()
-#                 elif text_content:
-#                     lines = text_content.split('\n')
-#                     if lines:
-#                         title = lines[0].strip().lower()
-
-#                 has_web_dev_keyword = any(keyword in title or keyword in text_content.lower() for keyword in WEB_DEV_KEYWORDS)
-#                 if not has_web_dev_keyword:
-#                     print(f"Skipping irrelevant job card {i} on {platform_name}")
-#                     continue
-
-#                 # Rest of extraction (same as your code)
-#                 title = "Title not found"  # Reset for full extraction
-#                 company = "Company not found"
-#                 job_link = "Link not found"
-#                 job_description = "Description not found"
-
-#                 title_elements = await card.query_selector_all('h1, h2, h3, h4, h5, h6')
-#                 if title_elements:
-#                     title = (await title_elements[0].inner_text()).strip()
-#                 if title == "Title not found":
-#                     title_selectors = [
-#                         '[class*="title"]', '[class*="job-title"]', '[class*="position"]',
-#                         '[class*="role"]', '[class*="name"]', '[class*="heading"]'
-#                     ]
-#                     for selector in title_selectors:
-#                         title_elem = await card.query_selector(selector)
-#                         if title_elem:
-#                             title = (await title_elem.inner_text()).strip()
-#                             break
-#                 if title == "Title not found":
-#                     lines = text_content.split('\n')
-#                     if lines:
-#                         title = lines[0].strip()
-
-#                 print(f"\n--- Card {i} Children Debug ---")
-#                 children = await card.query_selector_all(':scope > *')
-#                 for idx, child in enumerate(children):
-#                     child_class = await child.get_attribute('class')
-#                     child_text = (await child.inner_text()).strip()
-#                     print(f"  Child {idx}: class='{child_class}', text='{child_text[:60]}'")
-#                 print(f"--- End Card {i} Children Debug ---\n")
-
-#                 company_candidates = []
-#                 if len(children) > 1:
-#                     for idx, child in enumerate(children):
-#                         child_text = (await child.inner_text()).strip()
-#                         if child_text and child_text != title and 2 < len(child_text) < 50:
-#                             company_candidates.append((idx, child_text))
-#                 if company_candidates:
-#                     company = company_candidates[0][1]
-#                     print(f"  [Debug] Using child {company_candidates[0][0]} as company: {company}")
-#                 else:
-#                     print(f"  [Warning] No company candidate found in children. Candidates: {[c[1] for c in company_candidates]}")
-
-#                 tag_name = await card.evaluate('el => el.tagName.toLowerCase()')
-#                 if tag_name == 'a':
-#                     job_link = await card.get_attribute('href') or "Link not found"
-#                 else:
-#                     link_elem = await card.query_selector('a[href*="job"], a[href*="apply"]')
-#                     job_link = await link_elem.get_attribute('href') if link_elem else "Link not found"
-#                 if job_link != "Link not found" and not job_link.startswith("http"):
-#                     job_link = config["base_url"] + job_link
-
-#                 if company == "Company not found" or company == title:
-#                     m = re.match(r"/companies/([\w\-]+)/jobs/", job_link)
-#                     if m:
-#                         company = m.group(1).replace('-', ' ').title()
-#                         print(f"  [Debug] Extracted company from link: {company}")
-
-#                 if company == "Company not found" or company == title:
-#                     company_selectors = [
-#                         '[class*="block font-bold md:inline"]',
-#                         '.block.font-bold.md\\:inline'
-#                     ]
-#                     for selector in company_selectors:
-#                         company_elem = await card.query_selector(selector)
-#                         if company_elem:
-#                             company_text = (await company_elem.inner_text()).strip()
-#                             if company_text and company_text != title and 2 < len(company_text) < 50:
-#                                 company = company_text
-#                                 print(f"  [Debug] Using selector {selector} as company: {company}")
-#                                 break
-
-#                 if company == "Company not found" or company == title:
-#                     company_patterns = [
-#                         r'([A-Z][a-zA-Z\s&\.]+)\s*•',
-#                         r'at\s+([A-Z][a-zA-Z\s&\.]+)',
-#                         r'([A-Z][a-zA-Z\s&\.]+)\s*\(',
-#                         r'([A-Z][a-zA-Z\s&\.]+)\s*\|',
-#                         r'([A-Z][a-zA-Z\s&\.]+)\s*[-–—]',
-#                         r'([A-Z][a-zA-Z\s&\.]+)\s*$',
-#                         r'([A-Z][a-zA-Z\s&\.]+)\s*Remote',
-#                         r'([A-Z][a-zA-Z\s&\.]+)\s*Full-time',
-#                         r'([A-Z][a-zA-Z\s&\.]+)\s*Part-time',
-#                     ]
-#                     for pattern in company_patterns:
-#                         match = re.search(pattern, text_content)
-#                         if match:
-#                             potential_company = match.group(1).strip()
-#                             if (len(potential_company) > 2 and 
-#                                 potential_company.lower() not in ['remote', 'full-time', 'part-time', 'contract', 'internship'] and
-#                                 not any(word in potential_company.lower() for word in ['years', 'experience', 'salary', 'location']) and
-#                                 potential_company != title):
-#                                 company = potential_company
-#                                 print(f"  [Debug] Using regex as company: {company}")
-#                                 break
-
-#                 if company == "Company not found" or company == title:
-#                     lines = [line.strip() for line in text_content.split('\n') if line.strip()]
-#                     for line in lines:
-#                         if line != title and 2 < len(line) < 50:
-#                             company = line
-#                             print(f"  [Debug] Using line as company: {company}")
-#                             break
-
-#                 print(f"[RESULT] Card {i}: Title='{title}', Company='{company}'")
-
-#                 # Fetch job description
-#                 if job_link != "Link not found":
-#                     detail_page = await browser.new_page()
-#                     await detail_page.goto(job_link)
-#                     await asyncio.sleep(2)
-#                     desc_selectors = [
-#                         '[class*="description"]', '[class*="job-details"]',
-#                         'article', '.prose', '.job-desc'
-#                     ]
-#                     for selector in desc_selectors:
-#                         desc_elem = await detail_page.query_selector(selector)
-#                         if desc_elem:
-#                             job_description = (await desc_elem.inner_text()).strip()
-#                             print(f"  [Debug] Found description with selector: {selector}")
-#                             break
-#                     await detail_page.close()
-
-#                 if title != "Title not found":
-#                     job_info = {
-#                         'platform': platform_name,
-#                         'title': title,
-#                         'company': company,
-#                         'link': job_link,
-#                         'description': job_description,
-#                         'text_preview': text_content[:200] + "..." if len(text_content) > 200 else text_content
-#                     }
-#                     web_dev_jobs.append(job_info)
-#                     print(f"✅ Found relevant web dev job on {platform_name}: {title} at {company}")
-#                     print(f"   Link: {job_link}")
-#                     print(f"   Preview: {job_info['text_preview']}")
-#                     print(f"   Description: {job_description[:200]}{'...' if len(job_description) > 200 else ''}")
-#             except Exception as e:
-#                 print(f"Error processing job card {i} on {platform_name}: {e}")
-#                 continue
-
-#         return web_dev_jobs
-#     except Exception as e:
-#         print(f"Error on {platform_name}: {e}")
-#         return []
-#     finally:
-#         await page.close()
-
-# async def search_web_dev_jobs(role="web-developer", platforms=list(PLATFORMS.keys())):
-#     async with async_playwright() as p:
-#         browser = await p.chromium.launch(headless=False)
-#         tasks = [scrape_platform(browser, plat, PLATFORMS[plat], role) for plat in platforms]
-#         all_jobs = await asyncio.gather(*tasks)
-#         await browser.close()
-
-#         flat_jobs = [job for sublist in all_jobs for job in sublist]
-#         print(f"\n{'='*60}")
-#         print(f"FOUND {len(flat_jobs)} RELEVANT WEB DEV JOBS:")
-#         print(f"{'='*60}")
-
-#         for i, job in enumerate(flat_jobs, 1):
-#             print(f"\n{i}. {job['title']}")
-#             print(f"   Platform: {job['platform']}")
-#             print(f"   Company: {job['company']}")
-#             print(f"   Link: {job['link']}")
-#             print(f"   Preview: {job['text_preview']}")
-#             print(f"   Description: {job['description'][:200]}{'...' if len(job['description']) > 200 else ''}")
-#             print("-" * 50)
-
-#         if not flat_jobs:
-#             print("No relevant web development jobs found.")
-
-#         print("\nPress Enter to close...")
-#         input()
-
-# if __name__ == "__main__":
-#     asyncio.run(search_web_dev_jobs())
+    # asyncio.run(main())
