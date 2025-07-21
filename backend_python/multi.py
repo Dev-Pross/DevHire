@@ -148,36 +148,36 @@ genai.configure(api_key=GOOGLE_API)
 model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17')
 
 
-def extract_all_jobs_at_once(jobs_dict: dict) -> list:
-    """
-    Process all jobs in a single API call to Gemini
+# def extract_all_jobs_at_once(jobs_dict: dict) -> list:
+#     """
+#     Process all jobs in a single API call to Gemini
     
-    Args:
-        jobs_dict: Dictionary with {url: job_description, ...}
+#     Args:
+#         jobs_dict: Dictionary with {url: job_description, ...}
     
-    Returns:
-        List of extracted job data dictionaries
-    """
+#     Returns:
+#         List of extracted job data dictionaries
+#     """
     
-    print(f"Processing {len(jobs_dict)} jobs in a single API call...")
+#     print(f"Processing {len(jobs_dict)} jobs in a single API call...")
     
-    try:
-        # Create the prompt with all jobs
-        prompt = create_bulk_prompt(jobs_dict)
+#     try:
+#         # Create the prompt with all jobs
+#         prompt = create_bulk_prompt(jobs_dict)
         
-        # Single API call for all jobs
-        response = model.generate_content(prompt)
+#         # Single API call for all jobs
+#         response = model.generate_content(prompt)
         
-        # Parse the response
-        extracted_jobs = parse_bulk_response(response.text, jobs_dict)
+#         # Parse the response
+#         extracted_jobs = parse_bulk_response(response.text, jobs_dict)
         
-        print(f"Successfully processed {len(extracted_jobs)} jobs")
-        return extracted_jobs
+#         print(f"Successfully processed {len(extracted_jobs)} jobs")
+#         return extracted_jobs
         
-    except Exception as e:
-        print(f"Error processing jobs: {e}")
-        # Return fallback data for all jobs
-        return [create_fallback_data_from_dict(url, jd) for url, jd in jobs_dict.items()]
+#     except Exception as e:
+#         print(f"Error processing jobs: {e}")
+#         # Return fallback data for all jobs
+#         return [create_fallback_data_from_dict(url, jd) for url, jd in jobs_dict.items()]
 
 def create_bulk_prompt(jobs_dict: dict) -> str:
 
@@ -245,6 +245,7 @@ def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
     """Parse Gemini's response for all jobs"""
     
     try:
+
         # Clean the response
         clean_response = response_text.strip()
         if clean_response.startswith('```json'):
@@ -254,13 +255,15 @@ def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
         if clean_response.endswith('```'):
             clean_response = clean_response[:-3].rstrip()
         
+        with open("gemini_raw_response.json", "w", encoding="utf-8") as f:
+            f.write(clean_response)
         # Parse JSON
         extracted_jobs = json.loads(clean_response)
         
         # Ensure it's a list
         if not isinstance(extracted_jobs, list):
             extracted_jobs = [extracted_jobs]
-            print(f"{"="*60} extracted job sample: {extracted_jobs[0]} {"="*60}")
+            print(f"{"="*60} extracted job sample: {extracted_jobs[(len(extracted_jobs)-1)]} {"="*60}")
         
         # Validate and ensure we have data for all jobs
         job_urls = list(original_jobs.keys())
@@ -317,6 +320,51 @@ def infer_source_from_url(url: str) -> str:
     except:
         return 'unknown'
 
+async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 50) -> list:
+    """Process jobs in batches of 50 to balance efficiency and reliability"""
+    all_extracted = []
+    job_items = list(jobs_dict.items())
+    total_batches = (len(job_items) + batch_size - 1) // batch_size
+    
+    print(f"Processing {len(job_items)} jobs in {total_batches} batches of {batch_size}")
+    
+    for i in range(0, len(job_items), batch_size):
+        batch_dict = dict(job_items[i:i + batch_size])
+        batch_num = (i // batch_size) + 1
+        
+        print(f"Processing batch {batch_num}/{total_batches}: {len(batch_dict)} jobs")
+        
+        try:
+            # Use your existing extract_all_jobs_at_once function for each batch
+            batch_result = await extract_single_batch(batch_dict)
+            all_extracted.extend(batch_result)
+            print(f"✅ Batch {batch_num} completed: {len(batch_result)} jobs processed")
+            
+        except Exception as e:
+            print(f"❌ Batch {batch_num} failed: {e}")
+            # Add fallback data for failed batch
+            fallback_jobs = [create_fallback_data_from_dict(url, jd) 
+                           for url, jd in batch_dict.items()]
+            all_extracted.extend(fallback_jobs)
+        
+        # Rate limiting between batches (adjust as needed)
+        if batch_num < total_batches:
+            await asyncio.sleep(3)
+    
+    print(f"Total jobs processed: {len(all_extracted)}")
+    return all_extracted
+
+async def extract_single_batch(batch_dict: dict) -> list:
+    """Process a single batch - reuse your existing logic"""
+    try:
+        prompt = create_bulk_prompt(batch_dict)
+        response = model.generate_content(prompt)
+        extracted_jobs = parse_bulk_response(response.text, batch_dict)
+        return extracted_jobs
+    except Exception as e:
+        print(f"Error in batch processing: {e}")
+        return [create_fallback_data_from_dict(url, jd) for url, jd in batch_dict.items()]
+
 
 
 async def search_web_dev_jobs(role="web-developer", platforms=None):
@@ -337,7 +385,7 @@ async def search_web_dev_jobs(role="web-developer", platforms=None):
         print(f"\n{'='*60}\nTOTAL JOBS SCRAPED: {len(all_jobs)}\n{'='*60}")
 
 
-        extractedJobs = await extract_all_jobs_at_once(all_jobs)
+        extractedJobs = await extract_jobs_in_batches(all_jobs, batch_size=50)
         print(f"{"="*30} extrated job after gemini {extractedJobs[0]} {"="*30}")
 
         # Save to JSON
@@ -353,9 +401,14 @@ async def search_web_dev_jobs(role="web-developer", platforms=None):
 async def main():
     with open("jobs_urls_jds.json", "r", encoding="utf-8") as file:
         data_dict = json.load(file)
-    extracted = extract_all_jobs_at_once(data_dict)
+    
+    # Use batch processing instead of single request
+    extracted = await extract_jobs_in_batches(data_dict, batch_size=50)
+    
     with open("extract_job_data.json", "w", encoding="utf-8") as file:
         json.dump(extracted, file, indent=2, ensure_ascii=False)
+    
+    print(f"Successfully extracted data for {len(extracted)} jobs")
 
 if __name__ == "__main__":
     asyncio.run(search_web_dev_jobs())
