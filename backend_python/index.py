@@ -1,285 +1,456 @@
-from playwright.sync_api import sync_playwright
-import time
+import asyncio
+from playwright.async_api import async_playwright
+import json
+import google.generativeai as genai
+from urllib.parse import urlparse
+from config import GOOGLE_API
 
-def search_web_dev_jobs():
-    with sync_playwright() as p:
-        # Launch browser in headless mode (set headless=False to see the browser)
-        browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
+PLATFORMS = {
+    "ycombinator": {
+        "url_template": "https://www.ycombinator.com/jobs/role/{role}",
+        "base_url": "https://www.ycombinator.com"
+    },
+    "linkedin": {
+        "url_template": "https://www.linkedin.com/jobs/search/?keywords={role}&location=India&geoId=102713980&f_TPR=r3600&f_WT=1%2C2%2C3&position=1&pageNum=0",
+        "base_url": "https://www.linkedin.com"
+    },
+}
+
+# 5 keywords as requested
+WEB_DEV_KEYWORDS = [
+    'frontend-developer',
+    'backend-developer', 
+    'full-stack-developer',
+    'react-developer',
+    'python-developer'
+]
+
+# Configure Gemini API
+genai.configure(api_key=GOOGLE_API)
+model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17')
+
+async def scrape_platform(browser, platform_name, config, role):
+    """Scrape jobs for a specific role from a platform"""
+    page = await browser.new_page()
+    job_dict = {}
+    
+    try:
+        url = config["url_template"].format(role=role.replace(' ', '-').lower())
+        print(f"Navigating to {platform_name} for '{role}': {url}")
+        await page.goto(url)
+        await asyncio.sleep(5)
+
+        selectors_to_try = [
+            'a[href*="/jobs/"]', '[data-testid*="job"]',
+            '.job-card', '.job-listing', '.job-item',
+            'article', '.card', '.listing',
+            'div[class*="job"]', 'div[class*="listing"]',
+            'li'
+        ]
+
+        job_cards = []
+        for selector in selectors_to_try:
+            cards = await page.query_selector_all(selector)
+            if cards:
+                print(f"Found {len(cards)} elements with selector: {selector}  ---{platform_name}")
+                job_cards = cards
+                break
+
+        if not job_cards:
+            job_cards = await page.query_selector_all('a, button, [role="button"]')
+            print(f"Using fallback: Found {len(job_cards)} clickable elements")
+
+        max_jobs = 100
+        for i, card in enumerate(job_cards[:max_jobs]):
+            try:
+                text_content = (await card.inner_text()).strip()
+                if not text_content:
+                    continue
+
+                # Check if job is relevant
+                title = "title not found"
+                title_elements = await card.query_selector_all('h1, h2, h3, h4, h5, h6')
+                if title_elements:
+                    title = (await title_elements[0].inner_text()).strip().lower()
+                elif text_content:
+                    lines = text_content.split('\n')
+                    if lines:
+                        title = lines[0].strip().lower()
+                
+                # More flexible keyword matching
+                role_keywords = role.replace('-', ' ').split()
+                has_relevant_keyword = (
+                    any(kw in title for kw in role_keywords) or
+                    any(kw in text_content.lower() for kw in role_keywords) or
+                    any(keyword in title or keyword in text_content.lower() 
+                        for keyword in ['developer', 'engineer', 'programming', 'coding'])
+                )
+                
+                if not has_relevant_keyword:
+                    continue
+
+                # Extract job URL
+                tag_name = await card.evaluate('el => el.tagName.toLowerCase()')
+                job_link = "Link not found"
+                
+                if tag_name == 'a':
+                    job_link = await card.get_attribute('href') or "Link not found"
+                else:
+                    link_elem = await card.query_selector('a[href*="job"], a[href*="apply"]')
+                    job_link = await link_elem.get_attribute('href') if link_elem else "Link not found"
+                
+                if job_link != "Link not found" and not job_link.startswith("http"):
+                    job_link = config["base_url"] + job_link
+
+                # YC filter
+                should_add = True
+                if platform_name.lower() == "ycombinator":
+                    if "/companies/" not in job_link:
+                        continue
+
+                # Extract job description
+                job_description = "Description not found"
+                if job_link != "Link not found":
+                    try:
+                        detail_page = await browser.new_page()
+                        await detail_page.goto(job_link)
+                        await asyncio.sleep(2)
+                        
+                        # YC specific header extraction
+                        header_text = ""
+                        if platform_name == "ycombinator":
+                            desc_header_selector = ".ycdc-card.max-w-2xl"
+                            desc_header = await detail_page.query_selector(desc_header_selector)
+                            if desc_header:
+                                header_text = (await desc_header.inner_text()).strip()
+                        
+                        # Main content extraction
+                        desc_selectors = [
+                            '[class*="description"]', '[class*="job-details"]',
+                            'article', '.prose', '.job-desc'
+                        ]
+                        
+                        desc_text = ""
+                        for selector in desc_selectors:
+                            desc_elem = await detail_page.query_selector(selector)
+                            if desc_elem:
+                                desc_text = (await desc_elem.inner_text()).strip()
+                                break
+                        
+                        # Combine header and description
+                        if header_text and desc_text:
+                            job_description = f"{header_text}\n\n{desc_text}"
+                        elif desc_text:
+                            job_description = desc_text
+                        elif header_text:
+                            job_description = header_text
+                            
+                        await detail_page.close()
+                        
+                    except Exception as e:
+                        print(f"Error fetching description for {job_link}: {e}")
+
+                if should_add and job_link != "Link not found" and job_description != "Description not found":
+                    job_dict[job_link] = job_description
+                    print(f"✅ Found for '{role}': {job_link[:50]}... ({len(job_description)} chars --{platform_name} card-{i})")
+                    
+            except Exception as e:
+                print(f"Error processing card {i}: {e}")
+                continue
+
+        print(f"[{platform_name}] Found {len(job_dict)} jobs for '{role}'")
+        return job_dict
+        
+    except Exception as e:
+        print(f"Error on {platform_name} for role {role}: {e}")
+        return {}
+    finally:
+        await page.close()
+
+async def scrape_all_keywords():
+    """Scrape jobs for all keywords with deduplication"""
+    all_jobs_combined = {}  # {url: {description, roles_found}}
+    
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        
+        for keyword_index, role in enumerate(WEB_DEV_KEYWORDS, 1):
+            print(f"\n{'='*80}")
+            print(f"PROCESSING KEYWORD {keyword_index}/{len(WEB_DEV_KEYWORDS)}: '{role}'")
+            print(f"{'='*80}")
+            
+            # Scrape all platforms for this keyword in parallel
+            tasks = [
+                scrape_platform(browser, platform, PLATFORMS[platform], role)
+                for platform in PLATFORMS.keys()
+            ]
+            results = await asyncio.gather(*tasks)
+            
+            # Merge platform results for this keyword
+            keyword_jobs = {}
+            for platform_result in results:
+                keyword_jobs.update(platform_result)
+            
+            print(f"Keyword '{role}' total: {len(keyword_jobs)} jobs")
+            
+            # Smart deduplication
+            new_jobs = 0
+            duplicate_jobs = 0
+            
+            for url, description in keyword_jobs.items():
+                if url not in all_jobs_combined:
+                    # New unique job
+                    all_jobs_combined[url] = {
+                        'description': description,
+                        'found_by_roles': [role]
+                    }
+                    new_jobs += 1
+                else:
+                    # Duplicate job - just track the additional role
+                    if role not in all_jobs_combined[url]['found_by_roles']:
+                        all_jobs_combined[url]['found_by_roles'].append(role)
+                    duplicate_jobs += 1
+            
+            print(f"  📊 New jobs: {new_jobs}, Duplicates: {duplicate_jobs}")
+        
+        await browser.close()
+    
+    # Prepare final format for Gemini
+    final_jobs = {}
+    for url, job_data in all_jobs_combined.items():
+        roles_list = ", ".join(job_data['found_by_roles'])
+        final_jobs[url] = f"[MATCHED_ROLES: {roles_list}]\n\n{job_data['description']}"
+    
+    print(f"\n📊 FINAL SUMMARY:")
+    print(f"Total unique jobs after deduplication: {len(final_jobs)}")
+    
+    # Show breakdown by keyword
+    role_stats = {}
+    for job_data in all_jobs_combined.values():
+        for role in job_data['found_by_roles']:
+            role_stats[role] = role_stats.get(role, 0) + 1
+    
+    print(f"\n📈 Jobs found per keyword:")
+    for role, count in role_stats.items():
+        print(f"  {role}: {count} jobs")
+    
+    return final_jobs
+
+def create_bulk_prompt(jobs_dict: dict) -> str:
+    """Create optimized prompt for Gemini"""
+    SYSTEM_PROMPT = """You are a professional job data extraction specialist. Extract structured information from job descriptions and return a JSON array.
+
+EXTRACTION RULES:
+- Process every URL-JD pair
+- Extract information ONLY from the job description text
+- If information is not mentioned, use "Not specified"
+- For matched_keywords, look for [MATCHED_ROLES: role1, role2] at the beginning
+- For experience: look for years like "3+", "5+ years", "Senior", "Junior", "Entry level"
+- For location: city, state/country, or "Remote"
+- For salary: include currency and amount (e.g., "$90K-$120K", "₹15-20 LPA")
+- For company: extract from text or URL path /companies/[company-name]/
+
+REQUIRED OUTPUT FORMAT (JSON array):
+[
+  {
+    "title": "extracted job title",
+    "company_name": "company name",
+    "location": "location or Remote",
+    "experience": "experience level",
+    "salary": "salary range with currency",
+    "matched_keywords": "roles that matched this job",
+    "job_url": "the URL",
+    "posted_at": "posting date or Not specified",
+    "job_description": "full description",
+    "source": "platform name"
+  }
+]
+
+IMPORTANT: Return ONLY valid JSON array, no extra text."""
+
+    prompt = f"""{SYSTEM_PROMPT}
+
+Process {len(jobs_dict)} job descriptions:
+
+"""
+    
+    for idx, (url, jd) in enumerate(jobs_dict.items(), 1):
+        # Truncate very long descriptions to save tokens
+        truncated_jd = jd[:2000] + "..." if len(jd) > 2000 else jd
+        prompt += f"""--- JOB {idx} ---
+URL: {url}
+DESCRIPTION: {truncated_jd}
+--- END JOB {idx} ---
+
+"""
+    
+    prompt += f"Return JSON array with exactly {len(jobs_dict)} objects in the same order."
+    return prompt
+
+def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
+    """Parse Gemini response with error handling"""
+    try:
+        # Clean response
+        clean_response = response_text.strip()
+        if clean_response.startswith('```json'):
+            clean_response = clean_response[7:].lstrip()
+        elif clean_response.startswith('```'):
+            clean_response = clean_response[3:].lstrip()
+        if clean_response.endswith('```'):
+            clean_response = clean_response[:-3].rstrip()
+        
+        # Save for debugging
+        with open("gemini_raw_response.json", "w", encoding="utf-8") as f:
+            f.write(clean_response)
+        
+        # Parse JSON
+        extracted_jobs = json.loads(clean_response)
+        
+        if not isinstance(extracted_jobs, list):
+            extracted_jobs = [extracted_jobs]
+        
+        # Ensure all jobs have required fields
+        job_urls = list(original_jobs.keys())
+        for i, job in enumerate(extracted_jobs):
+            if i < len(job_urls):
+                job['job_url'] = job_urls[i]
+                job['job_description'] = original_jobs[job_urls[i]]
+                
+                if not job.get('source'):
+                    job['source'] = infer_source_from_url(job_urls[i])
+        
+        # Add fallbacks for missing jobs
+        while len(extracted_jobs) < len(job_urls):
+            idx = len(extracted_jobs)
+            url = job_urls[idx]
+            fallback_job = create_fallback_data_from_dict(url, original_jobs[url])
+            extracted_jobs.append(fallback_job)
+        
+        return extracted_jobs
+        
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
+        print(f"Response preview: {response_text[:500]}...")
+        return [create_fallback_data_from_dict(url, jd) for url, jd in original_jobs.items()]
+    except Exception as e:
+        print(f"Error parsing response: {e}")
+        return [create_fallback_data_from_dict(url, jd) for url, jd in original_jobs.items()]
+
+def create_fallback_data_from_dict(url: str, job_description: str) -> dict:
+    """Create fallback data when extraction fails"""
+    return {
+        "title": "Not extracted",
+        "company_name": "Not extracted",
+        "location": "Not extracted",
+        "experience": "Not specified",
+        "salary": "Not specified",
+        "matched_keywords": "Not specified",
+        "job_url": url,
+        "posted_at": "Not specified",
+        "job_description": job_description,
+        "source": infer_source_from_url(url)
+    }
+
+def infer_source_from_url(url: str) -> str:
+    """Extract platform name from URL"""
+    try:
+        domain = urlparse(url).netloc.lower()
+        if 'ycombinator' in domain:
+            return 'ycombinator'
+        elif 'linkedin' in domain:
+            return 'linkedin'
+        else:
+            return domain.replace('www.', '').split('.')
+    except:
+        return 'unknown'
+
+async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 50) -> list:
+    """Process jobs in batches"""
+    all_extracted = []
+    job_items = list(jobs_dict.items())
+    total_batches = (len(job_items) + batch_size - 1) // batch_size
+    
+    print(f"\n🔄 Processing {len(job_items)} jobs in {total_batches} batches of {batch_size}")
+    
+    for i in range(0, len(job_items), batch_size):
+        batch_dict = dict(job_items[i:i + batch_size])
+        batch_num = (i // batch_size) + 1
+        
+        print(f"Processing batch {batch_num}/{total_batches}: {len(batch_dict)} jobs")
         
         try:
-            # Navigate to Y Combinator jobs page
-            print("Navigating to Y Combinator jobs page...")
-            page.goto("https://www.ycombinator.com/jobs/role/software-engineer")
-            # page.goto("https://www.linkedin.com/jobs/search/?currentJobId=3945000000&geoId=90009590&keywords=web%20developer&location=United%20States&refresh=true")
-
-            time.sleep(5)  # Wait for page to load
-            
-            print("Searching for job listings...")
-            
-            # Let's first debug what we can find on the page
-            print("Debugging page structure...")
-            
-            # Try different selectors to find job listings
-            selectors_to_try = [
-                 '.text-linkColor'  # List items
-            ]
-            
-            job_cards = []
-            for selector in selectors_to_try:
-                cards = page.query_selector_all(selector)
-                if cards:
-                    print(f"Found {len(cards)} elements with selector: {selector}")
-                    job_cards = cards
-                    break
-            
-            if not job_cards:
-                # If still no cards, try to get all clickable elements
-                job_cards = page.query_selector_all('a, button, [role="button"]')
-                print(f"Using fallback: Found {len(job_cards)} clickable elements")
-            
-            print(f"\n===== JOB CARD DEBUGGING =====")
-            for i, card in enumerate(job_cards):
-                try:
-                    print(f"\n--- Card {i} ---")
-                    text_content = card.inner_text().strip()
-                    print(f"Text: {text_content}{'...' if len(text_content) > 200 else ''}")
-                    print(f"""----------------
-                          text_content: {text_content}""")
-                    # Print classes of the card
-                    card_class = card.get_attribute('class')
-                    print(f"Card class: {card_class}")
-                    # Print classes and text of children
-                    children = card.query_selector_all('*')
-                    for j, child in enumerate(children):
-                        child_class = child.get_attribute('class')
-                        child_text = child.inner_text().strip()
-                        print(f"  Child {j} class: {child_class}, text: {child_text[:60]}")
-                except Exception as e:
-                    print(f"Error printing card {i}: {e}")
-            print(f"\n===== END JOB CARD DEBUGGING =====\n")
-
-            web_dev_jobs = []
-            web_dev_keywords = [
-                'web developer', 'frontend', 'backend', 'full stack', 'fullstack',
-                'javascript', 'react', 'angular', 'vue', 'node.js', 'python',
-                'html', 'css', 'php', 'ruby', 'java', 'developer', 'programmer',
-                'software engineer', 'engineer', 'development', 'coding', 'programming'
-            ]
-
-            for i, card in enumerate(job_cards):  # Check first 20 cards
-                try:
-                    text_content = card.inner_text().strip()
-                    if not text_content:
-                        continue
-                    has_web_dev_keyword = any(keyword in text_content.lower() for keyword in web_dev_keywords)
-                    if has_web_dev_keyword:
-                        title = "Title not found"
-                        company = "Company not found"
-                        job_link = "Link not found"
-                        job_description = "Description not found"
-                        # Title extraction
-                        title_elements = card.query_selector_all('h1, h2, h3, h4, h5, h6')
-                        if title_elements:
-                            title = title_elements[0].inner_text().strip()
-                        if title == "Title not found":
-                            title_selectors = [
-                                '[class*="title"]', '[class*="job-title"]', '[class*="position"]',
-                                '[class*="role"]', '[class*="name"]', '[class*="heading"]'
-                            ]
-                            for selector in title_selectors:
-                                title_elem = card.query_selector(selector)
-                                if title_elem:
-                                    title = title_elem.inner_text().strip()
-                                    break
-                        if title == "Title not found":
-                            lines = text_content.split('\n')
-                            if lines:
-                                title = lines[0].strip()
-                        # Debug: print all direct children classes and text
-                        print(f"\n--- Card {i} Children Debug ---")
-                        children = card.query_selector_all(':scope > *')
-                        for idx, child in enumerate(children):
-                            child_class = child.get_attribute('class')
-                            child_text = child.inner_text().strip()
-                            print(f"  Child {idx}: class='{child_class}', text='{child_text[:60]}")
-                        print(f"--- End Card {i} Children Debug ---\n")
-                        # Company extraction: try to get from a different child than the title
-                        company = "Company not found"
-                        company_candidates = []
-                        if len(children) > 1:
-                            for idx, child in enumerate(children):
-                                child_text = child.inner_text().strip()
-                                if child_text and child_text != title and 2 < len(child_text) < 50:
-                                    company_candidates.append((idx, child_text))
-                        if company_candidates:
-                            company = company_candidates[0][1]
-                            print(f"  [Debug] Using child {company_candidates[0][0]} as company: {company}")
-                        else:
-                            print(f"  [Warning] No company candidate found in children. Candidates: {[c[1] for c in company_candidates]}")
-                        # Try to extract company from job link
-                        if company == "Company not found" or company == title:
-                            if card.evaluate('el => el.tagName.toLowerCase()') == 'a':
-                                job_link = card.get_attribute('href')
-                                if job_link is None:
-                                    job_link = ""
-                            else:
-                                link_elem = card.query_selector('a[href*="job"], a[href*="apply"]')
-                                job_link = link_elem.get_attribute('href') if link_elem else ""
-                                if job_link is None:
-                                    job_link = ""
-                            import re
-                            m = re.match(r"/companies/([\w\-]+)/jobs/", job_link)
-                            if m:
-                                company_from_link = m.group(1).replace('-', ' ').title()
-                                company = company_from_link
-                                print(f"  [Debug] Extracted company from link: {company}")
-                        # Fallback: try previous selectors
-                        if company == "Company not found" or company == title:
-                            company_selectors = [
-                                '[class*="block font-bold md:inline"]',
-                                '.block.font-bold.md\\:inline'
-                            ]
-                            for selector in company_selectors:
-                                company_elem = card.query_selector(selector)
-                                if company_elem:
-                                    company_text = company_elem.inner_text().strip()
-                                    if company_text and company_text != title and 2 < len(company_text) < 50:
-                                        company = company_text
-                                        print(f"  [Debug] Using selector {selector} as company: {company}")
-                                        break
-                        # Fallback: regex and line-based, but filter out job titles
-                        if company == "Company not found" or company == title:
-                            import re
-                            company_patterns = [
-                                r'([A-Z][a-zA-Z\s&\.]+)\s*•',
-                                r'at\s+([A-Z][a-zA-Z\s&\.]+)',
-                                r'([A-Z][a-zA-Z\s&\.]+)\s*\(',
-                                r'([A-Z][a-zA-Z\s&\.]+)\s*\|',
-                                r'([A-Z][a-zA-Z\s&\.]+)\s*[-–—]',
-                                r'([A-Z][a-zA-Z\s&\.]+)\s*$',
-                                r'([A-Z][a-zA-Z\s&\.]+)\s*Remote',
-                                r'([A-Z][a-zA-Z\s&\.]+)\s*Full-time',
-                                r'([A-Z][a-zA-Z\s&\.]+)\s*Part-time',
-                            ]
-                            for pattern in company_patterns:
-                                match = re.search(pattern, text_content)
-                                if match:
-                                    potential_company = match.group(1).strip()
-                                    if (len(potential_company) > 2 and 
-                                        potential_company.lower() not in ['remote', 'full-time', 'part-time', 'contract', 'internship'] and
-                                        not any(word in potential_company.lower() for word in ['years', 'experience', 'salary', 'location']) and
-                                        potential_company != title):
-                                        company = potential_company
-                                        print(f"  [Debug] Using regex as company: {company}")
-                                        break
-                        if company == "Company not found" or company == title:
-                            lines = [line.strip() for line in text_content.split('\n') if line.strip()]
-                            for line in lines:
-                                if line != title and 2 < len(line) < 50:
-                                    company = line
-                                    print(f"  [Debug] Using line as company: {company}")
-                                    break
-                        print(f"[RESULT] Card {i}: Title='{title}', Company='{company}'")
-                        if card.evaluate('el => el.tagName.toLowerCase()') == 'a':
-                            job_link = card.get_attribute('href') or "Link not found"
-                        else:
-                            link_elem = card.query_selector('a[href*="job"], a[href*="apply"]')
-                            if link_elem:
-                                job_link = link_elem.get_attribute('href') or "Link not found"
-                        # Make job link absolute if needed
-                        base_url = "https://www.ycombinator.com"
-                        if job_link and not job_link.startswith("http"):
-                            job_link = base_url + job_link
-                        # --- NEW: Fetch job description from job detail page ---
-                        if job_link and job_link != "Link not found":
-                            try:
-                                detail_page = browser.new_page()
-                                detail_page.goto(job_link)
-                                time.sleep(2)  # Wait for page to load
-                                # Try several selectors for job description
-                                desc_selectors = [
-                                    'article',
-                                    '[class*="description"]',
-                                    '[class*="job-description"]',
-                                    '[class*="desc"]',
-                                    '[data-testid*="description"]',
-                                    '.prose',
-                                    '.markdown',
-                                    '.job-body',
-                                    '.job-content',
-                                    '.listing',
-                                    '.card',
-                                ]
-                                desc_found = False
-                                for desc_selector in desc_selectors:
-                                    desc_elem = detail_page.query_selector(desc_selector)
-                                    if desc_elem:
-                                        desc_text = desc_elem.inner_text().strip()
-                                        if desc_text and len(desc_text) > 50:
-                                            job_description = desc_text
-                                            desc_found = True
-                                            print(f"  [Debug] Found job description with selector: {desc_selector}")
-                                            break
-                                if not desc_found:
-                                    # Fallback: get all text from body
-                                    body_text = detail_page.inner_text('body').strip()
-                                    if body_text and len(body_text) > 50:
-                                        job_description = body_text[:2000]  # Limit to 2000 chars
-                                        print("  [Debug] Used body text as job description fallback.")
-                                detail_page.close()
-                            except Exception as e:
-                                print(f"  [Warning] Could not fetch job description: {e}")
-                        # --- END NEW ---
-                        if title and title != "Title not found":
-                            job_info = {
-                                'title': title,
-                                'company': company,
-                                'link': job_link,
-                                'text_preview': text_content[:200] + "..." if len(text_content) > 200 else text_content,
-                                'description': job_description
-                            }
-                            web_dev_jobs.append(job_info)
-                            print(f"✅ Found web dev job: {title} at {company}")
-                            print(f"   Link: {job_link}")
-                            print(f"   Preview: {job_info['text_preview']}")
-                            print(f"   Description: {job_description[:200]}{'...' if len(job_description) > 200 else ''}")
-                except Exception as e:
-                    print(f"Error processing job card {i}: {e}")
-                    continue
-            
-            # Print results
-            print(f"\n{'='*60}")
-            print(f"FOUND {len(web_dev_jobs)} WEB DEVELOPMENT JOBS:")
-            print(f"{'='*60}")
-            
-            for i, job in enumerate(web_dev_jobs, 1):
-                print(f"\n{i}. {job['title']}")
-                print(f"   Company: {job['company']}")
-                print(f"   Link: {job['link']}")
-                print(f"   Preview: {job['text_preview']}")
-                print(f"   Job desc: {job['description']}")
-                print("-" * 50)
-            
-            if not web_dev_jobs:
-                print("No web development jobs found.")
-                print("Debug info - First few text contents:")
-                for i, card in enumerate(job_cards[:5]):
-                    try:
-                        text = card.inner_text().strip()
-                        if text:
-                            print(f"Card {i}: {text[:100]}...")
-                    except:
-                        continue
+            batch_result = await extract_single_batch(batch_dict)
+            all_extracted.extend(batch_result)
+            print(f"✅ Batch {batch_num} completed: {len(batch_result)} jobs processed")
             
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"❌ Batch {batch_num} failed: {e}")
+            fallback_jobs = [create_fallback_data_from_dict(url, jd) 
+                           for url, jd in batch_dict.items()]
+            all_extracted.extend(fallback_jobs)
         
-        finally:
-            # Keep browser open for a few seconds to see results
-            print("\nPress Enter to close browser...")
-            input()
-            browser.close()
+        # Rate limiting
+        if batch_num < total_batches:
+            print(f"⏳ Waiting 3 seconds before next batch...")
+            await asyncio.sleep(3)
+    
+    return all_extracted
+
+async def extract_single_batch(batch_dict: dict) -> list:
+    """Process single batch through Gemini"""
+    try:
+        prompt = create_bulk_prompt(batch_dict)
+        response = model.generate_content(prompt)
+        extracted_jobs = parse_bulk_response(response.text, batch_dict)
+        return extracted_jobs
+    except Exception as e:
+        print(f"Error in batch processing: {e}")
+        return [create_fallback_data_from_dict(url, jd) for url, jd in batch_dict.items()]
+
+async def main():
+    """Main orchestration function"""
+    print(f"🚀 Starting job scraping for keywords: {WEB_DEV_KEYWORDS}")
+    
+    # Step 1: Scrape all jobs for all keywords
+    all_jobs = await scrape_all_keywords()
+    
+    # Step 2: Save raw scraped data
+    with open("jobs_raw_all_keywords.json", "w", encoding="utf-8") as f:
+        json.dump(all_jobs, f, indent=2, ensure_ascii=False)
+    print(f"💾 Raw data saved to: jobs_raw_all_keywords.json")
+    
+    # Step 3: Process through Gemini in batches
+    print(f"\n🤖 Starting Gemini processing...")
+    extracted_jobs = await extract_jobs_in_batches(all_jobs, batch_size=50)
+    
+    # Step 4: Save final structured data
+    with open("jobs_final_structured.json", "w", encoding="utf-8") as f:
+        json.dump(extracted_jobs, f, indent=2, ensure_ascii=False)
+    
+    # Step 5: Generate summary
+    print(f"\n{'='*80}")
+    print(f"🎉 PROCESSING COMPLETE!")
+    print(f"{'='*80}")
+    print(f"📁 Files generated:")
+    print(f"  - jobs_raw_all_keywords.json (raw scraped data)")
+    print(f"  - jobs_final_structured.json (structured data)")
+    print(f"  - gemini_raw_response.json (debug data)")
+    print(f"📊 Total jobs processed: {len(extracted_jobs)}")
+    
+    # Keyword breakdown
+    keyword_stats = {}
+    for job in extracted_jobs:
+        keywords = job.get('matched_keywords', 'Unknown')
+        for keyword in keywords.split(', '):
+            keyword = keyword.strip()
+            if keyword:
+                keyword_stats[keyword] = keyword_stats.get(keyword, 0) + 1
+    
+    print(f"\n📈 Final breakdown by keyword:")
+    for keyword, count in sorted(keyword_stats.items()):
+        print(f"  {keyword}: {count} jobs")
+    
+    print(f"\n✨ Done! Check jobs_final_structured.json for complete results.")
 
 if __name__ == "__main__":
-    search_web_dev_jobs()
+    asyncio.run(main())

@@ -1,12 +1,9 @@
+from config import DB_URL, GOOGLE_API 
+from database.db_engine import Base, engine, Session
+from database.SchemaModel import UploadedResume
 import os
 import tempfile
 import requests
-from sqlalchemy import create_engine, Column, Text, Integer, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import sessionmaker, declarative_base
-import uuid
-from datetime import datetime
-from dotenv import load_dotenv
 from difflib import SequenceMatcher
 from docx import Document
 import fitz  # PyMuPDF
@@ -18,9 +15,7 @@ import shutil
 import platform
 
 # Load environment variables
-load_dotenv()
-DB_URL = os.getenv('DATABASE_URL')
-GEMINI_API_KEY = os.getenv('GOOGLE_API')
+GEMINI_API_KEY = GOOGLE_API
 
 if not DB_URL or not GEMINI_API_KEY:
     raise ValueError("DATABASE_URL and GOOGLE_API environment variables must be set.")
@@ -29,19 +24,7 @@ if not DB_URL or not GEMINI_API_KEY:
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-# SQLAlchemy setup
-Base = declarative_base()
 
-class UploadedResume(Base):
-    __tablename__ = "uploaded_resume"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    file_url = Column(Text)
-    experience = Column(Integer)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    users_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE"))
-
-engine = create_engine(DB_URL)
-Session = sessionmaker(bind=engine)
 session = Session()
 
 def extract_text_from_pdf_response(response):
@@ -267,22 +250,22 @@ if __name__ == "__main__":
                 print("\n-------------------------------------------------")
                 print("✅ RESUME CREATED AND RETURNED TO YOU!")
                 print(f"   Your tailored resume is located at:")
-                print(f"   ==> {absolute_pdf_path}")
+                # print(f"   ==> {absolute_pdf_path}")
                 print("-------------------------------------------------")
                 
                 # Attempt to open the PDF automatically for convenience
-                print("\nAttempting to open the PDF automatically...")
-                try:
-                    if platform.system() == "Windows":
-                        os.startfile(absolute_pdf_path)
-                    elif platform.system() == "Darwin":  # macOS
-                        subprocess.run(["open", absolute_pdf_path], check=True)
-                    else:  # Linux
-                        subprocess.run(["xdg-open", absolute_pdf_path], check=True)
-                    print("Success! The PDF should be open on your screen.")
-                except Exception as e:
-                    print(f"Could not open the PDF automatically. Please click the link above to open it manually.")
-                    print(f"(Reason: {e})")
+                # print("\nAttempting to open the PDF automatically...")
+                # try:
+                #     if platform.system() == "Windows":
+                #         os.startfile(absolute_pdf_path)
+                #     elif platform.system() == "Darwin":  # macOS
+                #         subprocess.run(["open", absolute_pdf_path], check=True)
+                #     else:  # Linux
+                #         subprocess.run(["xdg-open", absolute_pdf_path], check=True)
+                #     print("Success! The PDF should be open on your screen.")
+                # except Exception as e:
+                #     print(f"Could not open the PDF automatically. Please click the link above to open it manually.")
+                #     print(f"(Reason: {e})")
             else:
                 print(f"Failed to create PDF for resume {resume.id}. Check the saved .tex and .log files for errors.")
         except Exception as e:

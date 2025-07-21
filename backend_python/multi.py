@@ -18,10 +18,11 @@ PLATFORMS = {
 }
 
 WEB_DEV_KEYWORDS = [
-    'web developer', 'frontend', 'backend', 'full stack', 'fullstack',
-    'javascript', 'react', 'angular', 'vue', 'node.js', 'python',
-    'html', 'css', 'php', 'ruby', 'java', 'developer', 'programmer',
-    'software engineer', 'engineer', 'development', 'coding', 'programming'
+    'web developer',    
+    'frontend-developer',
+    'backend-developer', 
+    'full-stack-developer',
+    'react-developer'
 ]
 
 async def scrape_platform(browser, platform_name, config, role):
@@ -127,7 +128,7 @@ async def scrape_platform(browser, platform_name, config, role):
 
                 if should_add and job_link != "Link not found" and job_description != "Description not found":
                     job_dict[job_link] = job_description
-                    print(f"✅ Stored: {job_link[:50]}... JD chars: {len(job_description)} --job card of {i}")
+                    print(f"✅ Stored: {job_link[:50]}... JD chars: {len(job_description)} for role: {role} --job card of {i}")
             except Exception as e:
                 print(f"Error processing job card {i} on {platform_name}: {e}")
                 continue
