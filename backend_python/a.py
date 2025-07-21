@@ -1,18 +1,18 @@
 from config import DB_URL, GOOGLE_API 
-from database.db_engine import Base, engine, Session
+from database.db_engine import Session
 from database.SchemaModel import UploadedResume
 import os
+import subprocess
 import tempfile
+import shutil    
 import requests
-from difflib import SequenceMatcher
-from docx import Document
+from docx import Document # type: ignore
 import fitz  # PyMuPDF
 import google.generativeai as genai
 import time
 from google.api_core import exceptions as google_exceptions
-import subprocess
-import shutil
-import platform
+
+
 
 # Load environment variables
 GEMINI_API_KEY = GOOGLE_API
@@ -65,10 +65,105 @@ def extract_resume_text(file_url):
     else:
         raise Exception(f"Unsupported file type: {file_url}")
 
-def similarity(a, b):
-    return SequenceMatcher(None, a, b).ratio()
 
 def tailor_resume_with_gemini(original_text, job_description):
+
+    sample_latex = r'''\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A motivated Computer Science graduate with a strong foundation in web development and software engineering. Proficient in designing and implementing responsive user interfaces using \textbf{HTML5}, \textbf{CSS3}, \textbf{JavaScript (ES6+)}, and \textbf{Python}. Experienced in integrating RESTful APIs and adhering to Agile methodologies to deliver efficient and scalable solutions. Demonstrates excellent problem-solving abilities, effective communication skills, and a commitment to continuous learning. Eager to contribute to Mahindra's innovative projects and drive positive change through technology.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {MVGR College of Engineering}{Vizianagaram, India}
+    {B.Tech in Computer Science and Engineering; CGPA: 7.02/10}{May 2025}
+    \resumeSubheading
+        {Government Polytechnic College}{Anakapalle, India}
+        {Diploma in Computer Engineering; Final Grade: 80\%}{June 2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Frontend:} HTML, CSS, JavaScript, React, ExpressJs}
+    \resumeItem{\textbf{Languages:} Python, Core Java}
+    \resumeItem{\textbf{Concepts:} Data Structures, LLM}
+    \resumeItem{\textbf{Tools:} MS Office, Git, GitHub, Linux, NodeJs} 
+    \resumeItem{\textbf{Soft Skills:} Analytical Thinking, Communication, Team Collaboration}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Grog Social Scribe}{Feb 2024 -- May 2024}
+    {Frontend Developer}
+    {\href{http://grog-social-scribe.lovable.app/} {grog-social-app}}
+    \resumeItemListStart
+    \resumeItem{Partnered closely with UX/UI designers to implement pixel-perfect, responsive web layouts utilizing 	\textbf{HTML5}, 	\textbf{CSS3} (Flexbox \& Grid), and 	\textbf{JavaScript (ES6+)}.}
+    \resumeItem{Architected and developed modular JavaScript components to handle user input, asynchronously communicate with AI-driven REST APIs, and render dynamic content seamlessly.}
+    \resumeItem{Instituted robust client-side validation and error recovery mechanisms, improving form submission success rates by over 	\textbf{30\%}.}
+    \resumeItem{Enhanced performance through optimized DOM operations and lazy loading strategies, achieving a 	\textbf{25\% faster} initial render across desktop and mobile platforms.}
+    \resumeItem{Adopted BEM methodology to structure CSS, promoting maintainability and enabling rapid style updates during iterative design sprints.}
+    \resumeItem{Authored detailed technical documentation and led bi-weekly code reviews, ensuring adherence to coding standards and fostering team knowledge sharing.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring frontend frameworks (React), LeetCode problem solving}
+    \resumeSubHeadingListEnd
+    \end{document}
+    '''
+
     prompt = f"""
     You are an expert resume writer and a LaTeX specialist. Your task is to analyze the following resume and job description.
 
@@ -81,9 +176,13 @@ def tailor_resume_with_gemini(original_text, job_description):
     Use the 'article' class with 11pt font. Use 'geometry' for margins and 'titlesec' for professional section formatting.
     
     **CRITICAL INSTRUCTIONS FOR LATEX FORMATTING:**
-    1.  Always load the `textcomp` and `xcolor` packages (`\\usepackage{{textcomp}}`, `\\usepackage{{xcolor}}`) to support common symbols and colors.
+    1.  Always load the `textcomp` packages (`\\usepackage{{textcomp}}`) to support common symbols and dont use odd colors.
     2.  You MUST properly escape all special LaTeX characters, especially `&`, `$`, `%`, `#`, and `_`. For example, an ampersand must be written as `\\&`.
-    3.  Ensure the entire document is in a single column and has no page numbers (`\\pagestyle{{empty}}`).
+    3.  Ensure the entire document is in a single column and has no page numbers (`\\pagestyle{{empty}}`)
+    4.  Make sure the document maintain proper margins and spacing and Headings.
+    5.  DONT ADD ADDITION SKILLS WHICH ARE NOT MENTIONED IN USER RESUME AND REMOVE DATES FOR PROJECT SECTION.
+     
+    
 
     **Job Description:**
     {job_description}
@@ -91,7 +190,11 @@ def tailor_resume_with_gemini(original_text, job_description):
     **Original Resume:**
     {original_text}
 
+    **Here is the Sample Resume, use the below LaTex code for reference purpose only (for format font styling etc) :**
+    {sample_latex}
+
     **Your Response (as a complete LaTeX document or 'NO_CHANGES_NEEDED'):**
+    ** MAINTAIN PROPER SYNTAX FOR OUTPUT**
     """
     
     # DEBUG: Print the size of the prompt
@@ -117,84 +220,122 @@ def tailor_resume_with_gemini(original_text, job_description):
 
 def compile_latex_to_pdf(latex_string, output_filename, resume_id):
     """
-    Compiles a string of LaTeX code into a PDF file with robust error handling.
+    Compile LaTeX to PDF using multiple online endpoints
     """
-    with tempfile.TemporaryDirectory() as temp_dir:
-        base_name = "resume"
-        tex_path = os.path.join(temp_dir, f"{base_name}.tex")
-        log_path = os.path.join(temp_dir, f"{base_name}.log")
-        pdf_path = os.path.join(temp_dir, f"{base_name}.pdf")
-
-        with open(tex_path, "w", encoding="utf-8") as f:
-            f.write(latex_string)
-
-        # This command is more robust for MiKTeX on Windows.
-        # It enables automatic package installation.
-        command = [
-            "pdflatex",
-            "-interaction=nonstopmode",
-            "-halt-on-error",
-            f"-job-name={base_name}",
-            tex_path
-        ]
+    # Working endpoints based on search results
+    endpoints = [
+        'https://latexonline.cc/compile',
+        'https://latex.ytotech.com/builds/sync',
+        'https://api.latexonline.cc/compile'  # Additional endpoint to try
+    ]
+    
+    max_retries = 2
+    
+    for endpoint_idx, endpoint in enumerate(endpoints, 1):
+        print(f"Trying endpoint {endpoint_idx}/{len(endpoints)}: {endpoint}")
         
-        # We still run twice for cross-referencing and stability
-        process = None
-        for i in range(2):
+        for attempt in range(max_retries):
             try:
-                process = subprocess.run(
-                    command,
-                    cwd=temp_dir,
-                    capture_output=True,
-                    text=True,
-                    encoding='utf-8',
-                    errors='replace',
-                    timeout=120  # Increased timeout to 2 minutes for package installation
+                print(f"  Attempt {attempt + 1}/{max_retries} for resume {resume_id}...")
+                
+                # Prepare the request
+                files = {'texfile': ('document.tex', latex_string)}
+                data = {'command': 'pdflatex'}
+                
+                # Make the request
+                response = requests.post(
+                    endpoint,
+                    files=files,
+                    data=data,
+                    timeout=90  # Increased timeout for compilation
                 )
-            except FileNotFoundError:
-                print("\n--- LaTeX Error ---")
-                print("`pdflatex` command not found. Please ensure a LaTeX distribution (like MiKTeX) is installed and in your system's PATH.")
-                return False
-            except subprocess.TimeoutExpired:
-                print("\n--- LaTeX Error ---")
-                print("`pdflatex` command timed out. This can happen during first-time package installations. Please try again.")
-                return False
-            
-            # If the first run failed, don't bother with the second.
-            if process.returncode != 0:
+                
+                print(f"  Response status: {response.status_code}")
+                
+                # Check if successful
+                if response.status_code >= 200 and response.status_code < 300:
+                    # Check if response content is actually a PDF
+                    if len(response.content) > 1000 and response.content.startswith(b'%PDF'):
+                        with open(output_filename, 'wb') as f:
+                            f.write(response.content)
+                        print(f"✅ PDF generated successfully using {endpoint}")
+                        print(f"   File: {output_filename}")
+                        return True
+                    else:
+                        print(f"  Response doesn't appear to be a valid PDF")
+                        # Print first 200 chars of response for debugging
+                        print(f"  Response preview: {response.text[:200]}")
+                
+                elif response.status_code == 400:
+                    print(f"  Bad request - likely LaTeX compilation error")
+                    print(f"  Error response: {response.text}")
+                    break  # Don't retry for compilation errors
+                
+                elif response.status_code == 404:
+                    print(f"  Endpoint not found - trying next endpoint")
+                    break  # Try next endpoint
+                
+                elif response.status_code in [500, 502, 503, 504]:
+                    print(f"  Server error ({response.status_code}) - retrying...")
+                    if attempt < max_retries - 1:
+                        time.sleep(5)
+                        continue
+                
+                else:
+                    print(f"  Unexpected status code: {response.status_code}")
+                    print(f"  Response: {response.text[:200]}")
+                    
+            except requests.exceptions.Timeout:
+                print(f"  Request timed out")
+                if attempt < max_retries - 1:
+                    print(f"  Retrying in 5 seconds...")
+                    time.sleep(5)
+                    continue
+                    
+            except requests.exceptions.RequestException as e:
+                print(f"  Network error: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(3)
+                    continue
+                    
+            except Exception as e:
+                print(f"  Unexpected error: {e}")
                 break
         
-        if process and process.returncode == 0 and os.path.exists(pdf_path):
-            shutil.move(pdf_path, output_filename)
-            return True
-        else:
-            # Compilation failed, save artifacts for debugging
-            print(f"\n--- LaTeX Compilation Failed for resume {resume_id} ---")
-            failed_tex_path = f"failed_resume_{resume_id}.tex"
-            failed_log_path = f"failed_resume_{resume_id}.log"
-            
-            shutil.copy(tex_path, failed_tex_path)
-            if os.path.exists(log_path):
-                shutil.copy(log_path, failed_log_path)
+        print(f"  All attempts failed for {endpoint}")
+    
+    print(f"❌ All endpoints failed for resume {resume_id}")
+    return False
 
-            print(f"The problematic LaTeX code has been saved to: {failed_tex_path}")
-            print(f"The full compilation log has been saved to: {failed_log_path}")
-            
-            if process:
-                print("\n--- Abridged Compiler Log ---")
-                # Show the last 20 lines of the log, which usually contains the error
-                log_content = process.stdout.strip().splitlines()
-                for line in log_content[-20:]:
-                    print(line)
-            return False
+def check_clsi_available():
+    """Check if CLSI is running locally"""
+    try:
+        response = requests.get('http://localhost:3013/status', timeout=5)
+        return response.status_code == 200
+    except:
+        return False
+
+def try_latex_endpoint(endpoint, latex_string, output_filename):
+    """Try a specific LaTeX online endpoint"""
+    try:
+        response = requests.post(
+            endpoint,
+            files={'texfile': ('document.tex', latex_string)},
+            data={'command': 'pdflatex'},
+            timeout=60
+        )
+        
+        if response.status_code == 200 and len(response.content) > 1000:
+            with open(output_filename, 'wb') as f:
+                f.write(response.content)
+            print(f"✅ Success with {endpoint}")
+            return True
+    except Exception as e:
+        print(f"Failed {endpoint}: {e}")
+    return False
+
 
 if __name__ == "__main__":
-    # Critical: Check for LaTeX installation at the very beginning
-    if not shutil.which("pdflatex"):
-        print("\n--- CRITICAL ERROR ---")
-        print("`pdflatex` command not found. This script requires a LaTeX distribution (like MiKTeX for Windows or TeX Live for macOS/Linux) to be installed and included in your system's PATH.")
-        print("Please install it and try again.")
-        exit(1)
 
     print("Enter/paste the job description (end with a blank line):")
     lines = []
@@ -243,6 +384,8 @@ if __name__ == "__main__":
                 print(f"Full Response: {gemini_response}")
                 continue
 
+            with open(f"resume{i}.tex", 'wb') as f:
+                f.write(latex_code.encode('utf-8'))
             output_file = f"tailored_resume_{resume.id}.pdf"
             print(f"Compiling extracted LaTeX to {output_file}...")
             if compile_latex_to_pdf(latex_code, output_file, str(resume.id)):

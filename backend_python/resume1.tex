@@ -1,0 +1,110 @@
+\documentclass[11pt]{article}
+
+% --- LaTeX Package Includes ---
+\usepackage{textcomp} % CRITICAL: Ensures support for common symbols
+\usepackage[margin=1in]{geometry} % Defines page margins
+\usepackage{titlesec} % For professional section formatting
+\usepackage{enumitem} % For customizable list environments
+\usepackage[hidelinks]{hyperref} % For clickable links without unsightly boxes
+\usepackage{ragged2e} % Provides ragged right and ragged bottom alignment
+\usepackage{xcolor} % Standard package for color definitions (no odd colors used)
+
+% --- Custom Commands and Settings ---
+\pagestyle{empty} % CRITICAL: Suppresses page numbers
+\raggedright % Aligns text to the left margin
+\raggedbottom % Aligns text to the top of the page, distributes extra vertical space at the bottom
+
+% Define custom section formatting for resume
+\titleformat{\section}{\Large\bfseries\scshape}{}{0em}{}[\titlerule\vspace{0.5em}]
+\titlespacing*{\section}{0pt}{*2}{*1} % Adjusts vertical spacing around sections
+
+% Custom commands for resume content structure
+\newcommand{\resumeSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+    \end{tabular*}
+}
+
+\newcommand{\resumeSubSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textit{#1} & \textit{#2} \\
+    \end{tabular*}
+}
+
+\newcommand{\resumeItem}[1]{\item\small{#1}}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]} % Indent project bullet points
+\newcommand{\resumeItemListEnd}{\end{itemize}}
+
+% --- Document Start ---
+\begin{document}
+
+% --- HEADING ---
+\begin{center}
+    \textbf{\Huge \scshape Saragadma Vamshi} \\ \vspace{2pt}
+    \small Visakhapatnam, India $|$ +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}}
+\end{center}
+
+% --- PROFESSIONAL SUMMARY ---
+\section*{Professional Summary}
+\small
+Highly motivated Computer Science graduate with a strong foundation in fullstack web development and a keen interest in building AI-driven applications. Proficient in crafting intuitive user interfaces with \textbf{React.js} and robust backend solutions with \textbf{Node.js} and \textbf{Express.js}. Passionate about transforming complex workflows into seamless user experiences and committed to delivering high-quality software. Eager to contribute to a fast-paced, user-centered startup environment like Bemlo, dedicated to leveraging technology to significantly improve healthcare operations and efficiency.
+
+% --- EDUCATION ---
+\section*{Education}
+\resumeSubHeadingListStart
+    \resumeSubheading
+        {Bachelor of Technology, Computer Science}{Maharaj Vijayaram Gajapathi Raj College of Engineering}
+        \resumeSubSubheading{}{} % Empty line for date, as per formatting guidelines
+        {Expected Graduation: 2025}{}
+    \resumeSubheading
+        {Diploma in Computer Science}{Government Polytechnic, Anakapalli}
+        \resumeSubSubheading{}{} % Empty line for date, as per formatting guidelines
+        {Graduated: 2022}{}
+\resumeSubHeadingListEnd
+
+% --- TECHNICAL SKILLS ---
+\section*{Technical Skills}
+\resumeSubHeadingListStart
+    \resumeItem{\textbf{Frontend Development:} React.js, HTML, CSS, JavaScript, Bootstrap}
+    \resumeItem{\textbf{Backend Development:} Node.js, Express.js, Java}
+    \resumeItem{\textbf{Databases:} MongoDB, MySQL, SQLite}
+    \resumeItem{\textbf{Tools \& Concepts:} Git, GitHub, Linux, Data Structures \& Algorithms (DSA), RESTful APIs, Performance Optimization, User Authentication (JWT)}
+\resumeSubHeadingListEnd
+
+% --- PROJECTS ---
+\section*{Projects}
+\resumeSubHeadingListStart
+    \resumeSubheading
+        {Social Media Scribe}{\href{https://example.com/social-media-scribe}{\underline{Project Live Link}}} % Removed date, added example link
+        \resumeSubSubheading{\textit{AI-Driven Web Application}}{}
+        \resumeItemListStart
+            \resumeItem{Designed and implemented an \textbf{AI-driven post generator}, enabling users to effortlessly create content tailored for various social media platforms, directly aligning with the job's focus on AI integration for user experience.}
+            \resumeItem{Developed modular \textbf{JavaScript components} to ensure robust handling of user input, seamless asynchronous communication with AI APIs, and dynamic content rendering, emphasizing reusable design and efficient user interaction.}
+            \resumeItem{Engineered intuitive user experience flows, including secure login, comprehensive user profiles, and efficient data retrieval, utilizing \textbf{React Router} for smooth navigation, focusing on making complex workflows feel effortless.}
+            \resumeItem{Implemented robust authentication and authorization mechanisms using \textbf{JWT tokens}, securing user access and data integrity, demonstrating commitment to high-quality and reliable software.}
+        \resumeItemListEnd
+
+    \resumeSubheading
+        {Course Selling App}{} % Removed date
+        \resumeSubSubheading{\textit{Backend-Focused Application Development}}{}
+        \resumeItemListStart
+            \resumeItem{Developed a persistent course-selling application, empowering users and administrators to efficiently create, track, and manage educational courses, highlighting the ability to build functional, multi-user systems.}
+            \resumeItem{Architected a structured database schema for optimal storage and retrieval of user, admin, and course details using \textbf{MongoDB}, ensuring data consistency and scalability.}
+            \resumeItem{Implemented secure user authentication and signup functionalities utilizing \textbf{JWT tokens}, enhancing application security and demonstrating attention to secure development practices.}
+            \resumeItem{Utilized efficient data structures (arrays, objects) and optimized data handling for enhanced application performance and responsiveness, aligning with the interest in optimization.}
+        \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+% --- ADDITIONAL INFORMATION ---
+\section*{Additional Information}
+\resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Fluent in English, Native in Telugu}
+    \resumeItem{\textbf{Interests:} Exploring modern frontend frameworks (\textbf{React}), experimenting with AI-based conversational interfaces, competitive programming, and problem-solving}
+\resumeSubHeadingListEnd
+
+\end{document}

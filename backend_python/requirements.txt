@@ -12,4 +12,3 @@ google
 google-genai
 fpdf
 python-docx
-pdflatex

@@ -1,0 +1,121 @@
+\documentclass[article,11pt]{article}
+\usepackage{textcomp} % To support common symbols
+\usepackage[left=1in, right=1in, top=1in, bottom=1in]{geometry} % Manage margins
+\usepackage{titlesec} % For professional section formatting
+\usepackage{enumitem} % For custom list environments
+\usepackage[hidelinks]{hyperref} % For clickable links without boxes
+\usepackage{ragged2e} % For \RaggedRight
+
+% Disable page numbers
+\pagestyle{empty}
+
+% Adjust spacing between paragraphs and sections
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+
+% Custom section formatting
+\titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+
+% Custom commands for resume items (adapted from sample)
+\newcommand{\resumeSubheading}[4]{
+\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+    \textbf{#1} & #2 \\
+    \textit{\small#3} & \textit{\small #4}
+    \end{tabular*}
+}
+\newcommand{\resumeItem}[1]{\item\small{#1}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    \textbf{\Huge \scshape Budumuru Srinivas Sai Saran Teja} \\ \vspace{1pt}
+    Visakhapatnam, India \\
+    \small +91 7993027519 $|$ \href{mailto:tejabudumuru3@gmail.com}{\underline{tejabudumuru3@gmail.com}} $|$
+    \href{https://linkedin.com/in/saran-teja-budumuru}{\underline{LinkedIn}} $|$
+    \href{https://github.com/SaranTeja2004}{\underline{GitHub}}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section*{Professional Summary}
+A highly motivated Computer Science graduate with a strong passion for front-end development, seeking to leverage hands-on experience in modern web technologies like \textbf{React.js}, \textbf{JavaScript (ES6+)}, \textbf{HTML5}, and \textbf{CSS}. Proficient in building responsive web applications, optimizing performance, and integrating \textbf{RESTful APIs}. Eager to contribute to live projects, enhance application responsiveness, and refine technical skills in a collaborative, fast-paced environment, with a keen interest in learning \textbf{Next.js}. Possesses strong problem-solving abilities, effective communication, and a collaborative team-player mindset.
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeSubHeadingListStart
+    \resumeItem{\textbf{Front-End Development:} React.js, Redux, JavaScript (ES6+), HTML5, CSS}
+    \resumeItem{\textbf{Back-End Development:} Node.js, Express.js, Java, Python, JSP}
+    \resumeItem{\textbf{Databases:} MongoDB, MySQL, Firebase}
+    \resumeItem{\textbf{Tools \& Concepts:} Git, Postman, Linux, Agile, OOP, Data Structures, Algorithms, REST APIs}
+    \resumeItem{\textbf{Soft Skills:} Leadership, Team Collaboration, Problem Solving, Effective Communication}
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+    \resumeSubheading
+    {MVGR College of Engineering (A)}{Vizianagaram, India}
+    {B.Tech in Computer Science; GPA: 7.48/10}{May 2025}
+    \resumeSubheading
+    {Government Polytechnic College}{Anakapalle, India}
+    {Diploma in Computer Engineering; Final Grade: 82.09\%}{June 2022}
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+    \resumeSubheading
+    {AI Post Generator}{}{}{\href{https://post-generator-iota.vercel.app/}{\underline{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+        \resumeItem{Developed a MERN stack application with a \textbf{React.js frontend} and Express.js/Node.js backend, enabling AI-driven content generation.}
+        \resumeItem{Designed scalable MongoDB schemas and secure JWT-based authentication, improving cookie management efficiency by 25\%.}
+        \resumeItem{\textbf{Optimized cross-browser performance} using lazy loading, React Router, and dynamic rendering, ensuring seamless user experience and \textbf{application responsiveness}.}
+        \resumeItem{Integrated third-party AI API for dynamic content creation and implemented user authorization middleware, demonstrating strong \textbf{REST API} integration skills.}
+        \resumeItem{Collaborated effectively in \textbf{Agile} sprints, gaining experience with \textbf{code reviews} by mentoring peers on Redux state management and Git workflows.}
+    \resumeItemListEnd
+
+    \resumeSubheading
+    {Faculty Performance Monitor}{}{}
+    \resumeItemListStart
+        \resumeItem{Developed a Java-based portal using JSP and MySQL, featuring role-based dashboards for workload tracking.}
+        \resumeItem{Enhanced query performance by 30\% through SQL optimization and ensured scalability with modular code design.}
+        \resumeItem{Participated in \textbf{code reviews} within an \textbf{Agile} environment, documenting processes and resolving deployment issues, which improved delivery timelines and upheld quality standards.}
+    \resumeItemListEnd
+
+    \resumeSubheading
+    {Employee Management System}{}{}
+    \resumeItemListStart
+        \resumeItem{Built a Python and MySQL-based payroll automation tool with Tkinter GUI, reducing HR processing time by 20\%.}
+        \resumeItem{Implemented robust validation and exception handling, ensuring data integrity across 500+ employee records, showcasing \textbf{problem-solving skills} and \textbf{attention to detail}.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+    \resumeItem{AI and Machine Learning – AICTE}
+    \resumeItem{Cloud Computing – NPTEL}
+    \resumeItem{Java JUnit – Infosys SpringBoard}
+    \resumeItem{Foundations of Artificial Intelligence – SkillUp}
+\resumeSubHeadingListEnd
+
+%-----------ACHIEVEMENTS-----------
+\section{Achievements}
+\resumeSubHeadingListStart
+    \resumeItem{Led team in Pega Systems Hackathon, demonstrating \textbf{problem-solving} and \textbf{team collaboration} – Infosys Limited}
+    \resumeItem{Recognized for artistic talent in a Drawing Competition (early academic years)}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+    \resumeItem{English: Advanced}
+    \resumeItem{Telugu: Native Proficiency}
+\resumeSubHeadingListEnd
+
+\end{document}
