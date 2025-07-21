@@ -411,5 +411,5 @@ async def main():
     print(f"Successfully extracted data for {len(extracted)} jobs")
 
 if __name__ == "__main__":
-    asyncio.run(search_web_dev_jobs())
-    # asyncio.run(main())
+    # asyncio.run(search_web_dev_jobs())
+    asyncio.run(main())
