@@ -5,6 +5,9 @@ import google.generativeai as genai
 from urllib.parse import urlparse
 from config import GOOGLE_API
 
+# Configurable job limit for testing/performance
+MAX_JOBS_PER_KEYWORD = 20  # Set to 20 for fast testing, increase as needed
+
 PLATFORMS = {
     "ycombinator": {
         "url_template": "https://www.ycombinator.com/jobs/role/{role}",
@@ -29,6 +32,9 @@ WEB_DEV_KEYWORDS = [
 genai.configure(api_key=GOOGLE_API)
 model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17')
 
+# Global set to track all seen URLs across all platforms and keywords
+seen_urls = set()
+
 async def scrape_platform(browser, platform_name, config, role):
     """Scrape jobs for a specific role from a platform"""
     page = await browser.new_page()
@@ -38,7 +44,7 @@ async def scrape_platform(browser, platform_name, config, role):
         url = config["url_template"].format(role=role.replace(' ', '-').lower())
         print(f"Navigating to {platform_name} for '{role}': {url}")
         await page.goto(url)
-        await asyncio.sleep(5)
+        await page.wait_for_selector('body', timeout=5000)
 
         selectors_to_try = [
             'a[href*="/jobs/"]', '[data-testid*="job"]',
@@ -60,14 +66,14 @@ async def scrape_platform(browser, platform_name, config, role):
             job_cards = await page.query_selector_all('a, button, [role="button"]')
             print(f"Using fallback: Found {len(job_cards)} clickable elements")
 
-        max_jobs = 100
+        max_jobs = MAX_JOBS_PER_KEYWORD
+        # Prepare job card info for parallel detail scraping
+        job_card_infos = []
         for i, card in enumerate(job_cards[:max_jobs]):
             try:
                 text_content = (await card.inner_text()).strip()
                 if not text_content:
                     continue
-
-                # Check if job is relevant
                 title = "title not found"
                 title_elements = await card.query_selector_all('h1, h2, h3, h4, h5, h6')
                 if title_elements:
@@ -76,8 +82,6 @@ async def scrape_platform(browser, platform_name, config, role):
                     lines = text_content.split('\n')
                     if lines:
                         title = lines[0].strip().lower()
-                
-                # More flexible keyword matching
                 role_keywords = role.replace('-', ' ').split()
                 has_relevant_keyword = (
                     any(kw in title for kw in role_keywords) or
@@ -85,78 +89,71 @@ async def scrape_platform(browser, platform_name, config, role):
                     any(keyword in title or keyword in text_content.lower() 
                         for keyword in ['developer', 'engineer', 'programming', 'coding'])
                 )
-                
                 if not has_relevant_keyword:
                     continue
-
-                # Extract job URL
                 tag_name = await card.evaluate('el => el.tagName.toLowerCase()')
                 job_link = "Link not found"
-                
                 if tag_name == 'a':
                     job_link = await card.get_attribute('href') or "Link not found"
                 else:
                     link_elem = await card.query_selector('a[href*="job"], a[href*="apply"]')
                     job_link = await link_elem.get_attribute('href') if link_elem else "Link not found"
-                
                 if job_link != "Link not found" and not job_link.startswith("http"):
                     job_link = config["base_url"] + job_link
-
-                # YC filter
                 should_add = True
                 if platform_name.lower() == "ycombinator":
                     if "/companies/" not in job_link:
                         continue
-
-                # Extract job description
-                job_description = "Description not found"
-                if job_link != "Link not found":
-                    try:
-                        detail_page = await browser.new_page()
-                        await detail_page.goto(job_link)
-                        await asyncio.sleep(2)
-                        
-                        # YC specific header extraction
-                        header_text = ""
-                        if platform_name == "ycombinator":
-                            desc_header_selector = ".ycdc-card.max-w-2xl"
-                            desc_header = await detail_page.query_selector(desc_header_selector)
-                            if desc_header:
-                                header_text = (await desc_header.inner_text()).strip()
-                        
-                        # Main content extraction
-                        desc_selectors = [
-                            '[class*="description"]', '[class*="job-details"]',
-                            'article', '.prose', '.job-desc'
-                        ]
-                        
-                        desc_text = ""
-                        for selector in desc_selectors:
-                            desc_elem = await detail_page.query_selector(selector)
-                            if desc_elem:
-                                desc_text = (await desc_elem.inner_text()).strip()
-                                break
-                        
-                        # Combine header and description
-                        if header_text and desc_text:
-                            job_description = f"{header_text}\n\n{desc_text}"
-                        elif desc_text:
-                            job_description = desc_text
-                        elif header_text:
-                            job_description = header_text
-                            
-                        await detail_page.close()
-                        
-                    except Exception as e:
-                        print(f"Error fetching description for {job_link}: {e}")
-
-                if should_add and job_link != "Link not found" and job_description != "Description not found":
-                    job_dict[job_link] = job_description
-                    print(f"✅ Found for '{role}': {job_link[:50]}... ({len(job_description)} chars --{platform_name} card-{i})")
-                    
+                # Check if URL is already seen globally
+                if job_link in seen_urls:
+                    print(f"⏭️ Skipping duplicate URL: {job_link[:50]}... ({platform_name})")
+                    continue
+                if should_add and job_link != "Link not found":
+                    job_card_infos.append((job_link, platform_name, i))
             except Exception as e:
                 print(f"Error processing card {i}: {e}")
                 continue
+        # Parallel fetch job descriptions
+        async def fetch_job_detail(job_link, platform_name, card_index):
+            job_description = "Description not found"
+            try:
+                detail_page = await browser.new_page()
+                await detail_page.goto(job_link)
+                await detail_page.wait_for_selector('body', timeout=3000)
+                header_text = ""
+                if platform_name == "ycombinator":
+                    desc_header_selector = ".ycdc-card.max-w-2xl"
+                    desc_header = await detail_page.query_selector(desc_header_selector)
+                    if desc_header:
+                        header_text = (await desc_header.inner_text()).strip()
+                desc_selectors = [
+                    '[class*="description"]', '[class*="job-details"]',
+                    'article', '.prose', '.job-desc'
+                ]
+                desc_text = ""
+                for selector in desc_selectors:
+                    desc_elem = await detail_page.query_selector(selector)
+                    if desc_elem:
+                        desc_text = (await desc_elem.inner_text()).strip()
+                        break
+                if header_text and desc_text:
+                    job_description = f"{header_text}\n\n{desc_text}"
+                elif desc_text:
+                    job_description = desc_text
+                elif header_text:
+                    job_description = header_text
+                await detail_page.close()
+            except Exception as e:
+                print(f"Error fetching description for {job_link}: {e}")
+            return (job_link, job_description, card_index)
+        fetch_tasks = [fetch_job_detail(job_link, platform_name, card_index) for job_link, platform_name, card_index in job_card_infos]
+        fetch_results = await asyncio.gather(*fetch_tasks)
+        for job_link, job_description, card_index in fetch_results:
+            if job_description != "Description not found":
+                # Add to global seen URLs set
+                seen_urls.add(job_link)
+                job_dict[job_link] = job_description
+                print(f"✅ Found for '{role}': {job_link[:50]}... ({len(job_description)} chars --{platform_name} card-{card_index})")
 
         print(f"[{platform_name}] Found {len(job_dict)} jobs for '{role}'")
         return job_dict
@@ -193,10 +190,7 @@ async def scrape_all_keywords():
             
             print(f"Keyword '{role}' total: {len(keyword_jobs)} jobs")
             
-            # Smart deduplication
-            new_jobs = 0
-            duplicate_jobs = 0
-            
+            # Add jobs to combined dict with role tracking
             for url, description in keyword_jobs.items():
                 if url not in all_jobs_combined:
                     # New unique job
@@ -204,14 +198,12 @@ async def scrape_all_keywords():
                         'description': description,
                         'found_by_roles': [role]
                     }
-                    new_jobs += 1
                 else:
-                    # Duplicate job - just track the additional role
+                    # Job already exists - just track the additional role
                     if role not in all_jobs_combined[url]['found_by_roles']:
                         all_jobs_combined[url]['found_by_roles'].append(role)
-                    duplicate_jobs += 1
             
-            print(f"  📊 New jobs: {new_jobs}, Duplicates: {duplicate_jobs}")
+            print(f"  📊 Total unique jobs so far: {len(all_jobs_combined)}")
         
         await browser.close()
     
@@ -364,36 +356,18 @@ def infer_source_from_url(url: str) -> str:
     except:
         return 'unknown'
 
-async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 50) -> list:
-    """Process jobs in batches"""
+async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 100) -> list:
+    """Process jobs in batches in parallel"""
     all_extracted = []
     job_items = list(jobs_dict.items())
     total_batches = (len(job_items) + batch_size - 1) // batch_size
-    
     print(f"\n🔄 Processing {len(job_items)} jobs in {total_batches} batches of {batch_size}")
-    
-    for i in range(0, len(job_items), batch_size):
-        batch_dict = dict(job_items[i:i + batch_size])
-        batch_num = (i // batch_size) + 1
-        
-        print(f"Processing batch {batch_num}/{total_batches}: {len(batch_dict)} jobs")
-        
-        try:
-            batch_result = await extract_single_batch(batch_dict)
-            all_extracted.extend(batch_result)
-            print(f"✅ Batch {batch_num} completed: {len(batch_result)} jobs processed")
-            
-        except Exception as e:
-            print(f"❌ Batch {batch_num} failed: {e}")
-            fallback_jobs = [create_fallback_data_from_dict(url, jd) 
-                           for url, jd in batch_dict.items()]
-            all_extracted.extend(fallback_jobs)
-        
-        # Rate limiting
-        if batch_num < total_batches:
-            print(f"⏳ Waiting 3 seconds before next batch...")
-            await asyncio.sleep(3)
-    
+    batch_dicts = [dict(job_items[i:i + batch_size]) for i in range(0, len(job_items), batch_size)]
+    batch_tasks = [extract_single_batch(batch_dict) for batch_dict in batch_dicts]
+    results = await asyncio.gather(*batch_tasks)
+    for batch_num, batch_result in enumerate(results, 1):
+        all_extracted.extend(batch_result)
+        print(f"✅ Batch {batch_num} completed: {len(batch_result)} jobs processed")
     return all_extracted
 
 async def extract_single_batch(batch_dict: dict) -> list:
