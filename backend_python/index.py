@@ -169,7 +169,7 @@ async def scrape_all_keywords():
     all_jobs_combined = {}  # {url: {description, roles_found}}
     
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.firefox.launch(headless=False)
         
         for keyword_index, role in enumerate(WEB_DEV_KEYWORDS, 1):
             print(f"\n{'='*80}")
