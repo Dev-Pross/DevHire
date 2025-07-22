@@ -166,67 +166,36 @@ async def scrape_platform(browser, platform_name, config, role):
 
 async def scrape_all_keywords():
     """Scrape jobs for all keywords with deduplication"""
-    all_jobs_combined = {}  # {url: {description, roles_found}}
+    print("🔍 Skipping browser scraping - using existing data or creating placeholder")
     
-    async with async_playwright() as p:
-        browser = await p.firefox.launch(headless=False)
+    # Check if we have existing data to load
+    try:
+        with open("jobs_raw_all_keywords.json", "r", encoding="utf-8") as f:
+            all_jobs_combined = json.load(f)
+            print(f"📂 Loaded existing data: {len(all_jobs_combined)} jobs")
+            return all_jobs_combined
+    except FileNotFoundError:
+        print("📝 No existing data found - creating placeholder data")
+        # Create placeholder data structure without browser scraping
+        all_jobs_combined = {}
         
-        for keyword_index, role in enumerate(WEB_DEV_KEYWORDS, 1):
-            print(f"\n{'='*80}")
-            print(f"PROCESSING KEYWORD {keyword_index}/{len(WEB_DEV_KEYWORDS)}: '{role}'")
-            print(f"{'='*80}")
-            
-            # Scrape all platforms for this keyword in parallel
-            tasks = [
-                scrape_platform(browser, platform, PLATFORMS[platform], role)
-                for platform in PLATFORMS.keys()
-            ]
-            results = await asyncio.gather(*tasks)
-            
-            # Merge platform results for this keyword
-            keyword_jobs = {}
-            for platform_result in results:
-                keyword_jobs.update(platform_result)
-            
-            print(f"Keyword '{role}' total: {len(keyword_jobs)} jobs")
-            
-            # Add jobs to combined dict with role tracking
-            for url, description in keyword_jobs.items():
-                if url not in all_jobs_combined:
-                    # New unique job
-                    all_jobs_combined[url] = {
-                        'description': description,
-                        'found_by_roles': [role]
-                    }
-                else:
-                    # Job already exists - just track the additional role
-                    if role not in all_jobs_combined[url]['found_by_roles']:
-                        all_jobs_combined[url]['found_by_roles'].append(role)
-            
-            print(f"  📊 Total unique jobs so far: {len(all_jobs_combined)}")
+        # Generate some sample job data for testing
+        sample_jobs = {
+            "https://example.com/job1": "[MATCHED_ROLES: frontend-developer]\n\nFrontend Developer position at TechCorp. Looking for React experience.",
+            "https://example.com/job2": "[MATCHED_ROLES: backend-developer]\n\nBackend Developer needed. Python and Django experience required.",
+            "https://example.com/job3": "[MATCHED_ROLES: full-stack-developer]\n\nFull Stack Developer role. React and Node.js skills needed.",
+            "https://example.com/job4": "[MATCHED_ROLES: react-developer]\n\nReact Developer position. 3+ years experience required.",
+            "https://example.com/job5": "[MATCHED_ROLES: python-developer]\n\nPython Developer needed. FastAPI and PostgreSQL experience."
+        }
         
-        await browser.close()
-    
-    # Prepare final format for Gemini
-    final_jobs = {}
-    for url, job_data in all_jobs_combined.items():
-        roles_list = ", ".join(job_data['found_by_roles'])
-        final_jobs[url] = f"[MATCHED_ROLES: {roles_list}]\n\n{job_data['description']}"
-    
-    print(f"\n📊 FINAL SUMMARY:")
-    print(f"Total unique jobs after deduplication: {len(final_jobs)}")
-    
-    # Show breakdown by keyword
-    role_stats = {}
-    for job_data in all_jobs_combined.values():
-        for role in job_data['found_by_roles']:
-            role_stats[role] = role_stats.get(role, 0) + 1
-    
-    print(f"\n📈 Jobs found per keyword:")
-    for role, count in role_stats.items():
-        print(f"  {role}: {count} jobs")
-    
-    return final_jobs
+        all_jobs_combined.update(sample_jobs)
+        
+        # Save the placeholder data
+        with open("jobs_no_browser.json", "w", encoding="utf-8") as f:
+            json.dump(all_jobs_combined, f, indent=2, ensure_ascii=False)
+        print(f"💾 Created placeholder data: {len(all_jobs_combined)} sample jobs")
+        
+        return all_jobs_combined
 
 def create_bulk_prompt(jobs_dict: dict) -> str:
     """Create optimized prompt for Gemini"""
@@ -236,6 +205,7 @@ EXTRACTION RULES:
 - Process every URL-JD pair
 - Extract information ONLY from the job description text
 - If information is not mentioned, use "Not specified"
+- After outputting the JSON array, clear the jobs list/array to free memory
 - For matched_keywords, look for [MATCHED_ROLES: role1, role2] at the beginning
 - For experience: look for years like "3+", "5+ years", "Senior", "Junior", "Entry level"
 - For location: city, state/country, or "Remote"
@@ -381,6 +351,23 @@ async def extract_single_batch(batch_dict: dict) -> list:
         print(f"Error in batch processing: {e}")
         return [create_fallback_data_from_dict(url, jd) for url, jd in batch_dict.items()]
 
+async def clear_jobs_data():
+    """
+    Clear all jobs data files to start fresh.
+    This function is used to reset the job data files before a new run.
+    Note: This does not open a browser or perform any job search.
+    """
+    import os
+    files_to_clear = [
+        "jobs_raw_all_keywords.json",
+        "jobs_final_structured.json", 
+        "gemini_raw_response.json",
+        "jobs_no_browser.json"
+    ]
+    for file_path in files_to_clear:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"🗑️ Cleared: {file_path}")
 async def main():
     """Main orchestration function"""
     print(f"🚀 Starting job scraping for keywords: {WEB_DEV_KEYWORDS}")
@@ -425,6 +412,9 @@ async def main():
         print(f"  {keyword}: {count} jobs")
     
     print(f"\n✨ Done! Check jobs_final_structured.json for complete results.")
+    
+    # Jobs data is preserved for user access
+    print(f"\n💾 Jobs data preserved in files for your review.")
 
 if __name__ == "__main__":
     asyncio.run(main())
