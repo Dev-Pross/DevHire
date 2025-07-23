@@ -1,15 +1,101 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../app/generated/prisma"
+  // Remove output to use default location for generated client
+  // output   = "../app/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model users {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  full_name       String?
+  created_at DateTime  @default(now())
+  uploaded_resume uploaded_resume[]
+  job_applications job_applications[]
+}
+
+model uploaded_resume {
+  id         String    @id @default(uuid())
+  file_url   String?
+  experience Int?
+  created_at DateTime  @default(now())
+  users_id   String
+  users      users     @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parsed_title parsed_title[]
+  tailored_resume tailored_resume[]
+  job_applications job_applications[]
+  pipeline_progress pipeline_progress[]
+}
+
+model parsed_title {
+  id        String   @id @default(uuid())
+  titles    String[]
+  resume_id String
+  uploaded_resume uploaded_resume @relation(fields: [resume_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parsed_title_has_scraped_jobs parsed_title_has_scraped_jobs[]
+}
+
+model scraped_jobs {
+  id         String    @id @default(uuid())
+  title      String?
+  company    String?
+  location   String?
+  platform   String?
+  job_url    String?
+  job_desc   String?
+  created_at DateTime  @default(now())
+  parsed_title_has_scraped_jobs parsed_title_has_scraped_jobs[]
+  tailored_resume tailored_resume[]
+  job_applications job_applications[]
+}
+
+model parsed_title_has_scraped_jobs {
+  title_id String
+  jobs_id  String
+
+  parsed_title parsed_title @relation(fields: [title_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  scraped_jobs scraped_jobs @relation(fields: [jobs_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([title_id, jobs_id])
+}
+
+model tailored_resume {
+  tailored_resume_id String   @id @default(uuid())
+  file_url           String?
+  generated_at       DateTime @default(now())
+  jobs_id            String
+  resume_id          String
+
+  scraped_jobs       scraped_jobs   @relation(fields: [jobs_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  uploaded_resume    uploaded_resume @relation(fields: [resume_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  job_applications   job_applications[]
+}
+
+model job_applications {
+  id                String   @id @default(uuid())
+  status            String?  @db.VarChar(45)
+  applied_at        DateTime @default(now())
+  jobs_id           String
+  tailored_resume_id String
+  users_id          String
+  uploaded_resume_id String
+
+  scraped_jobs      scraped_jobs     @relation(fields: [jobs_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tailored_resume   tailored_resume  @relation(fields: [tailored_resume_id], references: [tailored_resume_id], onDelete: Cascade, onUpdate: Cascade)
+  users             users            @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  uploaded_resume   uploaded_resume  @relation(fields: [uploaded_resume_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+model pipeline_progress {
+  id                String   @id @default(uuid())
+  current_stage     String?  @db.VarChar(45)
+  updated_at        DateTime @default(now())
+  uploaded_resume_id String
+
+  uploaded_resume   uploaded_resume @relation(fields: [uploaded_resume_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
