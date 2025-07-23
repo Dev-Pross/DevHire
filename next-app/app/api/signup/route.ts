@@ -18,6 +18,7 @@ export async function POST(req: Request) {
 
         // For now, using Prisma client as before, but ensure your DB schema is ready:
         email: email,
+        name : "Hello world "
         // id: password, // Don't use password as id! Use a proper UUID or let DB auto-generate.
       },
     });
