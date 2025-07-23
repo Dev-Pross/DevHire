@@ -13,7 +13,8 @@ datasource db {
 model users {
   id         String    @id @default(uuid())
   email      String    @unique
-  full_name       String?
+  name     String?
+  password         String
   created_at DateTime  @default(now())
   uploaded_resume uploaded_resume[]
   job_applications job_applications[]

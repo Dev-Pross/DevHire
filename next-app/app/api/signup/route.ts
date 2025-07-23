@@ -1,29 +1,47 @@
 import { PrismaClient } from "@prisma/client";
-// import { PrismaClient } from "@prisma/client";
+import { hash } from "bcrypt";
+
+const prisma = new PrismaClient();
+
 export async function POST(req: Request) {
   try {
-    const prisma = new PrismaClient();
-
     const { username, email, password } = await req.json();
-    const result = await prisma.$queryRaw`SELECT NOW() as currentDate`;
-    console.log(result);
+
+    // Validate required fields
+    if (!username || !email || !password) {
+      return new Response(
+        JSON.stringify({ message: "Missing required fields" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if user with this email already exists
+    const existingUser = await prisma.users.findUnique({
+      where: { email: email },
+      // Only select the id to avoid Prisma error if password is null
+      select: { id: true },
+    });
+
+    if (existingUser) {
+      return new Response(
+        JSON.stringify({
+          message: "Email already exists",
+        }),
+        { status: 411, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Hash the password
+    const hashedPassword = await hash(password, 10);
+
+    // Create the user
     const user = await prisma.users.create({
       data: {
-        // If prisma migrate is too slow, you can use SQL directly to insert the user as a workaround.
-        // Example using $executeRaw (not recommended for production without validation!):
-        // await prisma.$executeRaw`INSERT INTO users (email, id) VALUES (${email}, ${password})`;
-
-        // Or, if you want to use the Prisma client and skip migrations, ensure your table exists in the DB.
-        // You can also use a tool like `psql` or a GUI to manually create the table/schema.
-
-        // For now, using Prisma client as before, but ensure your DB schema is ready:
         email: email,
-        name : "Hello world "
-        // id: password, // Don't use password as id! Use a proper UUID or let DB auto-generate.
+        name: username,
+        password: hashedPassword,
       },
     });
-    console.log(username, password);
-    console.log(user);
 
     return new Response(
       JSON.stringify({
