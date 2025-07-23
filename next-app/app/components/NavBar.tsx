@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
+import { SignUp } from "./SignUp";
 // import { signIn, signOut ,  } from "next-auth/react";
 import { useSession, signIn, signOut, SessionProvider } from "next-auth/react";
-export  function NavBar() {
+export function NavBar() {
   const { data: session } = useSession();
   return (
     <div className="flex flex-col  justify-between">
@@ -15,6 +16,9 @@ export  function NavBar() {
         </div>
 
         <div className="flex gap-4 ">
+          <div>
+            <SignUp />
+          </div>
           {session ? (
             <button
               className="hover:bg-white rounded-lg p-2 px-4 hover:text-black"
@@ -41,11 +45,10 @@ export  function NavBar() {
     </div>
   );
 }
-export function RealNavBar(){
-
-    return(
-        <SessionProvider>
-        <NavBar/>
+export function RealNavBar() {
+  return (
+    <SessionProvider>
+      <NavBar />
     </SessionProvider>
-    )
+  );
 }
