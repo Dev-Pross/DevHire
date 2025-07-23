@@ -37,6 +37,8 @@ export default function SignUp() {
       });
       // Optionally, handle success (e.g., redirect or show message)
       // Reset form or show success message here
+         // Optionally, handle success (e.g., redirect or show message)
+      // Reset form or show success message here
     } catch (err) {
       setError("An error occurred during signup.");
       console.log(err);
