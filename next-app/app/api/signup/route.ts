@@ -15,12 +15,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user with this email already exists
     const existingUser = await prisma.users.findUnique({
       where: { email: email },
-      // Only select the id to avoid Prisma error if password is null
-      select: { id: true },
+      select: { id: true }, // Only fetch the 'id' field for efficiency and safety
     });
+
 
     if (existingUser) {
       return new Response(
