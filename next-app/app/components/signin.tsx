@@ -1,9 +1,10 @@
 "use client";
-
+import { signIn } from "next-auth/react";
 import React, { useState, useCallback } from "react";
 import Link from "next/link";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import NextAuth from "next-auth";
 
 // SVG Eye and Eye Off Icons
 const EyeIcon = ({ className = "" }) => (
@@ -99,9 +100,10 @@ export default function SignIn() {
     setError("");
     setLoading(true);
     try {
-      await axios.post("/api/auth/signin", {
+      await  signIn( "credentials", {
         email: data.email,
         password: data.password,
+        redirect: false
       });
       router.push("/");
     } catch (err: any) {
