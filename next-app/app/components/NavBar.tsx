@@ -1,9 +1,19 @@
 "use client";
-import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
+import { SessionProvider, useSession, signOut } from "next-auth/react";
 import { FaHome, FaBriefcase, FaFlask } from "react-icons/fa";
+import Link from "next/link";
 
-export function NavBar() {
-  const session = useSession();
+// NavBar component, expects to be wrapped in SessionProvider for fast session access
+function NavBarInner() {
+  const { data: session, status } = useSession();
+
+  // Shared button styles for both "Get Started" and "Sign Out"
+  const buttonBase =
+    "px-6 py-2 rounded-full bg-gradient-to-r from-white/20 via-slate-400/30 to-white/10 text-white font-semibold shadow-lg border border-slate-600/40 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-200/80";
+  const buttonHover =
+    "hover:bg-white/90 hover:text-black hover:scale-105 hover:shadow-2xl";
+  const buttonText =
+    "bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent group-hover:text-black transition-all duration-200";
 
   return (
     <nav className="w-full flex justify-center mt-8">
@@ -14,29 +24,49 @@ export function NavBar() {
           <NavItem href="/research" icon={<FaFlask />} label="Research" />
         </ul>
         <div>
-          {session.status === "authenticated" && (
+          {status === "loading" ? (
+            // Show a skeleton or placeholder for fast feedback
+            <div className="w-32 h-10 bg-white/20 rounded-full animate-pulse" />
+          ) : status === "authenticated" ? (
             <div className="flex items-center space-x-4">
               <span className="text-white/80 font-medium text-lg hidden md:inline transition-all duration-300">
-                {session.data?.user?.name
-                  ? `Hi, ${session.data.user.name.split(" ")[0]}`
-                  : session.data?.user?.email}
+                {session?.user?.name
+                  ? `Hi, ${session.user.name.split(" ")[0]}`
+                  : session?.user?.email}
               </span>
               <button
-                className="px-6 py-2 rounded-full bg-gradient-to-r from-black/80 via-gray-900 to-gray-700 text-white font-semibold shadow-lg border border-white/10 hover:bg-white hover:text-black hover:shadow-xl transition-all duration-300"
+                className={`group ${buttonBase} ${buttonHover}`}
+                style={{
+                  fontWeight: 700,
+                  fontSize: "1.13rem",
+                  letterSpacing: "0.01em",
+                  boxShadow: "0 2px 24px 0 rgba(192,192,192,0.10)",
+                  backgroundImage:
+                    "linear-gradient(90deg, rgba(255,255,255,0.13) 0%, rgba(180,180,180,0.18) 50%, rgba(255,255,255,0.08) 100%)",
+                  cursor: "pointer",
+                }}
                 onClick={() => signOut()}
               >
-                Sign Out
+                <span className={buttonText}>Sign Out</span>
               </button>
             </div>
-          )}
-
-          {session.status === "unauthenticated" && (
-            <button
-              className="px-6 py-2 rounded-full bg-white/90 text-black font-semibold shadow-lg border border-white/20 hover:bg-black hover:text-white hover:shadow-xl transition-all duration-300"
-              onClick={() => signIn()}
+          ) : (
+            // Only one button: "Get Started" (links to sign in)
+            <Link
+              href="/signin"
+              className={`group ${buttonBase} ${buttonHover}`}
+              style={{
+                fontWeight: 700,
+                fontSize: "1.13rem",
+                letterSpacing: "0.01em",
+                boxShadow: "0 2px 24px 0 rgba(192,192,192,0.10)",
+                backgroundImage:
+                  "linear-gradient(90deg, rgba(255,255,255,0.13) 0%, rgba(180,180,180,0.18) 50%, rgba(255,255,255,0.08) 100%)",
+                cursor: "pointer",
+              }}
             >
-              Get Started
-            </button>
+              <span className={buttonText}>Get Started</span>
+            </Link>
           )}
         </div>
       </div>
@@ -67,10 +97,11 @@ function NavItem({
   );
 }
 
+// RealNavBar: Wraps NavBarInner in SessionProvider for correct next-auth usage and fast session hydration
 export function RealNavBar() {
   return (
     <SessionProvider>
-      <NavBar />
+      <NavBarInner />
     </SessionProvider>
   );
 }
