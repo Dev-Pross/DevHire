@@ -1,22 +1,43 @@
 \documentclass[article,11pt]{article}
-\usepackage{textcomp} % To support common symbols
-\usepackage[left=1in, right=1in, top=1in, bottom=1in]{geometry} % Manage margins
-\usepackage{titlesec} % For professional section formatting
-\usepackage{enumitem} % For custom list environments
-\usepackage[hidelinks]{hyperref} % For clickable links without boxes
-\usepackage{ragged2e} % For \RaggedRight
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage{geometry} % Required for setting margins properly
+\usepackage{textcomp} % Load textcomp for various symbols
 
-% Disable page numbers
-\pagestyle{empty}
+\geometry{
+    a4paper,
+    top=0.75in,
+    bottom=0.75in,
+    left=0.75in,
+    right=0.75in
+}
 
-% Adjust spacing between paragraphs and sections
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{0pt}
+\input{glyphtounicode}
+\pagestyle{empty} % No page numbers
 
-% Custom section formatting
-\titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
 
-% Custom commands for resume items (adapted from sample)
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Section Formatting
+\titleformat{\section}{
+  \vspace{-4pt}\Large\bfseries\scshape
+}{}{0em}{}[\color{black}\titlerule\vspace{-5pt}]
+
+% Custom Commands
 \newcommand{\resumeSubheading}[4]{
 \item
     \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
@@ -27,9 +48,11 @@
 \newcommand{\resumeItem}[1]{\item\small{#1}}
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
 \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
-\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.15in, label=\textbullet]}
 \newcommand{\resumeItemListEnd}{\end{itemize}}
 
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
 
 %----------HEADING----------
@@ -37,85 +60,99 @@
     \textbf{\Huge \scshape Budumuru Srinivas Sai Saran Teja} \\ \vspace{1pt}
     Visakhapatnam, India \\
     \small +91 7993027519 $|$ \href{mailto:tejabudumuru3@gmail.com}{\underline{tejabudumuru3@gmail.com}} $|$
-    \href{https://linkedin.com/in/saran-teja-budumuru}{\underline{LinkedIn}} $|$
-    \href{https://github.com/SaranTeja2004}{\underline{GitHub}}
+    \href{https://www.linkedin.com/in/saisaranteja}{\underline{LinkedIn}} $|$
+    \href{https://github.com/saisaranteja}{\underline{GitHub}}
 \end{center}
 
 %-----------PROFESSIONAL SUMMARY-----------
 \section*{Professional Summary}
-A highly motivated Computer Science graduate with a strong passion for front-end development, seeking to leverage hands-on experience in modern web technologies like \textbf{React.js}, \textbf{JavaScript (ES6+)}, \textbf{HTML5}, and \textbf{CSS}. Proficient in building responsive web applications, optimizing performance, and integrating \textbf{RESTful APIs}. Eager to contribute to live projects, enhance application responsiveness, and refine technical skills in a collaborative, fast-paced environment, with a keen interest in learning \textbf{Next.js}. Possesses strong problem-solving abilities, effective communication, and a collaborative team-player mindset.
+\begin{itemize}[leftmargin=0.15in, label={}]
+\item A results-driven Computer Science graduate with hands-on full-stack development expertise, specialized in building intuitive and efficient web applications using \textbf{React.js} and \textbf{Node.js}.
+\item Proven ability to design scalable systems, implement secure authentication, and optimize user experiences, with a strong foundation in \textbf{JavaScript (ES6+)} and database technologies like \textbf{MongoDB} and \textbf{MySQL}.
+\item Passionate about leveraging \textbf{AI functionality} to streamline workflows and solve complex real-world problems, specifically focusing on user-centered innovation and delivering high-quality software.
+\item Adept at collaborative teamwork within fast-paced, Agile environments, committed to writing clean, maintainable code and directly impacting user success.
+\end{itemize}
 
 %-----------TECHNICAL SKILLS-----------
 \section{Technical Skills}
 \resumeSubHeadingListStart
-    \resumeItem{\textbf{Front-End Development:} React.js, Redux, JavaScript (ES6+), HTML5, CSS}
-    \resumeItem{\textbf{Back-End Development:} Node.js, Express.js, Java, Python, JSP}
-    \resumeItem{\textbf{Databases:} MongoDB, MySQL, Firebase}
-    \resumeItem{\textbf{Tools \& Concepts:} Git, Postman, Linux, Agile, OOP, Data Structures, Algorithms, REST APIs}
-    \resumeItem{\textbf{Soft Skills:} Leadership, Team Collaboration, Problem Solving, Effective Communication}
-\resumeSubHeadingListEnd
-
-%-----------EDUCATION-----------
-\section{Education}
-\resumeSubHeadingListStart
-    \resumeSubheading
-    {MVGR College of Engineering (A)}{Vizianagaram, India}
-    {B.Tech in Computer Science; GPA: 7.48/10}{May 2025}
-    \resumeSubheading
-    {Government Polytechnic College}{Anakapalle, India}
-    {Diploma in Computer Engineering; Final Grade: 82.09\%}{June 2022}
+\resumeItem{\textbf{Languages:} JavaScript (ES6+), Python, Java, C, SQL}
+\resumeItem{\textbf{Frontend:} React.js, Redux, HTML5, CSS, JSP}
+\resumeItem{\textbf{Backend:} Node.js, Express.js}
+\resumeItem{\textbf{Databases \& Cloud:} MongoDB, MySQL, Firebase}
+\resumeItem{\textbf{Frameworks \& Tools:} Git, Postman, Linux, Android Studio}
+\resumeItem{\textbf{Methodologies \& Concepts:} Agile, Object-Oriented Programming (OOP), Data Structures, Algorithms, User-Centered Design}
+\resumeItem{\textbf{Soft Skills:} Problem Solving, Team Collaboration, Effective Communication, Leadership, Solution-Oriented Mindset}
 \resumeSubHeadingListEnd
 
 %-----------PROJECTS-----------
 \section{Projects}
 \resumeSubHeadingListStart
-    \resumeSubheading
-    {AI Post Generator}{}{}{\href{https://post-generator-iota.vercel.app/}{\underline{post-generator-iota.vercel.app}}}
-    \resumeItemListStart
-        \resumeItem{Developed a MERN stack application with a \textbf{React.js frontend} and Express.js/Node.js backend, enabling AI-driven content generation.}
-        \resumeItem{Designed scalable MongoDB schemas and secure JWT-based authentication, improving cookie management efficiency by 25\%.}
-        \resumeItem{\textbf{Optimized cross-browser performance} using lazy loading, React Router, and dynamic rendering, ensuring seamless user experience and \textbf{application responsiveness}.}
-        \resumeItem{Integrated third-party AI API for dynamic content creation and implemented user authorization middleware, demonstrating strong \textbf{REST API} integration skills.}
-        \resumeItem{Collaborated effectively in \textbf{Agile} sprints, gaining experience with \textbf{code reviews} by mentoring peers on Redux state management and Git workflows.}
-    \resumeItemListEnd
 
-    \resumeSubheading
-    {Faculty Performance Monitor}{}{}
-    \resumeItemListStart
-        \resumeItem{Developed a Java-based portal using JSP and MySQL, featuring role-based dashboards for workload tracking.}
-        \resumeItem{Enhanced query performance by 30\% through SQL optimization and ensured scalability with modular code design.}
-        \resumeItem{Participated in \textbf{code reviews} within an \textbf{Agile} environment, documenting processes and resolving deployment issues, which improved delivery timelines and upheld quality standards.}
-    \resumeItemListEnd
+\resumeSubheading
+{AI Post Generator}{https://post-generator-iota.vercel.app/}
+{Full-stack Developer}
+{}
+\resumeItemListStart
+\resumeItem{Designed and built an intuitive MERN stack application, integrating a third-party \textbf{AI API} to enable dynamic, AI-driven content generation, directly enhancing user workflow efficiency.}
+\resumeItem{Obsessed over user interactions by optimizing cross-browser performance using lazy loading, React Router, and dynamic rendering, ensuring a seamless and responsive user experience for content creators.}
+\resumeItem{Transformed conceptual ideas into delightful solutions by designing scalable \textbf{MongoDB} schemas and secure JWT-based authentication, improving cookie management efficiency by 25\%.}
+\resumeItem{Implemented robust user authorization middleware for secure deployment and collaborated effectively in Agile sprints, mentoring peers on \textbf{Redux} state management and \textbf{Git} workflows.}
+\resumeItemListEnd
 
-    \resumeSubheading
-    {Employee Management System}{}{}
-    \resumeItemListStart
-        \resumeItem{Built a Python and MySQL-based payroll automation tool with Tkinter GUI, reducing HR processing time by 20\%.}
-        \resumeItem{Implemented robust validation and exception handling, ensuring data integrity across 500+ employee records, showcasing \textbf{problem-solving skills} and \textbf{attention to detail}.}
-    \resumeItemListEnd
+\resumeSubheading
+{Faculty Performance Monitor}{}
+{Full-stack Developer}
+{}
+\resumeItemListStart
+\resumeItem{Developed a Java-based portal using JSP and MySQL, featuring role-based dashboards to automate workload tracking, freeing up administrative time.}
+\resumeItem{Enhanced query performance by 30\% through \textbf{SQL optimization} and ensured scalability with modular code design, directly addressing system efficiency.}
+\resumeItem{Led code reviews within an Agile environment, documented processes, and resolved deployment issues, demonstrating a solution-oriented approach to improving delivery timelines.}
+\resumeItemListEnd
+
+\resumeSubheading
+{Employee Management System}{}
+{Software Developer}
+{}
+\resumeItemListStart
+\resumeItem{Built a \textbf{Python} and \textbf{MySQL}-based payroll automation tool with Tkinter GUI, reducing HR processing time by 20\% and simplifying complex administrative tasks.}
+\resumeItem{Implemented robust validation and exception handling, ensuring data integrity across 500+ employee records, preventing workflow disruptions.}
+\resumeItemListEnd
+
 \resumeSubHeadingListEnd
 
-%-----------CERTIFICATIONS-----------
-\section{Certifications}
+%-----------EDUCATION-----------
+\section{Education}
 \resumeSubHeadingListStart
-    \resumeItem{AI and Machine Learning – AICTE}
-    \resumeItem{Cloud Computing – NPTEL}
-    \resumeItem{Java JUnit – Infosys SpringBoard}
-    \resumeItem{Foundations of Artificial Intelligence – SkillUp}
+\resumeSubheading
+{MVGR College of Engineering (A)}{Vizianagaram, India}
+{B.Tech in Computer Science; GPA: 7.48/10}{May 2025}
+\resumeSubheading
+{Government Polytechnic College}{Anakapalle, India}
+{Diploma in Computer Engineering; Final Grade: 82.09\%}{June 2022}
 \resumeSubHeadingListEnd
 
-%-----------ACHIEVEMENTS-----------
-\section{Achievements}
+%-----------CERTIFICATIONS & ACHIEVEMENTS-----------
+\section{Certifications \& Achievements}
 \resumeSubHeadingListStart
-    \resumeItem{Led team in Pega Systems Hackathon, demonstrating \textbf{problem-solving} and \textbf{team collaboration} – Infosys Limited}
-    \resumeItem{Recognized for artistic talent in a Drawing Competition (early academic years)}
+\resumeItem{\textbf{Certifications:}}
+\resumeItemListStart
+\resumeItem{AI and Machine Learning – AICTE}
+\resumeItem{Cloud Computing – NPTEL}
+\resumeItem{Java JUnit – Infosys SpringBoard}
+\resumeItem{Foundations of Artificial Intelligence – SkillUp}
+\resumeItemListEnd
+\resumeItem{\textbf{Achievements:}}
+\resumeItemListStart
+\resumeItem{Led team in Pega Systems Hackathon, demonstrating strong problem-solving and collaboration skills.}
+\resumeItemListEnd
 \resumeSubHeadingListEnd
 
 %-----------LANGUAGES-----------
 \section{Languages}
 \resumeSubHeadingListStart
-    \resumeItem{English: Advanced}
-    \resumeItem{Telugu: Native Proficiency}
+\resumeItem{English: Advanced}
+\resumeItem{Telugu: Native Proficiency}
 \resumeSubHeadingListEnd
 
 \end{document}

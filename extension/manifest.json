@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "DevHire Silent Cookie Fetcher",
+  "version": "1.0",
+  "description": "Silently fetches LinkedIn li_at cookie and sends it to DevHire backend",
+  "permissions": [
+    "cookies",
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.linkedin.com/*",
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

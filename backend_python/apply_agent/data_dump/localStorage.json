@@ -1,0 +1,10 @@
+{
+  "voyager-web:jobs-search-recent-location": "",
+  "voyager-web:feedInitialRequestUpdates": "urn:li:activity:7353389770091229184|urn:li:aggregate:(urn:li:company:31540296,urn:li:company:1441,urn:li:company:11554576)|urn:li:activity:7353661525645037569",
+  "tealium_timing": "{\"domain\":\"www.linkedin.com\",\"pathname\":\"/jobs/\",\"query_string\":\"\",\"timestamp\":1753369117702,\"dns\":0,\"connect\":0,\"response\":810,\"dom_loading_to_interactive\":9462,\"dom_interactive_to_complete\":673,\"load\":10,\"time_to_first_byte\":360,\"front_end\":9392,\"fetch_to_response\":360,\"fetch_to_complete\":10562,\"fetch_to_interactive\":9889}",
+  "voyager-web:isUserJobSeeker": "false",
+  "voyager-web:enterSend": "false",
+  "_gcl_ls": "{\"schema\":\"gcl\",\"version\":1,\"gcl_ctr\":{\"value\":{\"value\":5,\"creationTimeMs\":1753372716783},\"expires\":1761148716783}}",
+  "voyager-web:new-tab-beacon": "[]",
+  "li_adsId": "bbd62a40-ee0f-4674-ab45-3d6d4ce7cb6d"
+}
