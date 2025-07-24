@@ -1,7 +1,18 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import Link from "next/link";
-export  const authoptions = {
+import { PrismaClient } from "@prisma/client";
+import { compare } from "bcrypt";
+import Google from "next-auth/providers/google";
+
+// How to send error details to the frontend with NextAuth credentials provider?
+// - You cannot return a custom Response from `authorize`.
+// - Instead, throw an Error with a message. NextAuth will redirect to the sign-in page with an error query param.
+// - On the frontend, you can read the error param and show a custom message.
+// - You can also use `callbacks` to customize error handling further.
+
+const prisma = new PrismaClient();
+
+export const authoptions = {
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
@@ -12,43 +23,46 @@ export  const authoptions = {
           type: "email",
           placeholder: "Enter your email",
         },
-        username: {
-          label: "Username",
-          type: "text",
-          placeholder: "Enter your username",
-        },
         password: {
           label: "Password",
           type: "password",
           placeholder: "Enter your password",
         },
       },
-      async authorize(credentials, req) {
-        const username1 = credentials?.username;
-        const password1 = credentials?.password;
+      async authorize(credentials) {
+        const email = credentials?.email;
+        const password = credentials?.password;
 
-        const user = {
-          name: "Hello world ",
-          username: "kingu",
-          id: "34",
+        if (!email || !password) {
+          // Missing required fields
+          throw new Error("Missing email or password");
         }
-        if (username1 == "123" || password1 == "123") {
-          return user;
+
+        // Find user by email
+        const user = await prisma.users.findUnique({
+          where: { email },
+        });
+
+        if (!user || !user.password) {
+          // User not found or no password set
+          throw new Error("No user found with this email");
         }
-        // Implement your own logic here to find the user and validate credentials
-        // Example:
-        // if (credentials?.username === "admin" && credentials?.password === "admin") {
-        //   return { id: 1, name: "Admin", email: "admin@example.com" };
-        // }
-        // return null;
-        return null;
+
+        // Compare password
+        const isMatch = await compare(password, user.password);
+        if (!isMatch) {
+          // Invalid password
+          throw new Error("Invalid password");
+        }
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        };
       },
     }),
-    // You can add EmailProvider or other providers here if needed
-    // EmailProvider({
-    //   server: process.env.EMAIL_SERVER,
-    //   from: process.env.EMAIL_FROM,
-    // }),
+    // Add other providers here if needed
   ],
 };
 
