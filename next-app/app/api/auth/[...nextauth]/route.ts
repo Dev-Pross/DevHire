@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaClient } from "@prisma/client";
 import { compare } from "bcrypt";
+import Google from "next-auth/providers/google";
 
 // How to send error details to the frontend with NextAuth credentials provider?
 // - You cannot return a custom Response from `authorize`.

@@ -100,19 +100,12 @@ export default function SignIn() {
     setError("");
     setLoading(true);
     try {
-     const res = await  signIn( "credentials", {
+      await  signIn( "credentials", {
         email: data.email,
         password: data.password,
         redirect: false
       });
-      if(res?.ok){
-        router.push("/");
-
-      }
-      else{
-        setError("Invalid email or password.");
-
-      }
+      router.push("/");
     } catch (err: any) {
       if (err && err.response && err.response.status === 401) {
         setError("Invalid email or password.");

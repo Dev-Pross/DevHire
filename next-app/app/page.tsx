@@ -5,8 +5,8 @@ import { authoptions } from "./api/auth/[...nextauth]/route";
 // Move all styling to Tailwind classes and inline styles, avoid styled-jsx or any client-only code
 
 export default async function Home() {
-  const session = await getServerSession(authoptions)
-  secret :process.env.NEXTAUTH_SECRET
+  const session = await getServerSession(authoptions);
+
   return (
     <div
       className="min-h-screen w-full flex flex-col"

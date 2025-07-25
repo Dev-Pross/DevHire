@@ -2,10 +2,37 @@
 import { SessionProvider, useSession, signOut } from "next-auth/react";
 import { FaHome, FaBriefcase, FaFlask } from "react-icons/fa";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 // NavBar component, expects to be wrapped in SessionProvider for fast session access
 function NavBarInner() {
   const { data: session, status } = useSession();
+  // Add local state to track custom login
+  const [customUser, setCustomUser] = useState<null | { name?: string; email?: string }>(null);
+
+  // On mount, check if user info exists in localStorage (set by your custom signin route)
+  useEffect(() => {
+    // Only check if not authenticated by next-auth
+    if (!session) {
+      try {
+        const userStr = typeof window !== "undefined" ? localStorage.getItem("customUser") : null;
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          if (user && (user.name || user.email)) {
+            setCustomUser(user);
+          } else {
+            setCustomUser(null);
+          }
+        } else {
+          setCustomUser(null);
+        }
+      } catch (e) {
+        setCustomUser(null);
+      }
+    } else {
+      setCustomUser(null);
+    }
+  }, [session]);
 
   // Shared button styles for both "Get Started" and "Sign Out"
   const buttonBase =
@@ -33,6 +60,29 @@ function NavBarInner() {
     );
   }
 
+  // Handler for custom sign out (removes localStorage and reloads)
+  const handleCustomSignOut = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("customUser");
+      setCustomUser(null);
+      // Optionally, reload the page to clear any state
+      window.location.reload();
+    }
+  };
+
+  // Show sign out if either next-auth session or customUser is present
+  const isLoggedIn = !!session || !!customUser;
+  const userName =
+    session?.user?.name
+      ? `Hi, ${session.user.name.split(" ")[0]}`
+      : session?.user?.email
+      ? session.user.email
+      : customUser?.name
+      ? `Hi, ${customUser.name.split(" ")[0]}`
+      : customUser?.email
+      ? customUser.email
+      : "";
+
   return (
     <nav className="w-full flex justify-center mt-8">
       <div className="flex w-full max-w-5xl items-center justify-between rounded-3xl border border-white/20 bg-white/10 backdrop-blur-lg shadow-2xl px-10 py-4 transition-all duration-500 hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.25)]">
@@ -42,28 +92,44 @@ function NavBarInner() {
           <NavItem href="/research" icon={<FaFlask />} label="Research" />
         </ul>
         <div>
-          {session ? (
+          {isLoggedIn ? (
             <div className="flex items-center space-x-4">
               <span className="text-white/80 font-medium text-lg hidden md:inline transition-all duration-300">
-                {session.user?.name
-                  ? `Hi, ${session.user.name.split(" ")[0]}`
-                  : session.user?.email}
+                {userName}
               </span>
-              <button
-                className={`group ${buttonBase} ${buttonHover}`}
-                style={{
-                  fontWeight: 700,
-                  fontSize: "1.13rem",
-                  letterSpacing: "0.01em",
-                  boxShadow: "0 2px 24px 0 rgba(192,192,192,0.10)",
-                  backgroundImage:
-                    "linear-gradient(90deg, rgba(255,255,255,0.13) 0%, rgba(180,180,180,0.18) 50%, rgba(255,255,255,0.08) 100%)",
-                  cursor: "pointer",
-                }}
-                onClick={() => signOut()}
-              >
-                <span className={buttonText}>Sign Out</span>
-              </button>
+              {session ? (
+                <button
+                  className={`group ${buttonBase} ${buttonHover}`}
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "1.13rem",
+                    letterSpacing: "0.01em",
+                    boxShadow: "0 2px 24px 0 rgba(192,192,192,0.10)",
+                    backgroundImage:
+                      "linear-gradient(90deg, rgba(255,255,255,0.13) 0%, rgba(180,180,180,0.18) 50%, rgba(255,255,255,0.08) 100%)",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => signOut()}
+                >
+                  <span className={buttonText}>Sign Out</span>
+                </button>
+              ) : (
+                <button
+                  className={`group ${buttonBase} ${buttonHover}`}
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "1.13rem",
+                    letterSpacing: "0.01em",
+                    boxShadow: "0 2px 24px 0 rgba(192,192,192,0.10)",
+                    backgroundImage:
+                      "linear-gradient(90deg, rgba(255,255,255,0.13) 0%, rgba(180,180,180,0.18) 50%, rgba(255,255,255,0.08) 100%)",
+                    cursor: "pointer",
+                  }}
+                  onClick={handleCustomSignOut}
+                >
+                  <span className={buttonText}>Sign Out</span>
+                </button>
+              )}
             </div>
           ) : (
             <Link
