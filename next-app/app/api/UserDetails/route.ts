@@ -1,9 +1,9 @@
-// app/api/user/route.ts
+// app/api/UserDetails/route.ts
 import { NextResponse, NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
 import { PrismaClient } from "@prisma/client";
+import { getToken } from "next-auth/jwt";
 
-// Singleton pattern for PrismaClient to avoid hot-reload issues in development
+// --- PrismaClient singleton pattern (same as in signup route) ---
 let prisma: PrismaClient;
 declare global {
   // eslint-disable-next-line no-var
@@ -39,35 +39,25 @@ async function getUserById(userId: string) {
 
 // Main handler for GET request
 export async function GET(req: NextRequest) {
-  // Try to get the token from the request
+  // --- Apply the same logic as the middleware for authentication ---
+  // (middleware.ts uses getToken to check for a valid session token)
   const token = await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  // Debug logging: show the decoded token and its fields
-  console.log("Decoded token:", token);
-
-  // The token may not have an 'id' field, but may have 'sub' (subject) as the user id
-  // See your decoded token example:
-  // {
-  //   name: 'NewOne',
-  //   email: 'NewOne@gmail.com',
-  //   sub: '12aea842-24da-41fd-8fef-b3dc4e637896',
-  //   iat: ...,
-  //   exp: ...,
-  //   jti: ...
-  // }
-  // So, use token.sub as the user id
-
-  const userId = token?.id || token?.sub;
-
-  if (!token || !userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!token) {
+    // Not authenticated, redirect to /signin (same as middleware)
+    return NextResponse.redirect(new URL("/signin", req.url));
   }
 
-  const user = await getUserById(String(userId));
+  // Extract user id from token (id or sub)
+  const userId = token.id || token.sub;
+  // if (!userId) {
+  //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // }
 
+  const user = await getUserById(String(userId));
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
