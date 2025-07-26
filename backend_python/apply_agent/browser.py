@@ -1,36 +1,27 @@
 from playwright.async_api import async_playwright
+from playwright_stealth.stealth import Stealth
 
-PROFILE_PATH = r"C:\Users\srini\AppData\Local\Google\Chrome\User Data\Default"  # <--- change this!
-CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"  # your real Chrome.exe
-
-
-async def main():
-    with open("jobs_urls_jds.json", "r", encoding="utf-8") as f:
-        jobs = json.load(f)
 class BrowserManager:
-    def __init__(self, headless=False):
-        self.headless = headless
-        self.playwright = None
+    def __init__(self):
         self.browser = None
         self.context = None
 
     async def setup(self):
-        self.playwright = await async_playwright().start()
-        # Use persistent context so all cookies and storage are from your real profile!
-        self.context = await self.playwright.chromium.launch_persistent_context(
-            user_data_dir=PROFILE_PATH,
-            headless=self.headless,
-            args=[
-                "--disable-blink-features=AutomationControlled"
-            ],
-            executable_path=CHROME_PATH
+        playwright = await async_playwright().start()
+        self.browser = await playwright.chromium.launch(headless=False)
+        self.context = await self.browser.new_context(
+            viewport={'width': 1280, 'height': 900},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
         )
+        return self.context
 
     async def new_page(self):
-        return await self.context.new_page()
+        page = await self.context.new_page()
+        # Apply stealth
+        stealth = Stealth()
+        await stealth.apply_stealth_async(page)
+        return page
 
-    async def cleanup(self):
-        if self.context:
-            await self.context.close()
-        if self.playwright:
-            await self.playwright.stop()
+    async def close(self):
+        await self.context.close()
+        await self.browser.close()

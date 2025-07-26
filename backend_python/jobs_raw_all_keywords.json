@@ -1,7 +1,0 @@
-{
-  "https://example.com/job1": "[MATCHED_ROLES: frontend-developer]\n\nFrontend Developer position at TechCorp. Looking for React experience.",
-  "https://example.com/job2": "[MATCHED_ROLES: backend-developer]\n\nBackend Developer needed. Python and Django experience required.",
-  "https://example.com/job3": "[MATCHED_ROLES: full-stack-developer]\n\nFull Stack Developer role. React and Node.js skills needed.",
-  "https://example.com/job4": "[MATCHED_ROLES: react-developer]\n\nReact Developer position. 3+ years experience required.",
-  "https://example.com/job5": "[MATCHED_ROLES: python-developer]\n\nPython Developer needed. FastAPI and PostgreSQL experience."
-}

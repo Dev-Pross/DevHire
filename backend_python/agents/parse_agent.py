@@ -51,40 +51,56 @@ if userID:
         resume_text = (parse_pdf(resume))
         response = client.models.generate_content(
             model="gemini-2.5-flash-lite-preview-06-17",
-            contents=f"""You are an AI hiring assistant helping with job matching based on resumes.
-            Your task is to analyze the following resume content and extract *suitable job titles* that comprehensively reflect the candidate's skills, experience, technologies, certifications, and roles — even if the titles are not explicitly mentioned in the resume.
-            📌 Guidelines:
-            - Include both direct job titles (e.g., “Frontend Developer”) and adjacent roles (e.g., “UI Engineer” if applicable).
-            - Consider programming languages, frameworks, tools, and domains used.
-            - Include junior/senior/lead prefixes if appropriate based on experience.
-            - If experience is multidisciplinary, include cross-domain titles (e.g., “AI Product Analyst”, “ML Ops Engineer”).
-            - Avoid generic or irrelevant titles (e.g., “Software Guy”).
-            📥 Resume Text:
-           
-            {resume_text}
-            
-            ✅ Output Format:
-            Return a bullet list of max number of possible job titles ordered by most relevant to least relevant, based on the resume content.
-            Each title should be just the title string, no descriptions.""",
+            contents = f"""You are an AI hiring assistant helping with job matching based on resumes.
+                    Your task is to analyze the following resume content and extract TWO separate lists:
+
+                    1. **SUITABLE JOB TITLES** - Extract 5-8 powerful, specific job titles that comprehensively reflect the candidate's skills, experience, and seniority level.
+                    2. **JOB KEYWORDS** - Extract up to 20 relevant keywords covering technologies, skills, tools, domains, and role-related terms.
+
+                    📌 Guidelines for Job Titles:
+                    - Include both direct job titles (e.g., "Frontend Developer") and adjacent roles (e.g., "UI Engineer")
+                    - Consider seniority level (Junior/Mid/Senior/Lead/Principal) based on experience
+                    - Include cross-domain titles if experience is multidisciplinary (e.g., "Full Stack Engineer", "DevOps Engineer")
+                    - Focus on the most marketable and accurate titles
+                    - Avoid generic titles (e.g., "Software Guy", "Developer")
+
+                    📌 Guidelines for Keywords:
+                    - Include programming languages, frameworks, libraries, and tools
+                    - Add domain-specific terms (e.g., "Machine Learning", "Cloud Computing", "E-commerce")
+                    - Include soft skills if clearly demonstrated (e.g., "Leadership", "Project Management")
+                    - Add certifications, methodologies, and industry terms
+                    - Include both technical and business-relevant keywords
+                    - Cover keywords that support ALL the job titles listed
+
+                    📥 Resume Text:
+                    {resume_text}
+
+                    ✅ Output Format:
+                    Return ONLY the titles and keywords separated by "~" character in this exact format:
+
+                    Senior Software Engineer, Full Stack Developer, Backend Engineer, Frontend Developer, DevOps Engineer~Python, JavaScript, React, Node.js, AWS, Docker, Kubernetes, MongoDB, PostgreSQL, REST APIs, Microservices, Agile, Git, CI/CD, Machine Learning, TensorFlow, Leadership, Project Management, Cloud Computing, System Design
+
+                    Order both lists from most relevant to least relevant based on the resume content.""",
             config=types.GenerateContentConfig(
             temperature=0.65
             )
         )
 
         print(response.text)
-    
-        titles = [title.strip() for title in response.text.split("*") if title.strip()] 
+        [titles,Keywords ]= response.text.split("~")
+        # titles = [title.strip() for title in titles if titles] 
         print((titles))
+        print(Keywords)
 
     # inserting data into tables
-        if resumeNotExist(resume_id):
-            newTitles = ParsedTitle(
-                id=uuid.uuid4(),
-                resume_id=resume_id,
-                titles= titles
-            )
-            session.add(newTitles)
-            session.commit()
-            print("data inserted in parsed table")
-        else:
-            print("titles already exists")
+        # if resumeNotExist(resume_id):
+        #     newTitles = ParsedTitle(
+        #         id=uuid.uuid4(),
+        #         resume_id=resume_id,
+        #         titles= titles
+        #     )
+        #     session.add(newTitles)
+        #     session.commit()
+        #     print("data inserted in parsed table")
+        # else:
+        #     print("titles already exists")

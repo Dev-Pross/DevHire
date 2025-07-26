@@ -5,416 +5,471 @@ import google.generativeai as genai
 from urllib.parse import urlparse
 from config import GOOGLE_API
 
-# Configurable job limit for testing/performance
-MAX_JOBS_PER_KEYWORD = 20  # Set to 20 for fast testing, increase as needed
-
+# ---------------------------------------------------------------------------
+# 1. CONFIGURATION - Job Titles for URL, Keywords for Filtering
+# ---------------------------------------------------------------------------
 PLATFORMS = {
-    "ycombinator": {
-        "url_template": "https://www.ycombinator.com/jobs/role/{role}",
-        "base_url": "https://www.ycombinator.com"
-    },
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search/?keywords={role}&location=India&geoId=102713980&f_TPR=r3600&f_WT=1%2C2%2C3&position=1&pageNum=0",
-        "base_url": "https://www.linkedin.com"
+        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
+        "base_url": "https://in.linkedin.com",
     },
 }
 
-# 5 keywords as requested
-WEB_DEV_KEYWORDS = [
-    'frontend-developer',
-    'backend-developer', 
-    'full-stack-developer',
-    'react-developer',
-    'python-developer'
+# Job titles to search in URL (these replace {role} in URL)
+JOB_TITLES = [
+    "Full Stack Developer",
+    "Frontend Developer", 
+    "Backend Developer",
+    "Software Engineer",
+    "React Developer",
+    "JavaScript Developer",
+    "Node.js Developer",
+    "Web Developer"
 ]
 
-# Configure Gemini API
-genai.configure(api_key=GOOGLE_API)
-model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17')
+# Keywords to filter relevant jobs from search results
+FILTERING_KEYWORDS = [
+    "React.js", "JavaScript", "Node.js", "Express.js", "HTML", "CSS", 
+    "Bootstrap", "Java", "MySQL", "SQLite", "MongoDB", "JWT Token", 
+    "REST API", "Android Development", "Linux", "GitHub", "Git", 
+    "AI", "Machine Learning", "Data Structures", "Algorithms",
+    "Python", "Spring Boot", "Angular", "Vue.js", "TypeScript"
+]
 
-# Global set to track all seen URLs across all platforms and keywords
-seen_urls = set()
-
-async def scrape_platform(browser, platform_name, config, role):
-    """Scrape jobs for a specific role from a platform"""
-    page = await browser.new_page()
+# ---------------------------------------------------------------------------
+# 2. ENHANCED SCRAPING WITH KEYWORD FILTERING
+# ---------------------------------------------------------------------------
+async def scrape_platform(browser, platform_name, config, job_title):
+    # Create context with popup blocking
+    context = await browser.new_context(
+        user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        viewport={"width": 1280, "height": 768},
+        locale="en-US",
+        timezone_id="Asia/Calcutta",
+    )
+    
+    # Block popups immediately
+    # context.on("page", lambda popup: asyncio.create_task(popup.close()))
+    
+    page = await context.new_page()
     job_dict = {}
     
     try:
-        url = config["url_template"].format(role=role.replace(' ', '-').lower())
-        print(f"Navigating to {platform_name} for '{role}': {url}")
+        # Use job title in URL
+        url = config["url_template"].format(role=job_title.replace(" ", "%20").lower())
+        print(f"🔍 Searching for '{job_title}' on {platform_name}")
+        print(f"📄 URL: {url}")
         await page.goto(url)
-        await page.wait_for_selector('body', timeout=5000)
+        await asyncio.sleep(5)
 
+        # LinkedIn job card selectors
         selectors_to_try = [
-            'a[href*="/jobs/"]', '[data-testid*="job"]',
-            '.job-card', '.job-listing', '.job-item',
-            'article', '.card', '.listing',
-            'div[class*="job"]', 'div[class*="listing"]',
-            'li'
+            '.base-card__full-link',                         # Base card links
+            'div[data-entity-urn*="jobPosting"]',           # LinkedIn specific
+            'div.job-search-card',                           # LinkedIn job cards
+            
+            'a[href*="/jobs/view"]',                         # Direct job links
+            'div.base-card',                                 # LinkedIn base cards
+            'div[class*="job-card"]',                        # Generic job cards
         ]
 
         job_cards = []
         for selector in selectors_to_try:
             cards = await page.query_selector_all(selector)
             if cards:
-                print(f"Found {len(cards)} elements with selector: {selector}  ---{platform_name}")
+                print(f"✅ Found {len(cards)} job cards with selector: {selector}")
                 job_cards = cards
                 break
 
         if not job_cards:
-            job_cards = await page.query_selector_all('a, button, [role="button"]')
-            print(f"Using fallback: Found {len(job_cards)} clickable elements")
+            print(f"❌ No job cards found for '{job_title}'")
+            return {}
 
-        max_jobs = MAX_JOBS_PER_KEYWORD
-        # Prepare job card info for parallel detail scraping
-        job_card_infos = []
-        for i, card in enumerate(job_cards[:max_jobs]):
+        processed_jobs = 0
+        filtered_out = 0
+        
+        for i, card in enumerate(job_cards[:50]):  # Process up to 50 jobs
             try:
                 text_content = (await card.inner_text()).strip()
                 if not text_content:
                     continue
-                title = "title not found"
-                title_elements = await card.query_selector_all('h1, h2, h3, h4, h5, h6')
-                if title_elements:
-                    title = (await title_elements[0].inner_text()).strip().lower()
-                elif text_content:
-                    lines = text_content.split('\n')
-                    if lines:
-                        title = lines[0].strip().lower()
-                role_keywords = role.replace('-', ' ').split()
-                has_relevant_keyword = (
-                    any(kw in title for kw in role_keywords) or
-                    any(kw in text_content.lower() for kw in role_keywords) or
-                    any(keyword in title or keyword in text_content.lower() 
-                        for keyword in ['developer', 'engineer', 'programming', 'coding'])
-                )
-                if not has_relevant_keyword:
-                    continue
-                tag_name = await card.evaluate('el => el.tagName.toLowerCase()')
-                job_link = "Link not found"
-                if tag_name == 'a':
-                    job_link = await card.get_attribute('href') or "Link not found"
-                else:
-                    link_elem = await card.query_selector('a[href*="job"], a[href*="apply"]')
-                    job_link = await link_elem.get_attribute('href') if link_elem else "Link not found"
-                if job_link != "Link not found" and not job_link.startswith("http"):
-                    job_link = config["base_url"] + job_link
-                should_add = True
-                if platform_name.lower() == "ycombinator":
-                    if "/companies/" not in job_link:
-                        continue
-                # Check if URL is already seen globally
-                if job_link in seen_urls:
-                    print(f"⏭️ Skipping duplicate URL: {job_link[:50]}... ({platform_name})")
-                    continue
-                if should_add and job_link != "Link not found":
-                    job_card_infos.append((job_link, platform_name, i))
-            except Exception as e:
-                print(f"Error processing card {i}: {e}")
-                continue
-        # Parallel fetch job descriptions
-        async def fetch_job_detail(job_link, platform_name, card_index):
-            job_description = "Description not found"
-            try:
-                detail_page = await browser.new_page()
-                await detail_page.goto(job_link)
-                await detail_page.wait_for_selector('body', timeout=3000)
-                header_text = ""
-                if platform_name == "ycombinator":
-                    desc_header_selector = ".ycdc-card.max-w-2xl"
-                    desc_header = await detail_page.query_selector(desc_header_selector)
-                    if desc_header:
-                        header_text = (await desc_header.inner_text()).strip()
-                desc_selectors = [
-                    '[class*="description"]', '[class*="job-details"]',
-                    'article', '.prose', '.job-desc'
-                ]
-                desc_text = ""
-                for selector in desc_selectors:
-                    desc_elem = await detail_page.query_selector(selector)
-                    if desc_elem:
-                        desc_text = (await desc_elem.inner_text()).strip()
-                        break
-                if header_text and desc_text:
-                    job_description = f"{header_text}\n\n{desc_text}"
-                elif desc_text:
-                    job_description = desc_text
-                elif header_text:
-                    job_description = header_text
-                await detail_page.close()
-            except Exception as e:
-                print(f"Error fetching description for {job_link}: {e}")
-            return (job_link, job_description, card_index)
-        fetch_tasks = [fetch_job_detail(job_link, platform_name, card_index) for job_link, platform_name, card_index in job_card_infos]
-        fetch_results = await asyncio.gather(*fetch_tasks)
-        for job_link, job_description, card_index in fetch_results:
-            if job_description != "Description not found":
-                # Add to global seen URLs set
-                seen_urls.add(job_link)
-                job_dict[job_link] = job_description
-                print(f"✅ Found for '{role}': {job_link[:50]}... ({len(job_description)} chars --{platform_name} card-{card_index})")
 
-        print(f"[{platform_name}] Found {len(job_dict)} jobs for '{role}'")
+                # **KEY FEATURE: Filter by keywords**
+                if not has_relevant_keywords(text_content):
+                    filtered_out += 1
+                    continue
+
+                # Extract job link
+                job_link = await extract_job_link(card, config)
+                if not job_link or job_link == "Link not found":
+                    continue
+
+                print(f"📄 Processing job {processed_jobs + 1}: {job_link[:70]}...")
+
+                # Extract full job description
+                job_description = await extract_job_description(context, job_link)
+                
+                if job_description and job_description != "Description not found":
+                    # **DOUBLE CHECK: Verify keywords in full description**
+                    if has_relevant_keywords(job_description, threshold=2):
+                        job_dict[job_link] = job_description
+                        processed_jobs += 1
+                        print(f"✅ Job {processed_jobs} added - keyword match confirmed")
+                    else:
+                        print(f"⚠️  Job filtered out - insufficient keyword matches in description")
+                        filtered_out += 1
+                
+                # Stop if we have enough quality jobs
+                if processed_jobs >= 20:
+                    break
+
+            except Exception as e:
+                print(f"❌ Error processing job card {i}: {e}")
+                continue
+
+        print(f"📊 Results for '{job_title}':")
+        print(f"   ✅ Jobs added: {processed_jobs}")
+        print(f"   ⚠️  Jobs filtered out: {filtered_out}")
+        print(f"   📁 Total extracted: {len(job_dict)}")
+        
         return job_dict
         
     except Exception as e:
-        print(f"Error on {platform_name} for role {role}: {e}")
+        print(f"❌ Error searching '{job_title}' on {platform_name}: {e}")
         return {}
     finally:
-        await page.close()
+        await context.close()
 
-async def scrape_all_keywords():
-    """Scrape jobs for all keywords with deduplication"""
-    print("🔍 Skipping browser scraping - using existing data or creating placeholder")
+# ---------------------------------------------------------------------------
+# 3. KEYWORD FILTERING FUNCTIONS
+# ---------------------------------------------------------------------------
+def has_relevant_keywords(text_content: str, threshold: int = 1) -> bool:
+    """
+    Check if text contains relevant keywords from our filtering list
+    Args:
+        text_content: Job card text or job description
+        threshold: Minimum number of keywords required to consider relevant
+    """
+    text_lower = text_content.lower()
     
-    # Check if we have existing data to load
-    try:
-        with open("jobs_raw_all_keywords.json", "r", encoding="utf-8") as f:
-            all_jobs_combined = json.load(f)
-            print(f"📂 Loaded existing data: {len(all_jobs_combined)} jobs")
-            return all_jobs_combined
-    except FileNotFoundError:
-        print("📝 No existing data found - creating placeholder data")
-        # Create placeholder data structure without browser scraping
-        all_jobs_combined = {}
-        
-        # Generate some sample job data for testing
-        sample_jobs = {
-            "https://example.com/job1": "[MATCHED_ROLES: frontend-developer]\n\nFrontend Developer position at TechCorp. Looking for React experience.",
-            "https://example.com/job2": "[MATCHED_ROLES: backend-developer]\n\nBackend Developer needed. Python and Django experience required.",
-            "https://example.com/job3": "[MATCHED_ROLES: full-stack-developer]\n\nFull Stack Developer role. React and Node.js skills needed.",
-            "https://example.com/job4": "[MATCHED_ROLES: react-developer]\n\nReact Developer position. 3+ years experience required.",
-            "https://example.com/job5": "[MATCHED_ROLES: python-developer]\n\nPython Developer needed. FastAPI and PostgreSQL experience."
+    # Count keyword matches
+    keyword_matches = []
+    for keyword in FILTERING_KEYWORDS:
+        if keyword.lower() in text_lower:
+            keyword_matches.append(keyword)
+    
+    # Debug: Print matched keywords for first few jobs
+    if len(keyword_matches) >= threshold:
+        print(f"   🎯 Keywords found: {keyword_matches[:5]}...")  # Show first 5 matches
+        return True
+    
+    return False
+
+def get_job_relevance_score(text_content: str) -> dict:
+    """Get detailed relevance scoring for a job"""
+    text_lower = text_content.lower()
+    
+    matches = {
+        "frontend": ["react", "javascript", "html", "css", "bootstrap"],
+        "backend": ["node.js", "express.js", "java", "spring", "python", "rest api"],
+        "database": ["mysql", "mongodb", "sqlite", "postgresql"],
+        "tools": ["git", "github", "linux", "docker"],
+        "emerging": ["ai", "machine learning", "blockchain"]
+    }
+    
+    score_breakdown = {}
+    for category, keywords in matches.items():
+        found = [kw for kw in keywords if kw in text_lower]
+        score_breakdown[category] = {
+            "count": len(found),
+            "keywords": found
         }
+    
+    total_score = sum(cat["count"] for cat in score_breakdown.values())
+    return {
+        "total_score": total_score,
+        "breakdown": score_breakdown,
+        "is_relevant": total_score >= 3
+    }
+
+# ---------------------------------------------------------------------------
+# 4. HELPER FUNCTIONS (Updated)
+# ---------------------------------------------------------------------------
+async def extract_job_link(card, config):
+    """Extract job link from card element"""
+    try:
+        # Method 1: Direct job view link
+        job_link_elem = await card.query_selector('a[href*="/jobs/view/"]')
+        if job_link_elem:
+            href = await job_link_elem.get_attribute('href')
+            if href:
+                return href if href.startswith('http') else config["base_url"] + href
+
+        # Method 2: Check if card itself is a link
+        tag_name = await card.evaluate("el => el.tagName.toLowerCase()")
+        if tag_name == "a":
+            href = await card.get_attribute("href")
+            if href and "/jobs/view/" in href:
+                return href if href.startswith('http') else config["base_url"] + href
+
+        # Method 3: Any job view link in the card
+        all_links = await card.query_selector_all('a[href]')
+        for link in all_links:
+            href = await link.get_attribute('href')
+            if href and "/jobs/view/" in href:
+                return href if href.startswith('http') else config["base_url"] + href
+
+        return "Link not found"
         
-        all_jobs_combined.update(sample_jobs)
+    except Exception as e:
+        return "Link not found"
+
+async def extract_job_description(context, job_url):
+    """Extract job description from individual job page"""
+    try:
+        detail_page = await context.new_page()
+        await detail_page.goto(job_url)
+        await asyncio.sleep(3)
+
+        # LinkedIn-specific selectors
+        desc_selectors = [
+            'div.show-more-less-html__markup',
+            'div[class*="job-details-jobs-unified-top-card__job-description"]',
+            'section[class*="description"]',
+            'div[class*="description"]',
+            '.jobs-box__html-content',
+            'article',
+        ]
+
+        for selector in desc_selectors:
+            desc_elem = await detail_page.query_selector(selector)
+            if desc_elem:
+                description = (await desc_elem.inner_text()).strip()
+                if len(description) > 100:
+                    await detail_page.close()
+                    return description
+
+        await detail_page.close()
+        return "Description not found"
         
-        # Save the placeholder data
-        with open("jobs_no_browser.json", "w", encoding="utf-8") as f:
-            json.dump(all_jobs_combined, f, indent=2, ensure_ascii=False)
-        print(f"💾 Created placeholder data: {len(all_jobs_combined)} sample jobs")
-        
-        return all_jobs_combined
+    except Exception as e:
+        return "Description not found"
+
+# ---------------------------------------------------------------------------
+# 5. GEMINI CONFIGURATION (Updated)
+# ---------------------------------------------------------------------------
+genai.configure(api_key=GOOGLE_API)
+model = genai.GenerativeModel("gemini-2.5-flash-lite-preview-06-17")
 
 def create_bulk_prompt(jobs_dict: dict) -> str:
-    """Create optimized prompt for Gemini"""
-    SYSTEM_PROMPT = """You are a professional job data extraction specialist. Extract structured information from job descriptions and return a JSON array.
+    SYSTEM_PROMPT = """
+You are a professional job-data extraction specialist. Extract structured information for ALL jobs and return a JSON array.
 
 EXTRACTION RULES:
-- Process every URL-JD pair
-- Extract information ONLY from the job description text
-- If information is not mentioned, use "Not specified"
-- After outputting the JSON array, clear the jobs list/array to free memory
-- For matched_keywords, look for [MATCHED_ROLES: role1, role2] at the beginning
-- For experience: look for years like "3+", "5+ years", "Senior", "Junior", "Entry level"
-- For location: city, state/country, or "Remote"
-- For salary: include currency and amount (e.g., "$90K-$120K", "₹15-20 LPA")
-- For company: extract from text or URL path /companies/[company-name]/
+- Extract Job ID from URL (number after /jobs/view/)
+- For location: Default to "India" since search was India-filtered
+- For Experience: Look for years, "freshers", "entry level"
+- For Salary: Include currency (₹, INR, $, USD)
+- Extract key technical skills/technologies mentioned
+- Company name from job description
 
-REQUIRED OUTPUT FORMAT (JSON array):
+RETURN FORMAT:
 [
   {
-    "title": "extracted job title",
+    "title": "job title",
+    "job_id": "extracted from URL",
     "company_name": "company name",
-    "location": "location or Remote",
-    "experience": "experience level",
-    "salary": "salary range with currency",
-    "matched_keywords": "roles that matched this job",
-    "job_url": "the URL",
-    "posted_at": "posting date or Not specified",
+    "location": "location",
+    "experience": "experience requirement",
+    "salary": "salary if mentioned",
+    "key_skills": ["skill1", "skill2", "skill3"],
+    "job_url": "full URL",
+    "posted_at": "when posted",
     "job_description": "full description",
-    "source": "platform name"
+    "source": "linkedin",
+    "relevance_score": "high/medium/low based on technical content"
   }
 ]
 
-IMPORTANT: Return ONLY valid JSON array, no extra text."""
-
-    prompt = f"""{SYSTEM_PROMPT}
-
-Process {len(jobs_dict)} job descriptions:
-
+Return ONLY the JSON array.
 """
-    
+
+    prompt = f"{SYSTEM_PROMPT}\n\nProcess {len(jobs_dict)} jobs:\n"
     for idx, (url, jd) in enumerate(jobs_dict.items(), 1):
-        # Truncate very long descriptions to save tokens
-        truncated_jd = jd[:2000] + "..." if len(jd) > 2000 else jd
-        prompt += f"""--- JOB {idx} ---
-URL: {url}
-DESCRIPTION: {truncated_jd}
---- END JOB {idx} ---
-
-"""
-    
-    prompt += f"Return JSON array with exactly {len(jobs_dict)} objects in the same order."
+        prompt += f"\n--- JOB {idx} ---\nURL: {url}\nDESCRIPTION:\n{jd[:1500]}...\n"
     return prompt
 
-def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
-    """Parse Gemini response with error handling"""
-    try:
-        # Clean response
-        clean_response = response_text.strip()
-        if clean_response.startswith('```json'):
-            clean_response = clean_response[7:].lstrip()
-        elif clean_response.startswith('```'):
-            clean_response = clean_response[3:].lstrip()
-        if clean_response.endswith('```'):
-            clean_response = clean_response[:-3].rstrip()
-        
-        # Save for debugging
-        with open("gemini_raw_response.json", "w", encoding="utf-8") as f:
-            f.write(clean_response)
-        
-        # Parse JSON
-        extracted_jobs = json.loads(clean_response)
-        
-        if not isinstance(extracted_jobs, list):
-            extracted_jobs = [extracted_jobs]
-        
-        # Ensure all jobs have required fields
-        job_urls = list(original_jobs.keys())
-        for i, job in enumerate(extracted_jobs):
-            if i < len(job_urls):
-                job['job_url'] = job_urls[i]
-                job['job_description'] = original_jobs[job_urls[i]]
-                
-                if not job.get('source'):
-                    job['source'] = infer_source_from_url(job_urls[i])
-        
-        # Add fallbacks for missing jobs
-        while len(extracted_jobs) < len(job_urls):
-            idx = len(extracted_jobs)
-            url = job_urls[idx]
-            fallback_job = create_fallback_data_from_dict(url, original_jobs[url])
-            extracted_jobs.append(fallback_job)
-        
-        return extracted_jobs
-        
-    except json.JSONDecodeError as e:
-        print(f"JSON parsing error: {e}")
-        print(f"Response preview: {response_text[:500]}...")
-        return [create_fallback_data_from_dict(url, jd) for url, jd in original_jobs.items()]
-    except Exception as e:
-        print(f"Error parsing response: {e}")
-        return [create_fallback_data_from_dict(url, jd) for url, jd in original_jobs.items()]
+# Your existing helper functions...
+def infer_source_from_url(url: str) -> str:
+    return "linkedin" if "linkedin" in url else "unknown"
 
 def create_fallback_data_from_dict(url: str, job_description: str) -> dict:
-    """Create fallback data when extraction fails"""
     return {
         "title": "Not extracted",
-        "company_name": "Not extracted",
-        "location": "Not extracted",
+        "job_id": "Not extracted",
+        "company_name": "Not extracted", 
+        "location": "India",
         "experience": "Not specified",
         "salary": "Not specified",
-        "matched_keywords": "Not specified",
+        "key_skills": [],
         "job_url": url,
         "posted_at": "Not specified",
         "job_description": job_description,
-        "source": infer_source_from_url(url)
+        "source": "linkedin",
+        "relevance_score": "unknown"
     }
 
-def infer_source_from_url(url: str) -> str:
-    """Extract platform name from URL"""
+def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
     try:
-        domain = urlparse(url).netloc.lower()
-        if 'ycombinator' in domain:
-            return 'ycombinator'
-        elif 'linkedin' in domain:
-            return 'linkedin'
-        else:
-            return domain.replace('www.', '').split('.')
-    except:
-        return 'unknown'
+        clean = response_text.strip()
+        if clean.startswith("```json"):
+            clean = clean[7:].lstrip()
+        elif clean.startswith("```"):
+            clean = clean[3:].lstrip()
+        if clean.endswith("```"):
+            clean = clean[:-3].rstrip()
 
-async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 100) -> list:
-    """Process jobs in batches in parallel"""
-    all_extracted = []
-    job_items = list(jobs_dict.items())
-    total_batches = (len(job_items) + batch_size - 1) // batch_size
-    print(f"\n🔄 Processing {len(job_items)} jobs in {total_batches} batches of {batch_size}")
-    batch_dicts = [dict(job_items[i:i + batch_size]) for i in range(0, len(job_items), batch_size)]
-    batch_tasks = [extract_single_batch(batch_dict) for batch_dict in batch_dicts]
-    results = await asyncio.gather(*batch_tasks)
-    for batch_num, batch_result in enumerate(results, 1):
-        all_extracted.extend(batch_result)
-        print(f"✅ Batch {batch_num} completed: {len(batch_result)} jobs processed")
-    return all_extracted
+        extracted_jobs = json.loads(clean)
+        if not isinstance(extracted_jobs, list):
+            extracted_jobs = [extracted_jobs]
 
-async def extract_single_batch(batch_dict: dict) -> list:
-    """Process single batch through Gemini"""
-    try:
-        prompt = create_bulk_prompt(batch_dict)
-        response = model.generate_content(prompt)
-        extracted_jobs = parse_bulk_response(response.text, batch_dict)
+        job_urls = list(original_jobs.keys())
+        for i, job in enumerate(extracted_jobs):
+            if i < len(job_urls):
+                url = job_urls[i]
+                job["job_url"] = url
+                job["job_description"] = original_jobs[url]
+                job["source"] = "linkedin"
+
+        while len(extracted_jobs) < len(job_urls):
+            idx = len(extracted_jobs)
+            url = job_urls[idx]
+            extracted_jobs.append(create_fallback_data_from_dict(url, original_jobs[url]))
+
         return extracted_jobs
     except Exception as e:
-        print(f"Error in batch processing: {e}")
-        return [create_fallback_data_from_dict(url, jd) for url, jd in batch_dict.items()]
+        print(f"❌ Error parsing response: {e}")
+        return [create_fallback_data_from_dict(url, jd) for url, jd in original_jobs.items()]
 
-async def clear_jobs_data():
-    """
-    Clear all jobs data files to start fresh.
-    This function is used to reset the job data files before a new run.
-    Note: This does not open a browser or perform any job search.
-    """
-    import os
-    files_to_clear = [
-        "jobs_raw_all_keywords.json",
-        "jobs_final_structured.json", 
-        "gemini_raw_response.json",
-        "jobs_no_browser.json"
-    ]
-    for file_path in files_to_clear:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            print(f"🗑️ Cleared: {file_path}")
-async def main():
-    """Main orchestration function"""
-    print(f"🚀 Starting job scraping for keywords: {WEB_DEV_KEYWORDS}")
-    
-    # Step 1: Scrape all jobs for all keywords
-    all_jobs = await scrape_all_keywords()
-    
-    # Step 2: Save raw scraped data
-    with open("jobs_raw_all_keywords.json", "w", encoding="utf-8") as f:
-        json.dump(all_jobs, f, indent=2, ensure_ascii=False)
-    print(f"💾 Raw data saved to: jobs_raw_all_keywords.json")
-    
-    # Step 3: Process through Gemini in batches
-    print(f"\n🤖 Starting Gemini processing...")
-    extracted_jobs = await extract_jobs_in_batches(all_jobs, batch_size=50)
-    
-    # Step 4: Save final structured data
-    with open("jobs_final_structured.json", "w", encoding="utf-8") as f:
-        json.dump(extracted_jobs, f, indent=2, ensure_ascii=False)
-    
-    # Step 5: Generate summary
-    print(f"\n{'='*80}")
-    print(f"🎉 PROCESSING COMPLETE!")
-    print(f"{'='*80}")
-    print(f"📁 Files generated:")
-    print(f"  - jobs_raw_all_keywords.json (raw scraped data)")
-    print(f"  - jobs_final_structured.json (structured data)")
-    print(f"  - gemini_raw_response.json (debug data)")
-    print(f"📊 Total jobs processed: {len(extracted_jobs)}")
-    
-    # Keyword breakdown
-    keyword_stats = {}
-    for job in extracted_jobs:
-        keywords = job.get('matched_keywords', 'Unknown')
-        for keyword in keywords.split(', '):
-            keyword = keyword.strip()
-            if keyword:
-                keyword_stats[keyword] = keyword_stats.get(keyword, 0) + 1
-    
-    print(f"\n📈 Final breakdown by keyword:")
-    for keyword, count in sorted(keyword_stats.items()):
-        print(f"  {keyword}: {count} jobs")
-    
-    print(f"\n✨ Done! Check jobs_final_structured.json for complete results.")
-    
-    # Jobs data is preserved for user access
-    print(f"\n💾 Jobs data preserved in files for your review.")
+async def extract_single_batch(batch_dict: dict) -> list:
+    prompt = create_bulk_prompt(batch_dict)
+    response = model.generate_content(prompt)
+    return parse_bulk_response(response.text, batch_dict)
 
+async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 15) -> list:
+    all_extracted = []
+    items = list(jobs_dict.items())
+    total_batches = (len(items) + batch_size - 1) // batch_size
+    
+    for i in range(0, len(items), batch_size):
+        batch = dict(items[i : i + batch_size])
+        batch_num = (i // batch_size) + 1
+        print(f"🔄 Processing batch {batch_num}/{total_batches}: {len(batch)} jobs")
+        
+        try:
+            result = await extract_single_batch(batch)
+            all_extracted.extend(result)
+            print(f"✅ Batch {batch_num} completed")
+        except Exception as e:
+            print(f"❌ Batch {batch_num} error: {e}")
+            result = [create_fallback_data_from_dict(url, jd) for url, jd in batch.items()]
+            all_extracted.extend(result)
+        
+        await asyncio.sleep(2)
+    
+    return all_extracted
+
+# ---------------------------------------------------------------------------
+# 6. MAIN EXECUTION FUNCTIONS
+# ---------------------------------------------------------------------------
+async def search_by_job_titles_with_keyword_filtering(job_titles, platforms=None):
+    """
+    Main function: Search by job titles in URL, filter by keywords
+    """
+    if platforms is None:
+        platforms = list(PLATFORMS.keys())
+    
+    all_jobs = {}
+    
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        
+        for i, job_title in enumerate(job_titles, 1):
+            print(f"\n{'='*70}")
+            print(f"🎯 SEARCHING JOB TITLE {i}/{len(job_titles)}: '{job_title}'")
+            print(f"{'='*70}")
+            
+            for platform_name in platforms:
+                try:
+                    result = await scrape_platform(browser, platform_name, PLATFORMS[platform_name], job_title)
+                    
+                    # Avoid duplicates
+                    new_jobs = {k: v for k, v in result.items() if k not in all_jobs}
+                    all_jobs.update(new_jobs)
+                    
+                    print(f"📈 Total jobs for '{job_title}': {len(result)} ({len(new_jobs)} new)")
+                    
+                except Exception as e:
+                    print(f"❌ Error searching '{job_title}' on {platform_name}: {e}")
+                
+                await asyncio.sleep(3)
+            
+            print(f"📊 Completed '{job_title}'. Running total: {len(all_jobs)} unique jobs")
+        
+        await browser.close()
+    
+    print(f"\n{'='*70}")
+    print(f"🏆 FINAL RESULTS: {len(all_jobs)} unique, keyword-filtered jobs")
+    print(f"{'='*70}")
+    return all_jobs
+
+async def main(data_dict):
+    print("🧠 Sending filtered jobs to Gemini for detailed extraction...")
+    if len(data_dict) == 0:
+        print("❌ No jobs found to analyze...")
+        return
+
+    extracted = await extract_jobs_in_batches(data_dict, batch_size=15)
+    
+    # Save results
+    timestamp = "2025-01-27"
+    filename = f"filtered_jobs_{timestamp}.json"
+    
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(extracted, f, indent=2, ensure_ascii=False)
+    
+    print(f"✅ Successfully extracted data for {len(extracted)} jobs")
+    print(f"📁 Results saved to {filename}")
+    
+    # Print summary
+    total_skills = set()
+    companies = set()
+    for job in extracted:
+        if job.get("key_skills"):
+            total_skills.update(job["key_skills"])
+        if job.get("company_name") and job["company_name"] != "Not extracted":
+            companies.add(job["company_name"])
+    
+    print(f"\n📊 SUMMARY:")
+    print(f"   🏢 Companies: {len(companies)}")
+    print(f"   🛠️  Unique skills found: {len(total_skills)}")
+    print(f"   📄 Total jobs: {len(extracted)}")
+
+# ---------------------------------------------------------------------------
+# 7. SCRIPT ENTRY POINT
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    asyncio.run(main())
+    print("🚀 Starting Job Title Search with Keyword Filtering...")
+    print(f"📋 Job Titles to search: {len(JOB_TITLES)}")
+    print(f"🔍 Filtering keywords: {len(FILTERING_KEYWORDS)}")
+    print(f"📅 Search date: January 27, 2025")
+    
+    # Execute the search
+    all_jobs = asyncio.run(search_by_job_titles_with_keyword_filtering(JOB_TITLES))
+    
+    # Process with Gemini
+    asyncio.run(main(all_jobs))
