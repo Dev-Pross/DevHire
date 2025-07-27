@@ -11,6 +11,7 @@ const s3SecretAccessKey = process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY as strin
 const s3Bucket = process.env.NEXT_PUBLIC_S3_BUCKET as string || "user-name";
 
 // 2. Initialize S3 client
+// to put the pdf in local storage 
 const s3 = new S3Client({
   region: s3Region,
   endpoint: s3Endpoint,
