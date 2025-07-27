@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { RealNavBar } from "./components/NavBar";
 import { authoptions } from "./api/auth/[...nextauth]/route";
-
+import Button from "./components/Button";
 // Move all styling to Tailwind classes and inline styles, avoid styled-jsx or any client-only code
 
 export default async function Home() {
@@ -64,7 +64,7 @@ export default async function Home() {
               href="/api/auth/signin"
               className="px-8 py-3 rounded-full bg-white/90 text-black font-semibold shadow-lg hover:bg-white transition-all duration-200"
             >
-              Sign In
+             Get Started
             </a>
           ) : (
             <div className="flex flex-col items-center">
@@ -72,10 +72,10 @@ export default async function Home() {
                 Hello, <span className="font-bold">{session.user?.name || session.user?.email}</span>
               </span>
               <a
-                href="/dashboard"
+                href="/UploadButton"
                 className="px-8 py-3 rounded-full bg-black/80 text-white font-semibold shadow-lg hover:bg-black transition-all duration-200 border border-white/10"
               >
-                Go to Dashboard
+                Upload Resumea
               </a>
             </div>
           )}
