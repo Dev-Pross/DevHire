@@ -40,6 +40,7 @@ class ParsedTitle(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     titles = Column(ARRAY(Text))
+    keywords = Column(ARRAY(Text))
     resume_id = Column(UUID(as_uuid=True), ForeignKey("uploaded_resume.id", ondelete="CASCADE", onupdate="CASCADE"))
 
 class ScrapedJob(Base):
