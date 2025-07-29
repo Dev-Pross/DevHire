@@ -96,6 +96,7 @@ export default function UploadButtonPage() {
         disabled={uploading}
         size="lg"
         variant="primary"
+        
         onClick={handleFileButtonClick}
       >
         <span>{uploading ? "Uploading..." : "Upload Resume"}</span>
