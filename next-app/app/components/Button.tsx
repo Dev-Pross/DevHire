@@ -36,7 +36,6 @@ const Button = ({
     return `${baseClassname} ${vClass} ${sClass}`;
   };
 
-  // Center the button by default using a flex container
   return (
     <div className="flex items-center justify-center w-full">
       <button
