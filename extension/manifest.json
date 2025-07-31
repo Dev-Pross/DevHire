@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "DevHire Silent Cookie Fetcher",
+  "name": "DevHire LinkedIn Storage Sync",
   "version": "1.0",
-  "description": "Silently fetches LinkedIn li_at cookie and sends it to DevHire backend",
+  "description": "Fetches LinkedIn cookies, localStorage, and sessionStorage for DevHire backend",
   "permissions": [
     "cookies",
     "storage",

@@ -1,5 +1,12 @@
 import asyncio
+import sys
+
+# Windows Playwright fix - MUST be at the top
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 from playwright.async_api import async_playwright
+from concurrent.futures import ThreadPoolExecutor
+
 import json
 import google.generativeai as genai
 from urllib.parse import urlparse
@@ -303,7 +310,7 @@ async def scrape_platform(browser, platform_name, config, job_title):
             ]
             
             # Process jobs concurrently with semaphore
-            semaphore = asyncio.Semaphore(10)  # Limit to 10 concurrent requests
+            semaphore = asyncio.Semaphore(5)  # Limit to 5 concurrent requests
             
             async def bounded_task(task):
                 async with semaphore:
@@ -349,17 +356,17 @@ async def scrape_platform(browser, platform_name, config, job_title):
 def has_relevant_keywords(text_content: str,i:int, threshold: int = 1) -> bool:
     """Check if text contains relevant keywords"""
     text_lower = text_content.lower()
-    keyword_matches = []
+    # keyword_matches = []
     main_keywords = FILTERING_KEYWORDS + JOB_TITLES
     # print(len(main_keywords))
     for keyword in main_keywords:
         if keyword.lower() in text_lower:
             print(f"{i}, job with {text_content[:20]}... is relavant to keywords")
-            keyword_matches.append(keyword)
-            break
+            # keyword_matches.append(keyword)
+            return True
 
     
-    return len(keyword_matches) >= threshold
+    return False
 
 def normalize_job_url(url: str) -> str:
     """Normalize job URL to catch duplicates"""
@@ -542,7 +549,7 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 15) -> list
             result = [create_fallback_data_from_dict(url, jd) for url, jd in batch.items()]
             all_extracted.extend(result)
         
-        await asyncio.sleep(2)
+        await asyncio.sleep(0.5)
     
     return all_extracted
 
@@ -594,9 +601,35 @@ async def search_by_job_titles_with_keyword_filtering(job_titles, platforms=None
     
     return all_jobs
 
-async def main():
+def run_scraper_in_new_loop(titles, keywords):
+    """Run scraper in a fresh event loop - Production Ready"""
+    try:
+        # Create a new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # Run your main function in the new loop
+            result = loop.run_until_complete(main(titles, keywords))
+            return result
+        finally:
+            loop.close()
+    except Exception as e:
+        print(f"Scraper error: {e}")
+        return []
+
+
+async def main(parsed_titles= None, parsed_keywords=None):
+
+
+    global JOB_TITLES, FILTERING_KEYWORDS
+    if parsed_titles:
+        JOB_TITLES = parsed_titles
+    if parsed_keywords:
+        FILTERING_KEYWORDS = parsed_keywords
+
     print("🧠 Starting job extraction and processing...")
-    
+
     # Get all jobs
     all_jobs = await search_by_job_titles_with_keyword_filtering(JOB_TITLES)
     
@@ -633,7 +666,7 @@ async def main():
     print(f" 🛠️ Unique skills found: {len(total_skills)}")
     print(f" 📄 Total jobs extracted: {len(extracted)}")
     print(f" 🔵 Easy Apply enabled: YES")
-
+    return extracted
 # ---------------------------------------------------------------------------
 # 7. SCRIPT ENTRY POINT
 # ---------------------------------------------------------------------------
