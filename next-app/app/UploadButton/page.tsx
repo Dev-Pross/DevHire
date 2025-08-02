@@ -2,7 +2,7 @@
 import React, { useRef, useState } from "react";
 import Button from "../components/Button";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-
+import axios from "axios";
 // 1. Get S3 configuration from environment variables
 const s3Endpoint = process.env.NEXT_PUBLIC_S3_ENDPOINT as string;
 const s3Region = process.env.NEXT_PUBLIC_AWS_REGION as string;
@@ -72,6 +72,7 @@ export default function UploadButtonPage() {
 
       setUploadSuccess(`File uploaded successfully: ${file.name}`);
       setUploadedUrl(fileUrl);
+      sendUrl()
     } catch (err: any) {
       // 6. Handle upload errors
       let errorMsg = "Upload failed: ";
@@ -88,7 +89,13 @@ export default function UploadButtonPage() {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
-
+   function sendUrl(){
+    const  res = axios.post("http://127.0.0.1:8000/get-jobs" , {
+      file_url : uploadedUrl,
+      user_id : "tujeoituioej"
+    })
+    console.log(res)
+  }
   return (
     <div>
       {/* 7. Upload button (hidden file input) */}
