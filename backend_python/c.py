@@ -1,399 +1,491 @@
-from pathlib import Path
-import logging
+import requests
+import tempfile
+import os
+import base64
+import uuid
 import time
 import json
-import random
-import asyncio
+import re
+from docx import Document
+from config import GOOGLE_API
+import fitz # PyMuPDF, for PDF
+import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 
-import requests
-from playwright.async_api import async_playwright
+# --------------------------------------
+# Setup Gemini model
+if not GOOGLE_API:
+    raise ValueError("Missing Gemini API key as GOOGLE_API env var.")
 
-# ─────────────────────────────  LOGGING  ──────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+genai.configure(api_key=GOOGLE_API)
+model = genai.GenerativeModel('gemini-2.5-flash')
 
-# ────────────────────────  STORAGE INJECTOR ──────────────────────────
-def load_storage(storage_path):
-    """Load storage JSON as dict, returns {} if missing or error."""
+# --------------------------------------
+# Resume Extraction Helpers
+
+def extract_text_from_pdf_response(response):
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+        tmp.write(response.content)
+        tmp_path = tmp.name
     try:
-        with open(storage_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        logger.warning(f"⚠️ Could not load storage file {storage_path}: {e}")
-        return {}
+        doc = fitz.open(tmp_path)
+        text = ""
+        for page in doc:
+            text += page.get_text()
+        doc.close()
+    finally:
+        os.remove(tmp_path)
+    return text
 
-async def inject_storage(page, local_data, session_data):
-    """Inject localStorage and sessionStorage into the page using add_init_script."""
-    if local_data:
-        local_js = ";".join([
-            f"localStorage.setItem({json.dumps(str(k))}, {json.dumps(str(v))});"
-            for k, v in local_data.items()
-        ])
-        await page.add_init_script(local_js)
-        logger.info(f"🪣 Injected {len(local_data)} localStorage items")
+def extract_text_from_docx_response(response):
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp:
+        tmp.write(response.content)
+        tmp_path = tmp.name
+    try:
+        doc = Document(tmp_path)
+        text = "\n".join([para.text for para in doc.paragraphs])
+    finally:
+        os.remove(tmp_path)
+    return text
 
-    if session_data:
-        session_js = ";".join([
-            f"sessionStorage.setItem({json.dumps(str(k))}, {json.dumps(str(v))});"
-            for k, v in session_data.items()
-        ])
-        await page.add_init_script(session_js)
-        logger.info(f"🪣 Injected {len(session_data)} sessionStorage items")
-
-# ────────────────────────  COOKIE MANAGER  ───────────────────────────
-class CookieManager:
-    def __init__(self, cookies_dir: str = "data_dump"):
-        self.cookies_dir = Path(cookies_dir)
-        self.linkedin_cookies: dict[str, str] = {}
-
-        self.essential_cookies = [
-            "li_at", "JSESSIONID", "bcookie", "bscookie", "lang", "lidc",
-            "UserMatchHistory", "li_a", "li_mc",
-        ]
-
-    def load_all_linkedin_cookies(self) -> bool:
-        try:
-            combined = self.cookies_dir / "cookies.json"
-            if combined.exists():
-                self.linkedin_cookies = json.loads(combined.read_text(encoding="utf-8"))
-                logger.info(
-                    "✅ Loaded %s LinkedIn cookies from JSON: %s",
-                    len(self.linkedin_cookies), list(self.linkedin_cookies.keys()),
-                )
-                return True
-
-            loaded = {}
-            for name in self.essential_cookies:
-                f = self.cookies_dir / f"{name}.txt"
-                if f.exists():
-                    val = f.read_text(encoding="utf-8").strip()
-                    if val:
-                        loaded[name] = val
-            if loaded:
-                self.linkedin_cookies = loaded
-                logger.info(
-                    "✅ Loaded %s LinkedIn cookies from individual files",
-                    len(loaded),
-                )
-                return True
-
-            logger.error("❌ No LinkedIn cookies found")
-            return False
-        except Exception as exc:
-            logger.error("❌ Cookie load error: %s", exc)
-            return False
-
-    def get_cookie(self, name: str = "li_at") -> str | None:
-        if not self.linkedin_cookies:
-            self.load_all_linkedin_cookies()
-        val = self.linkedin_cookies.get(name)
-        if val:
-            logger.info("✅ %s cookie retrieved", name)
-        return val
-
-    def get_all_cookies(self) -> dict[str, str]:
-        if not self.linkedin_cookies:
-            self.load_all_linkedin_cookies()
-        return self.linkedin_cookies.copy()
-
-    def has_essential_cookies(self) -> bool:
-        if not self.linkedin_cookies:
-            self.load_all_linkedin_cookies()
-        missing = [c for c in ["li_at"] if c not in self.linkedin_cookies]
-        if missing:
-            logger.error("❌ Missing essential cookies: %s", missing)
-            return False
-        return True
-
-# ────────────────────────  BROWSER MANAGER  ──────────────────────────
-class BrowserManager:
-    def __init__(self, headless: bool = False, max_concurrent_pages: int = 3):
-        self.headless = headless
-        self.max_concurrent_pages = max_concurrent_pages
-
-        self.playwright = None
-        self.browser = None
-        self.context = None
-
-        self.cookie_manager = CookieManager()
-        self.linkedin_cookies: dict[str, str] = {}
-        self.active_pages = []
-
-    def load_all_linkedin_cookies(self) -> bool:
-        try:
-            cookies_file = Path("data_dump/cookies.json")
-            if cookies_file.exists():
-                self.linkedin_cookies = json.loads(cookies_file.read_text())
-                return True
-
-            all_cookies = self.cookie_manager.get_all_cookies()
-            if all_cookies:
-                self.linkedin_cookies = all_cookies
-                return True
-
-            return False
-        except Exception as exc:
-            logger.error("❌ Error loading cookies: %s", exc)
-            return False
-
-    async def setup(self) -> bool:
-        try:
-            if not self.load_all_linkedin_cookies():
-                logger.error("❌ No LinkedIn cookies available")
-                return False
-
-            self.playwright = await async_playwright().start()
-            self.browser = await self.playwright.chromium.launch(
-                headless=self.headless,
-                args=[
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-gpu",
-                    "--no-first-run",
-                    "--disable-default-apps",
-                    "--disable-features=VizDisplayCompositor",
-                    "--disable-web-security",
-                    "--disable-background-timer-throttling",
-                    "--disable-backgrounding-occluded-windows",
-                    "--disable-renderer-backgrounding"
-                ],
-            )
-
-            self.context = await self.browser.new_context(
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
-                viewport={"width": 1366, "height": 768},
-                locale="en-US",
-                timezone_id="America/New_York",
-                permissions=["geolocation"],
-                ignore_https_errors=False,
-                java_script_enabled=True,
-            )
-
-            # Inject fingerprinting and anti-bot properties (add more as needed)
-            await self.context.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-                Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-                Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
-                Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
-                Object.defineProperty(window, 'devicePixelRatio', { get: () => 1 });
-                Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
-                Object.defineProperty(navigator, 'oscpu', { get: () => 'Windows NT 10.0; Win64; x64' });
-                window.screen = Object.assign(window.screen, { width: 1366, height: 768 });
-                // Add more spoofing if needed
-                """)
-            await self._handle_heartbeat_requests_on_context(self.context)
-
-            cookies_to_add = [
-                {
-                    "name": k,
-                    "value": v,
-                    "domain": ".linkedin.com",
-                    "path": "/",
-                    "httpOnly": k in ("li_at", "JSESSIONID"),
-                    "secure": True,
-                    "sameSite": "Lax" if k not in ("li_at", "JSESSIONID") else "None",
-                }
-                for k, v in self.linkedin_cookies.items()
-            ]
-            await self.context.add_cookies(cookies_to_add)
-
-            await self._setup_realistic_headers(self.context)
-
-            logger.info("🔐 %s LinkedIn cookies injected", len(cookies_to_add))
-            cookie_names = [cookie["name"] for cookie in cookies_to_add]
-            logger.info("📋 Injected cookies: %s", cookie_names)
-
-            return True
-        except Exception as exc:
-            logger.error("❌ Browser setup failed: %s", exc)
-            return False
-
-    async def _handle_heartbeat_requests_on_context(self, context):
-        async def route_handler(route):
-            url = route.request.url
-            if "realtimeFrontendClientConnectivityTracking" in url:
-                hdrs = dict(route.request.headers)
-                hdrs.update({
-                    "x-li-page-instance": "urn:li:page:d_flagship3_job_details",
-                    "x-restli-protocol-version": "2.0.0",
-                    "x-li-lang": "en_US",
-                    "sec-fetch-mode": "cors",
-                    "sec-fetch-site": "same-origin",
-                })
-                await route.continue_(headers=hdrs)
-            else:
-                await route.continue_()
-        await context.route("**/*", route_handler)
-
-    async def _setup_realistic_headers(self, context):
-        await context.set_extra_http_headers({
-            "sec-ch-ua": '"Chromium";v="120", "Google Chrome";v="120", "Not A Brand";v="99"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin",
-            "x-requested-with": "XMLHttpRequest",
-            "x-li-lang": "en_US",
-            "x-li-track": '{"clientVersion":"1.2.3","osName":"Windows","osVersion":"10"}',
-        })
-
-    async def create_page(self):
-        if not self.context or len(self.active_pages) >= self.max_concurrent_pages:
-            return None
-        page = await self.context.new_page()
-        self.active_pages.append(page)
-        logger.info("📄 Page created (Active: %s)", len(self.active_pages))
-        return page
-
-    async def close_page(self, page):
-        try:
-            if page in self.active_pages:
-                self.active_pages.remove(page)
-            await page.close()
-        except Exception as exc:
-            logger.error("❌ Page close error: %s", exc)
-
-    async def cleanup(self):
-        for p in self.active_pages[:]:
-            await self.close_page(p)
-        if self.context:
-            await self.context.close()
-        if self.browser:
-            await self.browser.close()
-        if self.playwright:
-            await self.playwright.stop()
-
-# ──────────────────────────  PAGE NAVIGATOR  ──────────────────────────
-class PageNavigator:
-    def __init__(self, browser_manager: BrowserManager):
-        self.browser_manager = browser_manager
-
-    async def navigate_to_job(self, page, job_url: str) -> bool:
-        try:
-            logger.info("🔄 Navigating directly to job URL...")
-            await page.wait_for_timeout(random.randint(2000, 5000))
-            await page.goto(job_url, wait_until="domcontentloaded", timeout=60000)
-            await page.wait_for_timeout(5000)
-            current_url = page.url
-            logger.info(f"📍 Current URL: {current_url}")
-            if any(blocked in current_url.lower() for blocked in ["login", "authwall", "uas/authenticate"]):
-                logger.error(f"❌ redirected to login: {current_url}")
-                return False
-            logger.info("✅ Successfully navigated to job page")
-            return True
-        except Exception as exc:
-            logger.error("❌ navigation error: %s", exc)
-            return False
-
-# ──────────────  APPLY BUTTON FINDER WITH MODAL WAIT & FALLBACK  ──────────────
-class ApplyButtonFinder:
-    def __init__(self, page_navigator: PageNavigator):
-        self.page_navigator = page_navigator
-
-    async def find_and_click_apply_button(self, page):
-        logger.info("🔍 Enhanced Easy Apply button search...")
-        try:
-            logger.info("📊 Looking for ALL buttons containing 'Apply'...")
-            all_apply_buttons = await page.locator('button:has-text("Apply")').all()
-            logger.info(f"Found {len(all_apply_buttons)} buttons with 'Apply' text")
-            for i, button in enumerate(all_apply_buttons):
-                try:
-                    text = await button.text_content() or ""
-                    class_attr = await button.get_attribute('class') or ""
-                    is_visible = await button.is_visible()
-                    is_enabled = await button.is_enabled()
-                    logger.info(f"  Button {i+1}: '{text.strip()}' | Visible: {is_visible} | Enabled: {is_enabled}")
-                    logger.info(f"    Classes: {class_attr}")
-                    if "Easy Apply" in text and is_visible and is_enabled:
-                        logger.info(f"🎯 Attempting to click button {i+1}...")
-                        await button.scroll_into_view_if_needed()
-                        await page.wait_for_timeout(1000)
-                        await button.click()
-                        logger.info("✅ Clicked Easy Apply button, waiting for modal...")
-                        # Wait for modal/dialog after click
-                        try:
-                            await page.wait_for_selector('.jobs-easy-apply-modal', timeout=10000)
-                            logger.info("✅ Easy Apply modal appeared!")
-                            return True
-                        except Exception as e:
-                            logger.error(f"❌ Modal did not appear: {e}")
-                            # Fallback: Try JS click
-                            try:
-                                await page.evaluate('(el) => el.click()', button)
-                                await page.wait_for_selector('.jobs-easy-apply-modal', timeout=5000)
-                                logger.info("✅ Modal appeared after JS click!")
-                                return True
-                            except Exception as e:
-                                logger.error(f"❌ Still no modal: {e}")
-                                return False
-                except Exception as e:
-                    logger.error(f"Error examining button {i+1}: {e}")
-                    continue
-            logger.error("❌ All approaches failed to find/click Easy Apply button")
-            return False
-        except Exception as exc:
-            logger.error(f"❌ Enhanced button search failed: {exc}")
-            return False
-
-    async def fetch_input_content(self, page):
-        """
-        Fetches the value inside the first name input field in the LinkedIn Easy Apply modal.
-        You can generalize for other fields if needed!
-        """
-        # The id is visible in the screenshot: 
-        # single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement-4270075460-21781429932-text
-        input_id = "single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement-4270075460-21781429932-text"
-        selector = f"input#{input_id}"
-        try:
-            await page.wait_for_selector(selector, timeout=10000)
-            value = await page.locator(selector).input_value()
-            logger.info(f"🔎 Content of input field (id={input_id}): {value}")
-            return value
-        except Exception as e:
-            logger.error(f"❌ Could not fetch input content for {input_id}: {e}")
-            return None
-
-# ─────────────────────────────  TEST MAIN  ────────────────────────────
-async def apply_button_finder_main():
-    browser_mgr = BrowserManager(headless=False)
-    if not await browser_mgr.setup():
-        return
-
-    local_data = load_storage("data_dump/localStorage.json")
-    session_data = load_storage("data_dump/sessionStorage.json")
-
-    page = await browser_mgr.create_page()
-    await inject_storage(page, local_data, session_data)
-
-    nav = PageNavigator(browser_mgr)
-    finder = ApplyButtonFinder(nav)
-
-    job_url = (
-        "https://in.linkedin.com/jobs/view/react-js-software-engineer-paytm-money-at-one97-communications-limited-4270075460/"
-    )
-
-    if await nav.navigate_to_job(page, job_url):
-        modal_ok = await finder.find_and_click_apply_button(page)
-        await asyncio.sleep(2)  # wait for modal to fully render fields
-        if modal_ok:
-            input_content = await finder.fetch_input_content(page)
-            logger.info(f"Fetched input field content: {input_content}")
-        await asyncio.sleep(10)
+def extract_resume_text(file_url):
+    response = requests.get(file_url)
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch file: {file_url}")
+    content_type = response.headers.get('Content-Type', '').lower()
+    url_path = file_url.lower().split('?')[0]
+    if 'pdf' in content_type or url_path.endswith('.pdf'):
+        return extract_text_from_pdf_response(response)
+    elif 'word' in content_type or url_path.endswith('.docx'):
+        return extract_text_from_docx_response(response)
     else:
-        logger.error("❌ Failed to navigate to job")
+        raise Exception(f"Unsupported file type: {file_url}")
 
-    await browser_mgr.cleanup()
+# --------------------------------------
+# Batch Prompt Builder
 
-# ───────────────────────────────  RUN  ────────────────────────────────
+def build_batch_prompt(original_text, job_descriptions):
+    sample_latex = r'''
+\documentclass[11pt]{article}
+\usepackage{geometry}
+\geometry{letterpaper, margin=0.8in}
+\setlength{\parindent}{0pt}
+\begin{document}
+\begin{center}
+{\LARGE \textbf{John Doe}}\\
+Email: john.doe@email.com \\
+Phone: +91-1234567890 \\
+\end{center}
+
+\section*{Professional Summary}
+{\small
+A skilled Java and React developer with over 5 years of experience...
+}
+
+\section*{Technical Skills}
+{\small
+Languages: Java, JavaScript, Python\\
+Frameworks: React, Spring Boot, Node.js\\
+Databases: MySQL, MongoDB\\
+}
+
+\section*{Experience}
+{\small
+\textbf{Software Developer} | ABC Company | 2020-Present\\
+- Developed web applications using Java and React\\
+- Worked with databases and APIs\\
+}
+
+\section*{Education}
+{\small
+\textbf{Bachelor of Technology in Computer Science}\\
+XYZ University | 2016-2020\\
+}
+\end{document}
+'''
+    
+    prompt = f"""
+You are an expert resume writer. You will tailor one resume to multiple job descriptions in a single response.
+
+Here is the original resume:
+{original_text}
+
+I will provide you with multiple job descriptions. For each job, you need to either:
+1. Return "NO_CHANGES_NEEDED" if the resume already fits perfectly
+2. Return a complete LaTeX resume starting with \\documentclass that is tailored for that specific job
+
+IMPORTANT: Separate each job response with the exact marker "=== JOB n ===" where n is the job number (1, 2, 3, etc.)
+
+Sample LaTeX format to follow:
+{sample_latex}
+
+Job Descriptions:
+"""
+    
+    # Add numbered job descriptions
+    for i, desc in enumerate(job_descriptions, 1):
+        prompt += f"\n=== JOB {i} ===\n{desc}\n"
+    
+    prompt += f"""
+\nNow please provide tailored resumes for all {len(job_descriptions)} jobs above. Remember to separate each response with "=== JOB n ===" markers.
+"""
+    
+    return prompt
+
+# --------------------------------------
+# Batch AI Tailoring Function with DEBUG
+
+def tailor_resumes_batch_with_gemini(original_text, job_descriptions):
+    prompt = build_batch_prompt(original_text, job_descriptions)
+    retries = 3
+    delay = 20
+    
+    for i in range(retries):
+        try:
+            response = model.generate_content(prompt)
+            gemini_text = response.text.strip()
+            
+            # DEBUG: Save Gemini response to file
+            timestamp = int(time.time())
+            debug_file = f"gemini_response_debug_{timestamp}.txt"
+            
+            with open(debug_file, "w", encoding="utf-8") as f:
+                f.write(gemini_text)
+            
+            print(f"DEBUG: Gemini response saved to {debug_file}")
+            
+            return gemini_text
+            
+        except google_exceptions.ResourceExhausted:
+            if i < retries - 1:
+                print(f"Rate limited, waiting {delay} seconds...")
+                time.sleep(delay)
+                delay *= 2
+            else:
+                raise
+        except Exception as e:
+            print(f"Gemini API error: {e}")
+            raise
+
+# --------------------------------------
+# Parse Batch Response
+
+def parse_batch_gemini_response(text, job_count):
+    """
+    Parses Gemini output split by '=== JOB n ===' markers.
+    Returns list of LaTeX strings or "NO_CHANGES_NEEDED" strings.
+    """
+    # Split by job markers
+    pattern = r"=== JOB (\d+) ==="
+    parts = re.split(pattern, text)
+    
+    # parts will be like: ['initial_text', '1', 'job1_content', '2', 'job2_content', ...]
+    job_contents = {}
+    
+    # Process pairs of (job_number, content)
+    for i in range(1, len(parts), 2):
+        if i + 1 < len(parts):
+            job_num = int(parts[i])
+            content = parts[i + 1].strip()
+            job_contents[job_num] = content
+    
+    # Return ordered list
+    results = []
+    for job_index in range(1, job_count + 1):
+        content = job_contents.get(job_index, "")
+        results.append(content)
+    
+    return results
+
+# --------------------------------------
+# ENHANCED LaTeX Compilation with Multiple Endpoints
+
+def compile_latex_to_pdf(latex_string, job_id=None):
+    """Compile LaTeX using multiple reliable online endpoints"""
+    
+    # Enhanced list of LaTeX compilation endpoints
+    endpoints = [
+        {
+            "name": "LaTeX Online (Primary)",
+            "url": "https://latexonline.cc/compile",
+            "method": "original",
+        },
+        {
+            "name": "YtoTech LaTeX",
+            "url": "https://latex.ytotech.com/builds/sync",
+            "method": "original",
+        },
+        {
+            "name": "API LaTeX Online",
+            "url": "https://api.latexonline.cc/compile", 
+            "method": "original",
+        },
+        {
+            "name": "TeXLive Online",
+            "url": "https://texlive.net/run",
+            "method": "texlive",
+        },
+        {
+            "name": "LaTeX CGI",
+            "url": "https://latex.codecogs.com/pdf.download",
+            "method": "direct_post",
+        }
+    ]
+    
+    for i, endpoint in enumerate(endpoints):
+        try:
+            print(f"Trying endpoint {i+1}/{len(endpoints)}: {endpoint['name']}")
+            
+            if endpoint["method"] == "original":
+                files = {'texfile': ('document.tex', latex_string)}
+                data = {'command': 'pdflatex'}
+                response = requests.post(
+                    endpoint["url"], 
+                    files=files, 
+                    data=data, 
+                    timeout=120,
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                )
+                
+            elif endpoint["method"] == "texlive":
+                files = {'file': ('main.tex', latex_string)}
+                data = {'format': 'pdf', 'engine': 'pdflatex'}
+                response = requests.post(
+                    endpoint["url"],
+                    files=files,
+                    data=data,
+                    timeout=120,
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                )
+                
+            elif endpoint["method"] == "direct_post":
+                response = requests.post(
+                    endpoint["url"],
+                    data=latex_string,
+                    timeout=120,
+                    headers={
+                        'Content-Type': 'application/x-latex',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                )
+            
+            # Check if we got a valid PDF
+            if response.status_code >= 200 and response.status_code < 300:
+                if len(response.content) > 1000 and response.content.startswith(b'%PDF'):
+                    print(f"✅ Successfully compiled with {endpoint['name']}")
+                    return response.content
+                else:
+                    print(f"❌ Invalid PDF response from {endpoint['name']}")
+            else:
+                print(f"❌ HTTP {response.status_code} from {endpoint['name']}")
+                
+        except Exception as e:
+            print(f"❌ Exception at {endpoint['name']}: {e}")
+            continue
+    
+    # If all endpoints fail, return None and handle gracefully
+    print("⚠️ All LaTeX endpoints failed")
+    return None
+
+# --------------------------------------
+# Single Resume Tailoring (for backward compatibility)
+
+def tailor_resume_and_return_kv(file_url, job_description, job_url):
+    """
+    Single resume tailoring - for backward compatibility
+    """
+    return run_batch_tailoring_efficient_single(file_url, [{"job_url": job_url, "job_description": job_description}])[0]
+
+# --------------------------------------
+# Main Batch Processing Function
+
+def run_batch_tailoring_efficient_single(resume_url, jobs_list):
+    """
+    Process a batch of jobs (up to 15) with single Gemini call
+    
+    Args:
+        resume_url: URL to original resume
+        jobs_list: List of {"job_url": str, "job_description": str}
+    
+    Returns:
+        List of {"job_url": str, "resume_binary": str (base64)}
+    """
+    if len(jobs_list) > 15:
+        raise ValueError("Maximum 15 jobs per batch")
+    
+    print(f"Processing batch of {len(jobs_list)} jobs...")
+    
+    # Extract original resume text once
+    original_text = extract_resume_text(resume_url)
+    
+    # Prepare data
+    job_descriptions = [job["job_description"] for job in jobs_list]
+    job_urls = [job["job_url"] for job in jobs_list]
+    
+    # Single Gemini batch call
+    print("Calling Gemini for batch tailoring...")
+    gemini_response = tailor_resumes_batch_with_gemini(original_text, job_descriptions)
+    
+    # Parse batch results
+    print("Parsing Gemini response...")
+    tailored_texts = parse_batch_gemini_response(gemini_response, len(jobs_list))
+    
+    # Process each tailored result
+    results = []
+    for i, (job_url, tailored_text) in enumerate(zip(job_urls, tailored_texts)):
+        print(f"Processing result {i+1}/{len(jobs_list)}: {job_url[:50]}...")
+        
+        try:
+            if "NO_CHANGES_NEEDED" in tailored_text:
+                # Use original resume
+                response = requests.get(resume_url)
+                if response.status_code == 200:
+                    pdf_binary = response.content
+                else:
+                    raise RuntimeError(f"Could not download original resume")
+            else:
+                # Extract and compile LaTeX
+                latex_code = extract_latex_from_text(tailored_text)
+                if not latex_code:
+                    raise RuntimeError(f"Could not extract LaTeX for job {i+1}")
+                
+                pdf_binary = compile_latex_to_pdf(latex_code, job_id=f"batch_{i}")
+                
+                # If LaTeX compilation failed, use original resume as fallback
+                if pdf_binary is None:
+                    print(f"🔄 LaTeX compilation failed for job {i+1}, using original resume as fallback")
+                    response = requests.get(resume_url)
+                    if response.status_code == 200:
+                        pdf_binary = response.content
+                    else:
+                        raise RuntimeError(f"Could not download original resume as fallback")
+            
+            # Convert to base64
+            resume_b64 = base64.b64encode(pdf_binary).decode("utf-8")
+            results.append({
+                "job_url": job_url,
+                "resume_binary": resume_b64
+            })
+            print(f"✅ Successfully processed job {i+1}")
+            
+        except Exception as e:
+            print(f"❌ Failed to process job {i+1}: {e}")
+            
+            # Try to use original resume as final fallback
+            try:
+                print(f"🔄 Using original resume as final fallback for job {i+1}")
+                response = requests.get(resume_url)
+                if response.status_code == 200:
+                    pdf_binary = response.content
+                    resume_b64 = base64.b64encode(pdf_binary).decode("utf-8")
+                    results.append({
+                        "job_url": job_url,
+                        "resume_binary": resume_b64
+                    })
+                    print(f"✅ Fallback successful for job {i+1}")
+                else:
+                    print(f"❌ Final fallback also failed for job {i+1}")
+                    continue
+            except Exception as fallback_error:
+                print(f"❌ Final fallback failed for job {i+1}: {fallback_error}")
+                continue
+    
+    return results
+
+def extract_latex_from_text(text):
+    """Extract LaTeX code from text"""
+    # Try fenced code block first
+    if "```latex" in text:
+        parts = text.split("```latex")
+        if len(parts) > 1:
+            latex_code = parts[1].split("```")
+            return latex_code.strip()
+    
+    # Try to find \documentclass as fallback
+    start_index = text.find("\\documentclass")
+    if start_index != -1:
+        return text[start_index:].strip()
+    
+    return None
+
+# --------------------------------------
+# Load Jobs from JSON
+
+def load_jobs(json_path):
+    """Load jobs from JSON file"""
+    with open(json_path, "r", encoding="utf-8") as f:
+        jobs = json.load(f)
+    
+    # Normalize field names and filter valid jobs
+    normalized_jobs = []
+    for job in jobs:
+        job_url = job.get("job_url") or job.get("jobUrl")
+        job_description = job.get("job_description") or job.get("description")
+        
+        if job_url and job_description:
+            normalized_jobs.append({
+                "job_url": job_url,
+                "job_description": job_description
+            })
+    
+    return normalized_jobs
+
+# --------------------------------------
+# Main Batch Processing with JSON File
+
+def run_batch_tailoring_from_json(json_path, resume_url, batch_size=15):
+    """
+    Process all jobs from JSON file in batches
+    """
+    jobs = load_jobs(json_path)
+    all_results = []
+    
+    print(f"Loaded {len(jobs)} jobs from {json_path}")
+    
+    # Process in batches
+    for i in range(0, len(jobs), batch_size):
+        batch = jobs[i:i + batch_size]
+        batch_num = i // batch_size + 1
+        
+        print(f"\n=== Processing Batch {batch_num} ({len(batch)} jobs) ===")
+        
+        try:
+            batch_results = run_batch_tailoring_efficient_single(resume_url, batch)
+            all_results.extend(batch_results)
+            print(f"✅ Batch {batch_num} completed: {len(batch_results)} resumes generated")
+            
+            # Add delay between batches to respect rate limits
+            if i + batch_size < len(jobs):
+                print("Waiting 30 seconds before next batch...")
+                time.sleep(30)
+                
+        except Exception as e:
+            print(f"❌ Batch {batch_num} failed: {e}")
+            continue
+    
+    return all_results
+
+# --------------------------------------
+# Main Execution
+
 if __name__ == "__main__":
-    asyncio.run(apply_button_finder_main())
+    # Configuration
+    resume_url = "https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1753977528980_New%20Resume.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzUzOTc3NTI4OTgwX05ldyBSZXN1bWUucGRmIiwiaWF0IjoxNzUzOTc3NzgxLCJleHAiOjE3NTQ1ODI1ODF9.7VB4p1cXBEJiRqlNz-WfibpQT5SYuGguU-olU9k4Al4"
+    jobs_json_file = "./linkedin_jobs_2025-07-31_17-35-34.json"
+    batch_size = 15  # Process 15 jobs per Gemini call
+    
+    try:
+        # Run batch processing
+        all_results = run_batch_tailoring_from_json(jobs_json_file, resume_url, batch_size)
+        
+        # Save results
+        output_file = "tailored_resumes_batch_kv.json"
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(all_results, f, indent=2)
+        
+        print(f"\n🎉 Batch processing complete!")
+        print(f"📊 Total jobs processed: {len(all_results)}")
+        print(f"💾 Results saved to: {output_file}")
+        
+    except Exception as e:
+        print(f"❌ Error in batch processing: {e}")
