@@ -65,44 +65,102 @@ def extract_resume_text(file_url):
 # Batch Prompt Builder
 
 def build_batch_prompt(original_text, job_descriptions):
-    sample_latex = r'''
-\documentclass[11pt]{article}
-\usepackage{geometry}
-\geometry{letterpaper, margin=0.8in}
-\setlength{\parindent}{0pt}
-\begin{document}
-\begin{center}
-{\LARGE \textbf{John Doe}}\\
-Email: john.doe@email.com \\
-Phone: +91-1234567890 \\
-\end{center}
-
-\section*{Professional Summary}
-{\small
-A skilled Java and React developer with over 5 years of experience...
-}
-
-\section*{Technical Skills}
-{\small
-Languages: Java, JavaScript, Python\\
-Frameworks: React, Spring Boot, Node.js\\
-Databases: MySQL, MongoDB\\
-}
-
-\section*{Experience}
-{\small
-\textbf{Software Developer} | ABC Company | 2020-Present\\
-- Developed web applications using Java and React\\
-- Worked with databases and APIs\\
-}
-
-\section*{Education}
-{\small
-\textbf{Bachelor of Technology in Computer Science}\\
-XYZ University | 2016-2020\\
-}
-\end{document}
-'''
+    sample_latex = r'''\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A motivated Computer Science graduate with a strong foundation in web development and software engineering. Proficient in designing and implementing responsive user interfaces using \textbf{HTML5}, \textbf{CSS3}, \textbf{JavaScript (ES6+)}, and \textbf{Python}. Experienced in integrating RESTful APIs and adhering to Agile methodologies to deliver efficient and scalable solutions. Demonstrates excellent problem-solving abilities, effective communication skills, and a commitment to continuous learning. Eager to contribute to Mahindra's innovative projects and drive positive change through technology.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {MVGR College of Engineering}{Vizianagaram, India}
+    {B.Tech in Computer Science and Engineering; CGPA: 7.02/10}{May 2025}
+    \resumeSubheading
+        {Government Polytechnic College}{Anakapalle, India}
+        {Diploma in Computer Engineering; Final Grade: 80\%}{June 2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Frontend:} HTML, CSS, JavaScript, React, ExpressJs}
+    \resumeItem{\textbf{Languages:} Python, Core Java}
+    \resumeItem{\textbf{Concepts:} Data Structures, LLM}
+    \resumeItem{\textbf{Tools:} MS Office, Git, GitHub, Linux, NodeJs} 
+    \resumeItem{\textbf{Soft Skills:} Analytical Thinking, Communication, Team Collaboration}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Grog Social Scribe}{Feb 2024 -- May 2024}
+    {Frontend Developer}
+    {\href{http://grog-social-scribe.lovable.app/} {grog-social-app}}
+    \resumeItemListStart
+    \resumeItem{Partnered closely with UX/UI designers to implement pixel-perfect, responsive web layouts utilizing 	\textbf{HTML5}, 	\textbf{CSS3} (Flexbox \& Grid), and 	\textbf{JavaScript (ES6+)}.}
+    \resumeItem{Architected and developed modular JavaScript components to handle user input, asynchronously communicate with AI-driven REST APIs, and render dynamic content seamlessly.}
+    \resumeItem{Instituted robust client-side validation and error recovery mechanisms, improving form submission success rates by over 	\textbf{30\%}.}
+    \resumeItem{Enhanced performance through optimized DOM operations and lazy loading strategies, achieving a 	\textbf{25\% faster} initial render across desktop and mobile platforms.}
+    \resumeItem{Adopted BEM methodology to structure CSS, promoting maintainability and enabling rapid style updates during iterative design sprints.}
+    \resumeItem{Authored detailed technical documentation and led bi-weekly code reviews, ensuring adherence to coding standards and fostering team knowledge sharing.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring frontend frameworks (React), LeetCode problem solving}
+    \resumeSubHeadingListEnd
+    \end{document}
+    '''
+    
     
     prompt = f"""
 You are an expert resume writer. You will tailor one resume to multiple job descriptions in a single response.
@@ -284,10 +342,105 @@ def compile_latex_to_pdf(latex_string, job_id=None):
             continue
     
     # If all endpoints fail, return None and handle gracefully
-    print("⚠️ All LaTeX endpoints failed")
+    print("⚠ All LaTeX endpoints failed")
     return None
 
 # --------------------------------------
+
+# def compile_latex_to_pdf(latex_string, job_id):
+#     """
+#     Compile LaTeX to PDF using multiple online endpoints
+#     """
+#     # Working endpoints based on search results
+#     endpoints = [
+#         'https://latexonline.cc/compile',
+#         'https://latex.ytotech.com/builds/sync',
+#         'https://api.latexonline.cc/compile'  # Additional endpoint to try
+#     ]
+    
+#     max_retries = 2
+
+#     resumes=[]
+    
+#     for endpoint_idx, endpoint in enumerate(endpoints, 1):
+#         print(f"Trying endpoint {endpoint_idx}/{len(endpoints)}: {endpoint}")
+        
+#         for attempt in range(max_retries):
+#             try:
+#                 print(f"  Attempt {attempt + 1}/{max_retries} for resume {job_id}...")
+                
+#                 # Prepare the request
+#                 files = {'texfile': ('document.tex', latex_string)}
+#                 data = {'command': 'pdflatex'}
+                
+#                 # Make the request
+#                 response = requests.post(
+#                     endpoint,
+#                     files=files,
+#                     data=data,
+#                     timeout=90  # Increased timeout for compilation
+#                 )
+                
+#                 print(f"  Response status: {response.status_code}")
+                
+#                 # Check if successful
+#                 if response.status_code >= 200 and response.status_code < 300:
+#                     # Check if response content is actually a PDF
+#                     if len(response.content) > 1000 and response.content.startswith(b'%PDF'):
+#                         resumes.append({
+#                             f"{job_id}":response.content
+#                         }
+#                         )
+#                         print(f"✅ PDF generated successfully using {endpoint}")
+#                         print(f"   File: {job_id}")
+#                         return response.content
+#                     else:
+#                         print(f"  Response doesn't appear to be a valid PDF")
+#                         # Print first 200 chars of response for debugging
+#                         print(f"  Response preview: {response.text[:200]}")
+                
+#                 elif response.status_code == 400:
+#                     print(f"  Bad request - likely LaTeX compilation error")
+#                     print(f"  Error response: {response.text}")
+#                     break  # Don't retry for compilation errors
+                
+#                 elif response.status_code == 404:
+#                     print(f"  Endpoint not found - trying next endpoint")
+#                     break  # Try next endpoint
+                
+#                 elif response.status_code in [500, 502, 503, 504]:
+#                     print(f"  Server error ({response.status_code}) - retrying...")
+#                     if attempt < max_retries - 1:
+#                         time.sleep(5)
+#                         continue
+                
+#                 else:
+#                     print(f"  Unexpected status code: {response.status_code}")
+#                     print(f"  Response: {response.text[:200]}")
+                    
+#             except requests.exceptions.Timeout:
+#                 print(f"  Request timed out")
+#                 if attempt < max_retries - 1:
+#                     print(f"  Retrying in 5 seconds...")
+#                     time.sleep(5)
+#                     continue
+                    
+#             except requests.exceptions.RequestException as e:
+#                 print(f"  Network error: {e}")
+#                 if attempt < max_retries - 1:
+#                     time.sleep(3)
+#                     continue
+                    
+#             except Exception as e:
+#                 print(f"  Unexpected error: {e}")
+#                 break
+        
+#         print(f"  All attempts failed for {endpoint}")
+    
+#     print(f"❌ All endpoints failed for resume {job_id}")
+#     return None
+
+
 # Single Resume Tailoring (for backward compatibility)
 
 def tailor_resume_and_return_kv(file_url, job_description, job_url):
@@ -395,11 +548,11 @@ def run_batch_tailoring_efficient_single(resume_url, jobs_list):
 def extract_latex_from_text(text):
     """Extract LaTeX code from text"""
     # Try fenced code block first
-    if "```latex" in text:
-        parts = text.split("```latex")
+    if "latex" in text:
+        parts = text.split("latex")
         if len(parts) > 1:
-            latex_code = parts[1].split("```")
-            return latex_code.strip()
+            latex_code = parts[1].split("```")[0].strip()
+            return latex_code
     
     # Try to find \documentclass as fallback
     start_index = text.find("\\documentclass")

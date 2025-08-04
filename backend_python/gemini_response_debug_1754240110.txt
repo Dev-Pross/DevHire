@@ -1,0 +1,1604 @@
+=== JOB 1 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A motivated Computer Science graduate with a strong foundation in \textbf{Java} and \textbf{React.js}, adept at developing both frontend and backend solutions. Possessing expertise in performance optimization and AI-driven applications, with a commitment to delivering high-quality, efficient code. Eager to contribute to client satisfaction, participate in technical reviews, and support digital transformation journeys in a collaborative Infosys delivery team environment.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Tools \& Concepts:} Data Structures \& Algorithms (DSA), Git, GitHub, Linux, REST API, Authentication \& Authorization, Performance Optimization}
+    \resumeItem{\textbf{Soft Skills:} Problem Solving, Collaboration, Client Interfacing, Quality Assurance Focus, Analytical Thinking}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an \textbf{AI-driven post generator} leveraging \textbf{React.js} for dynamic content rendering, enabling users to create tailored social media content.}
+    \resumeItem{Engineered modular \textbf{JavaScript} components for seamless user input handling and asynchronous communication with AI \textbf{REST APIs}, ensuring high performance.}
+    \resumeItem{Designed and implemented secure login, user profile, and data retrieval pages using \textbf{React Router} components, enhancing user experience and navigation.}
+    \resumeItem{Implemented robust user authentication and authorization mechanisms using \textbf{JWT tokens} for secure access, demonstrating focus on security and quality.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application, enabling efficient creation, tracking, and management of courses for users and administrators.}
+    \resumeItem{Structured a normalized database schema for users, admins, and course details using \textbf{MongoDB}, ensuring data integrity and efficient retrieval.}
+    \resumeItem{Implemented secure login and signup functionalities utilizing \textbf{JWT tokens} with \textbf{Express.js} for robust authentication.}
+    \resumeItem{Optimized data storage and retrieval by leveraging arrays and objects, contributing to enhanced application performance and scalability.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring frontend frameworks (React), experimenting with AI-based conversations, continuous skill expansion}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 2 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A dedicated Computer Science graduate with a strong foundation in \textbf{Java} and full-stack development, possessing knowledge of design principles, performance engineering, and quality processes. Proficient in translating functional requirements into robust system designs and complex programs. Experienced in \textbf{SDLC} and \textbf{Agile methodologies}, demonstrating strong logical thinking, problem-solving skills, and a collaborative approach to delivering high-quality software solutions.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), REST API, Authentication \& Authorization, Performance Optimization, Design Principles, Architectural Fundamentals}
+    \resumeItem{\textbf{Methodologies:} SDLC, Agile Methodologies, Quality Processes}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux}
+    \resumeItem{\textbf{Soft Skills:} Logical Thinking, Problem Solving, Collaboration, Analytical Abilities, Communication}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an AI-driven post generator using \textbf{React.js} and \textbf{JavaScript}, focusing on modular components and dynamic content rendering to meet functional requirements.}
+    \resumeItem{Implemented secure user authentication and authorization with \textbf{JWT tokens}, demonstrating an understanding of security design principles and quality assurance.}
+    \resumeItem{Designed intuitive user interfaces and navigation paths, translating design concepts into a functional and responsive web application.}
+    \resumeItem{Ensured seamless asynchronous communication with AI \textbf{REST APIs}, optimizing data exchange for performance and reliability.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application with \textbf{Express.js} and \textbf{MongoDB}, supporting efficient course management for users and admins.}
+    \resumeItem{Structured a comprehensive database schema, reflecting strong design principles for data storage and retrieval in a complex program.}
+    \resumeItem{Implemented robust login and signup functionalities using \textbf{JWT tokens}, ensuring secure authentication and adhering to quality processes.}
+    \resumeItem{Utilized optimized data structures (arrays, objects) within the application's core logic, contributing to enhanced performance engineering.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring latest frontend frameworks, experimenting with AI-based conversations, continuous learning of new technologies}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 3 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A highly motivated Computer Science graduate specializing in \textbf{Java Full Stack} development, with strong proficiency in \textbf{React.js} and backend technologies. Experienced in building AI-driven applications and optimizing performance. Eager to contribute to a dynamic Infosys delivery team, focusing on quality assurance, technical solution delivery, and client satisfaction in the digital transformation journey.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Tools \& Concepts:} Data Structures \& Algorithms (DSA), Git, GitHub, Linux, REST API, Authentication \& Authorization, Performance Optimization, Reactive Programming Principles}
+    \resumeItem{\textbf{Soft Skills:} Problem Solving, Collaboration, Client Interfacing, Quality Assurance Focus}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an \textbf{AI-driven post generator} as a frontend-focused application, utilizing \textbf{React.js} for dynamic and responsive user interfaces.}
+    \resumeItem{Engineered modular \textbf{JavaScript} components to asynchronously communicate with AI \textbf{REST APIs} and render dynamic content seamlessly, demonstrating reactive principles.}
+    \resumeItem{Designed and implemented user authentication and authorization using \textbf{JWT tokens} and local storage, ensuring secure access and data handling.}
+    \resumeItem{Managed dynamic content and user input efficiently, contributing to a fluid user experience and performance optimization.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application using \textbf{Express.js} (Node.js backend) and \textbf{MongoDB} for full-stack functionality.}
+    \resumeItem{Structured data storage efficiently for users, admins, and course details, ensuring robust backend operations.}
+    \resumeItem{Implemented secure login and signup functionalities utilizing \textbf{JWT tokens} for authentication, reinforcing data security.}
+    \resumeItem{Optimized data structures for enhanced performance, handling complex data flows efficiently in the backend.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring latest frontend frameworks (React), experimenting with AI-based conversations, Full Stack development trends}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 4 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A results-oriented Computer Science graduate with expertise in \textbf{Java} and \textbf{React.js} development, focused on delivering optimized and high-quality software solutions. Possesses strong analytical and problem-solving skills, coupled with client-interfacing abilities and an awareness of industry trends. Eager to contribute to Infosys's digital transformation initiatives by applying technical acumen, collaborative spirit, and a commitment to continuous improvement.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Tools \& Concepts:} Data Structures \& Algorithms (DSA), Git, GitHub (Software Configuration Management), Linux, REST API, Authentication \& Authorization, Performance Optimization}
+    \resumeItem{\textbf{Methodologies:} SDLC, Agile Methodologies}
+    \resumeItem{\textbf{Soft Skills:} Logical Thinking, Problem Solving, Collaboration, Client Interfacing, Analytical Abilities, Communication, Awareness of Industry Trends}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an \textbf{AI-driven post generator} using \textbf{React.js}, demonstrating ability to integrate emerging technologies for value-creating solutions.}
+    \resumeItem{Engineered modular \textbf{JavaScript} components for user input and asynchronous communication with AI \textbf{REST APIs}, contributing to efficient program design.}
+    \resumeItem{Designed secure login and user profile pages, ensuring high quality and reliability of service offerings.}
+    \resumeItem{Managed code versioning and collaboration effectively using \textbf{Git} and \textbf{GitHub}, adhering to software configuration management principles.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application with \textbf{Express.js} and \textbf{MongoDB}, showcasing ability to create robust systems.}
+    \resumeItem{Structured an efficient database schema for users, admins, and course details, contributing to a high-quality solution delivery.}
+    \resumeItem{Implemented secure login and signup functionalities using \textbf{JWT tokens}, ensuring user access security and data integrity.}
+    \resumeItem{Utilized optimized data structures for enhanced performance, reflecting logical thinking in program design.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring latest technologies and industry trends, experimenting with AI-based conversations, solving complex programming challenges}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 5 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A dedicated Computer Science graduate with robust \textbf{Java Fullstack} capabilities, encompassing knowledge of design principles, architectural fundamentals, and performance engineering. Experienced in full \textbf{SDLC}, translating functional and non-functional requirements into well-designed, complex programs. Possesses strong logical thinking, problem-solving skills, and a collaborative approach to delivering high-quality software solutions and test cases.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), REST API, Authentication \& Authorization, Performance Optimization, Architectural Design, Design Principles}
+    \resumeItem{\textbf{Methodologies:} SDLC, Agile Methodologies, Quality Processes}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux}
+    \resumeItem{\textbf{Soft Skills:} Logical Thinking, Problem Solving, Collaboration, Analytical Abilities, Communication}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an AI-driven post generator using \textbf{React.js} for dynamic frontend, demonstrating ability to translate functional requirements into interactive programs.}
+    \resumeItem{Engineered modular \textbf{JavaScript} components for user input and asynchronous communication with AI \textbf{REST APIs}, contributing to efficient program design.}
+    \resumeItem{Designed and implemented secure user authentication and authorization, reflecting an understanding of quality processes and system security.}
+    \resumeItem{Applied performance optimization techniques in UI rendering and API interactions, ensuring a responsive user experience.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application with \textbf{Express.js} and \textbf{MongoDB}, showcasing full-stack capabilities.}
+    \resumeItem{Structured a comprehensive database schema (design principles) and developed backend logic, translating requirements into complex programs.}
+    \resumeItem{Implemented secure login and signup functionalities using \textbf{JWT tokens}, ensuring data integrity and contributing to overall system quality.}
+    \resumeItem{Utilized optimized data structures (arrays, objects) for enhanced performance engineering and efficient data management.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring latest technologies and trends in full-stack development, continuous learning of design and architectural patterns}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 6 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A proficient Computer Science graduate specializing in \textbf{Full Stack Development} with strong expertise in \textbf{Java} and \textbf{React.js}. Demonstrated ability in applying architectural and design fundamentals, adhering to quality assurance principles, and utilizing agile methodologies across the project lifecycle. Possesses excellent problem-solving, analytical, and debugging skills, eager to contribute to Infosys's commitment to high-quality code deliverables and client satisfaction.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), REST API, Authentication \& Authorization, Performance Optimization, Architectural Design, SOLID Design Principles, Debugging}
+    \resumeItem{\textbf{Methodologies:} Agile Methodologies, SDLC, Quality Assurance Principles, Project Lifecycle Activities}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux, Testing Concepts}
+    \resumeItem{\textbf{Soft Skills:} Analytical Abilities, Problem Solving, Communication, Collaboration, Logical Thinking}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an \textbf{AI-driven post generator} using \textbf{React.js}, applying architectural and design fundamentals for modularity and scalability.}
+    \resumeItem{Engineered robust \textbf{JavaScript} components for seamless user input and asynchronous communication with AI \textbf{REST APIs}, enhancing performance.}
+    \resumeItem{Designed and implemented secure login, user profile, and data retrieval pages, demonstrating adherence to quality assurance principles and secure coding practices.}
+    \resumeItem{Contributed to the full project lifecycle, from design to implementation, ensuring high-quality code deliverables and efficient program functioning.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application with \textbf{Express.js} and \textbf{MongoDB}, showcasing full-stack capabilities and problem-solving.}
+    \resumeItem{Structured a comprehensive database schema, applying design principles for efficient data management and retrieval.}
+    \resumeItem{Implemented secure login and signup functionalities using \textbf{JWT tokens}, ensuring authentication and demonstrating strong technical skills.}
+    \resumeItem{Utilized optimized data structures for enhanced performance, reflecting analytical abilities and attention to quality.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring latest technologies and trends in Full Stack development, continuous learning of SOLID design principles, LeetCode problem solving}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 7 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A motivated Computer Science graduate with strong \textbf{Full Stack} development skills in \textbf{HTML/CSS/JavaScript}, \textbf{React.js}, \textbf{Node.js}, and \textbf{Java}. Experienced in building and maintaining web applications, developing backend solutions, and optimizing data structures. Adept at clean, tested, and well-structured code within agile (Scrum) environments. Eager to contribute to Yext's innovative digital presence platform and leverage AI/ML technologies.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} JavaScript (ES6+), HTML, CSS, Java}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MongoDB, MySQL, SQLite} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), REST API, Authentication \& Authorization, Performance Optimization, Clean Code Practices}
+    \resumeItem{\textbf{Methodologies:} Agile (Scrum Principles), SDLC, Peer Code Reviews, Individual Ownership}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux}
+    \resumeItem{\textbf{Data Structures:} Arrays, Objects (Maps), Lists, Queues, Trees (Conceptual)}
+    \resumeItem{\textbf{Soft Skills:} Logical Thinking, Problem Solving, Collaboration, Adaptability, Communication}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed and maintained a web application with \textbf{HTML/CSS/JavaScript} and \textbf{React.js}, ensuring cross-browser compatibility and responsive design.}
+    \resumeItem{Engineered modular \textbf{JavaScript} components for user input and asynchronous communication with \textbf{AI REST APIs}, demonstrating clean and well-structured code.}
+    \resumeItem{Designed secure login and user profile pages using \textbf{React Router}, adhering to best practices for maintainability and iteration speed.}
+    \resumeItem{Implemented robust user authentication (\textbf{JWT tokens}), showcasing ability to build secure and performant solutions.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Built and maintained a persistent course-selling application backend using \textbf{Express.js} and \textbf{MongoDB}, capable of storing and organizing complex data.}
+    \resumeItem{Structured a normalized database schema, effectively serving as an \textbf{ETL-like process} for managing user, admin, and course details.}
+    \resumeItem{Implemented secure login and signup functionalities utilizing \textbf{JWT tokens}, ensuring data integrity and user security.}
+    \resumeItem{Utilized arrays, objects, and optimized data structures for enhanced performance, reflecting strong understanding of \textbf{Data Structures \& Algorithms} for efficient data processing.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring new technologies (AI/ML), LeetCode problem solving, contributing to open-source projects (e.g., via GitHub)}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 8 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A proactive Computer Science graduate with strong \textbf{Java Full Stack} capabilities, specializing in effective design, development, validation, and support activities. Proficient in translating functional and non-functional requirements into well-structured system designs and complex programs. Possesses a solid understanding of design principles, performance engineering, \textbf{SDLC}, and \textbf{Agile methodologies}, combined with logical thinking, problem-solving skills, and a collaborative approach.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), REST API, Authentication \& Authorization, Performance Optimization, Architectural Design, Design Principles}
+    \resumeItem{\textbf{Methodologies:} SDLC, Agile Methodologies, Quality Processes}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux}
+    \resumeItem{\textbf{Soft Skills:} Logical Thinking, Problem Solving, Collaboration, Analytical Abilities, Communication}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an AI-driven post generator using \textbf{React.js}, demonstrating effective design and development of user interfaces from requirements.}
+    \resumeItem{Engineered modular \textbf{JavaScript} components for asynchronous API communication, ensuring robust functionality and performance engineering.}
+    \resumeItem{Designed and implemented secure user authentication and navigation, showcasing ability to create reliable systems and implicit validation through robust design.}
+    \resumeItem{Contributed to the full development cycle of the application, aligning with \textbf{SDLC} principles for efficient program delivery.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application with \textbf{Express.js} and \textbf{MongoDB}, translating functional requirements into a comprehensive system.}
+    \resumeItem{Structured a normalized database schema, reflecting strong design principles and architectural understanding for complex programs.}
+    \resumeItem{Implemented secure login and signup functionalities using \textbf{JWT tokens}, ensuring validation and adherence to quality processes.}
+    \resumeItem{Utilized optimized data structures for enhanced performance, demonstrating logical thinking and problem-solving in backend development.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring latest technologies and trends in full-stack development, continuous learning of design and architectural patterns}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 9 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A highly analytical Computer Science graduate with a strong foundation in \textbf{Java} and full-stack development, possessing robust problem-solving and debugging skills. Experienced in applying architectural and design fundamentals, adhering to quality assurance principles, and utilizing agile methodologies across the project lifecycle. Eager to contribute to Infosys's commitment to high-quality code deliverables and client satisfaction in a dynamic technology domain.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), REST API, Authentication \& Authorization, Performance Optimization, Architectural Design, SOLID Design Principles, Debugging}
+    \resumeItem{\textbf{Methodologies:} Agile Methodologies, SDLC, Quality Assurance Principles, Project Lifecycle Activities}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux, Testing Concepts}
+    \resumeItem{\textbf{Soft Skills:} Analytical Abilities, Problem Solving, Communication, Collaboration, Logical Thinking}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an AI-driven post generator leveraging \textbf{React.js} and REST APIs, demonstrating strong technical skills in integrating diverse technologies.}
+    \resumeItem{Engineered modular JavaScript components, applying design fundamentals for maintainability and scalability in a web application.}
+    \resumeItem{Implemented secure user authentication and authorization using \textbf{JWT tokens}, ensuring quality and robust system functionality.}
+    \resumeItem{Contributed to delivering optimized high-quality code, ensuring seamless user experience and performance.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application backend using \textbf{Express.js} and \textbf{MongoDB}, showcasing strong technical skills in backend system design.}
+    \resumeItem{Structured a comprehensive database schema, applying architectural design fundamentals for efficient data management.}
+    \resumeItem{Implemented secure login and signup functionalities utilizing \textbf{JWT tokens}, reflecting attention to quality processes and secure authentication.}
+    \resumeItem{Utilized optimized data structures for enhanced performance, demonstrating analytical and problem-solving abilities in backend development.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring latest technologies and trends in Java and Full Stack development, continuous learning of software quality assurance principles, LeetCode problem solving}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 10 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A proactive Computer Science graduate with expertise in \textbf{Java Full Stack} development, proficient in \textbf{React.js}, \textbf{Node.js}, and designing \textbf{RESTful Web Services}. Possessing a strong understanding of architectural design patterns, performance tuning, and database designs. Eager to provide best-fit architectural solutions, contribute to technology differentiation, and support Infosys's digital transformation journey through high-quality technical solutions and collaborative problem-solving.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js, \textbf{Spring (Familiarity)}}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), \textbf{RESTful Web Services}, Authentication \& Authorization, Performance Tuning, Architectural Design Patterns, Database Design, Service-Oriented Architecture (SOA), Reactive Programming Principles}
+    \resumeItem{\textbf{Methodologies:} SDLC, Agile Methodologies}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux}
+    \resumeItem{\textbf{Soft Skills:} Logical Thinking, Problem Solving, Collaboration, Analytical Abilities, Communication}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an AI-driven post generator using \textbf{React.js}, emphasizing modular design for scalable and maintainable solutions.}
+    \resumeItem{Engineered modular \textbf{JavaScript} components for asynchronous communication with AI \textbf{REST APIs}, applying architectural principles for efficient data flow.}
+    \resumeItem{Designed and implemented secure user authentication and authorization using \textbf{JWT tokens}, demonstrating focus on security and robust functional design.}
+    \resumeItem{Applied performance optimization techniques in UI rendering and API interactions, contributing to a responsive user experience.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application with \textbf{Express.js} and \textbf{MongoDB}, showcasing full-stack capabilities in solution delivery.}
+    \resumeItem{Structured a comprehensive database schema and backend logic, reflecting strong database and functional design principles.}
+    \resumeItem{Implemented secure login and signup functionalities utilizing \textbf{JWT tokens}, ensuring secure authentication and robust system integrity.}
+    \resumeItem{Optimized data storage and retrieval by leveraging optimized data structures, contributing to enhanced performance and scalability.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring latest architectural patterns (e.g., Microservices), continuous learning of Spring Boot and cloud technologies, solving complex technical challenges}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 11 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A results-oriented Computer Science graduate with strong foundational skills in both frontend and backend development. Possesses a solid understanding of design principles, architectural fundamentals, performance engineering, and quality processes. Proficient in \textbf{SDLC} and \textbf{Agile methodologies}, with a proven ability to translate functional requirements into well-designed, complex programs. Demonstrates strong logical thinking, problem-solving skills, and a collaborative approach.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), REST API, Authentication \& Authorization, Performance Optimization, Architectural Design, Design Principles}
+    \resumeItem{\textbf{Methodologies:} SDLC, Agile Methodologies, Quality Processes}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux}
+    \resumeItem{\textbf{Soft Skills:} Logical Thinking, Problem Solving, Collaboration, Analytical Abilities, Communication}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an AI-driven post generator leveraging frontend technologies (\textbf{React.js}, \textbf{JavaScript}, \textbf{CSS}) to design and implement complex user interfaces.}
+    \resumeItem{Engineered modular components for seamless user input and asynchronous communication with APIs, focusing on performance engineering and robust design.}
+    \resumeItem{Designed and implemented user authentication and navigation, demonstrating understanding of quality processes and translating requirements into functional designs.}
+    \resumeItem{Ensured dynamic content rendering and smooth navigation, reflecting strong frontend development capabilities and problem-solving skills.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application backend using \textbf{Express.js} and \textbf{MongoDB}, showcasing ability to design and code complex programs.}
+    \resumeItem{Structured a comprehensive database schema and developed data retrieval logic, applying design principles for efficient data management.}
+    \resumeItem{Implemented secure login and signup functionalities using \textbf{JWT tokens}, ensuring robust authentication and adherence to quality processes.}
+    \resumeItem{Utilized optimized data structures for enhanced performance, demonstrating logical thinking and backend development expertise.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring new technologies and frameworks, continuous learning of design patterns and architectural best practices, problem solving}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 12 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    An aspiring \textbf{Power Programmer} and \textbf{Full Stack Developer} with a passion for designing and coding end-to-end solutions for complex engineering projects. Proficient in \textbf{Java}, \textbf{React.js}, and \textbf{Node.js}, demonstrating a "Polyglot" mindset and a drive to solve challenges with emerging technologies. Experienced in Agile methodologies and committed to continuous learning, contributing to new products and platforms, and engaging with the Open Source community.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Tools \& Concepts:} Data Structures \& Algorithms (DSA), Git, GitHub, Linux, REST API, Authentication \& Authorization, Performance Optimization, AI-driven Applications}
+    \resumeItem{\textbf{Methodologies:} Agile Development, End-to-End Contribution, Custom Development}
+    \resumeItem{\textbf{Soft Skills:} Problem Solving, Logical Thinking, Collaboration, Adaptability (Polyglot Mindset), Continuous Learning}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an \textbf{AI-driven post generator} from concept to deployment, showcasing end-to-end contribution and custom development for a new platform.}
+    \resumeItem{Engineered modular \textbf{JavaScript} components with \textbf{React.js} to handle user input and asynchronously communicate with AI APIs, optimizing for minimum system requirements.}
+    \resumeItem{Designed and implemented secure user authentication and dynamic content rendering, contributing to a high-quality, efficient program.}
+    \resumeItem{Applied problem-solving skills to integrate complex functionalities and deliver a seamless user experience.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and coded a persistent course-selling application as a full-stack solution, demonstrating ability to build complex programs.}
+    \resumeItem{Structured an optimized database schema with \textbf{MongoDB} and developed robust backend logic using \textbf{Express.js}, contributing to a large-scale digital platform concept.}
+    \resumeItem{Implemented secure login and signup functionalities utilizing \textbf{JWT tokens}, ensuring robust system integrity and security.}
+    \resumeItem{Leveraged optimized data structures for enhanced performance, reflecting a proactive approach to developing efficient and scalable systems.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring and upskilling in cutting-edge and emerging technologies, contributing to Open Source projects, collaborating within tech user groups (e.g., via GitHub)}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 13 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A proficient Computer Science graduate with strong foundational skills in full-stack development, possessing expertise in designing, developing, and optimizing high-quality applications. Demonstrated ability in applying architectural and design fundamentals, adhering to quality assurance principles, and utilizing agile methodologies across the project lifecycle. Possesses excellent problem-solving, analytical, and debugging skills, eager to contribute to Infosys's commitment to high-quality code deliverables and client satisfaction.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), REST API, Authentication \& Authorization, Performance Optimization, Architectural Design, SOLID Design Principles, Debugging}
+    \resumeItem{\textbf{Methodologies:} Agile Methodologies, SDLC, Quality Assurance Principles, Project Lifecycle Activities}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux, Testing Concepts}
+    \resumeItem{\textbf{Soft Skills:} Analytical Abilities, Problem Solving, Communication, Collaboration, Logical Thinking}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an AI-driven post generator leveraging frontend technologies (\textbf{React.js}, \textbf{JavaScript}, \textbf{CSS}), applying design fundamentals for modularity and scalability.}
+    \resumeItem{Engineered robust \textbf{JavaScript} components for seamless user input and asynchronous communication with APIs, enhancing performance and adhering to quality principles.}
+    \resumeItem{Designed and implemented secure user authentication and navigation, demonstrating understanding of system architecture and reliable coding practices.}
+    \resumeItem{Contributed to the full development lifecycle, from conceptualization to implementation, ensuring high-quality and functional deliverables.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application backend using \textbf{Express.js} and \textbf{MongoDB}, showcasing full-stack capabilities and problem-solving.}
+    \resumeItem{Structured a comprehensive database schema, applying design principles for efficient data management and retrieval.}
+    \resumeItem{Implemented secure login and signup functionalities using \textbf{JWT tokens}, ensuring authentication and demonstrating strong technical skills in backend security.}
+    \resumeItem{Utilized optimized data structures for enhanced performance, reflecting analytical abilities and attention to quality.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring latest technologies and trends in full-stack development, continuous learning of software quality assurance principles, LeetCode problem solving}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 14 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A proactive Computer Science graduate with a strong foundation in \textbf{Java}, specializing in effective design, development, validation, and support activities within the technology domain. Possesses a solid understanding of design principles, performance engineering, \textbf{SDLC}, and \textbf{Agile methodologies}. Proficient in translating requirements into robust system designs and complex programs, demonstrating strong logical thinking, problem-solving skills, and a collaborative approach.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), REST API, Authentication \& Authorization, Performance Optimization, Architectural Design, Design Principles}
+    \resumeItem{\textbf{Methodologies:} SDLC, Agile Methodologies, Quality Processes}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux}
+    \resumeItem{\textbf{Soft Skills:} Logical Thinking, Problem Solving, Collaboration, Analytical Abilities, Communication}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application backend using \textbf{Express.js} and \textbf{MongoDB}, showcasing ability to design and code complex programs.}
+    \resumeItem{Structured a normalized database schema, reflecting strong design principles and architectural understanding for efficient data management.}
+    \resumeItem{Implemented secure login and signup functionalities utilizing \textbf{JWT tokens}, ensuring validation and adherence to quality processes.}
+    \resumeItem{Utilized optimized data structures (arrays, objects) for enhanced performance engineering, demonstrating logical thinking and backend development expertise.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an AI-driven post generator using \textbf{React.js} and \textbf{JavaScript}, demonstrating effective design and development of user interfaces from requirements.}
+    \resumeItem{Engineered modular components for asynchronous API communication, ensuring robust functionality and contributing to efficient program design.}
+    \resumeItem{Designed and implemented user authentication and navigation, showcasing ability to create reliable systems and implicit validation through robust design.}
+    \resumeItem{Contributed to the full development cycle of the application, aligning with \textbf{SDLC} principles for efficient program delivery.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring latest technologies and trends in Java development, continuous learning of design and architectural patterns, problem solving}
+    \resumeSubHeadingListEnd
+    \end{document}
+
+=== JOB 15 ===
+\documentclass[letterpaper,11pt]{article}
+    \usepackage{latexsym}
+    \usepackage[empty]{fullpage}
+    \usepackage{titlesec}
+    \usepackage{marvosym}
+    \usepackage[usenames,dvipsnames]{color}
+    \usepackage{verbatim}
+    \usepackage{enumitem}
+    \usepackage[hidelinks]{hyperref}
+    \usepackage{fancyhdr}
+    \usepackage[english]{babel}
+    \usepackage{tabularx}
+    \input{glyphtounicode}
+    \pagestyle{fancy}
+    \fancyhf{} 
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+    \addtolength{\oddsidemargin}{-0.5in}
+    \addtolength{\evensidemargin}{-0.5in}
+    \addtolength{\textwidth}{1in}
+    \addtolength{\topmargin}{-.5in}
+    \addtolength{\textheight}{1.0in}
+    \urlstyle{same}
+    \raggedbottom
+    \raggedright
+    \setlength{\tabcolsep}{0in}
+    \titleformat{\section}{\scshape\large}{}{0em}{}[\titlerule]
+    \newcommand{\resumeSubheading}[4]{
+    \item
+        \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & #2 \\
+        \textit{\small#3} & \textit{\small #4}
+        \end{tabular*}
+    }
+    \newcommand{\resumeItem}[1]{\item\small{#1}}
+    \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]} 
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+    \newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}}
+    %-------------------------------------------
+    %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{document}
+    %----------HEADING----------
+    \begin{center}
+        \textbf{\Huge \scshape Saragadam Vamshi} \\ \vspace{1pt}
+        Visakhapatnam, India \\
+        \small +91-9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{\underline{iamvamsi0@gmail.com}} $|$ 
+        \href{https://linkedin.com/in/saragadam-vamshi}{\underline{LinkedIn}} $|$ 
+        \href{https://github.com/vamshi0}{\underline{GitHub}}
+    \end{center}
+    %-----------CAREER OBJECTIVE-----------
+    \section*{Professional Summary}
+    A highly analytical Computer Science graduate with strong expertise in \textbf{Core Java} and backend development, possessing a foundational understanding of \textbf{Microservices} and \textbf{Spring Boot} principles. Demonstrated ability in applying architectural and design fundamentals, adhering to quality assurance principles, and utilizing agile methodologies across the project lifecycle. Possesses excellent problem-solving, analytical, and debugging skills, eager to contribute to Infosys's commitment to high-quality code deliverables and client satisfaction.
+    \section{Education}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology, Computer Science}{Expected 2025}
+    \resumeSubheading
+        {Government Polytechnic, Anakapalli}{Anakapalli, India}
+        {Diploma in Computer Science}{2022}
+    \resumeSubHeadingListEnd
+    %-----------TECHNICAL SKILLS-----------
+    \section{Technical Skills}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} Core Java, JavaScript, HTML, CSS}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js, \textbf{Spring Boot (Familiarity)}, Microservices Architecture (Conceptual)}
+    \resumeItem{\textbf{Frontend:} React.js, Bootstrap}
+    \resumeItem{\textbf{Databases:} MySQL, SQLite, MongoDB} 
+    \resumeItem{\textbf{Concepts:} Data Structures \& Algorithms (DSA), REST API, Authentication \& Authorization, Performance Optimization, Architectural Design, SOLID Design Principles, Debugging}
+    \resumeItem{\textbf{Methodologies:} Agile Methodologies, SDLC, Quality Assurance Principles, Project Lifecycle Activities}
+    \resumeItem{\textbf{Tools:} Git, GitHub, Linux, Testing Concepts}
+    \resumeItem{\textbf{Soft Skills:} Analytical Abilities, Problem Solving, Communication, Collaboration, Logical Thinking}
+    \resumeSubHeadingListEnd
+    %-----------PROJECTS-----------
+    \section{Projects}
+    \resumeSubHeadingListStart
+    \resumeSubheading
+    {Course Selling App}{}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Designed and developed a persistent course-selling application backend using \textbf{Express.js} and \textbf{MongoDB}, demonstrating robust backend system design.}
+    \resumeItem{Structured a comprehensive database schema, applying architectural design fundamentals for efficient data management and potential for modular services.}
+    \resumeItem{Implemented secure login and signup functionalities utilizing \textbf{JWT tokens}, reflecting attention to quality processes and secure authentication.}
+    \resumeItem{Utilized optimized data structures for enhanced performance, showcasing analytical and problem-solving abilities in backend development.}
+    \resumeItemListEnd
+    \resumeSubheading
+    {Social Media Scribe}{Project Link: \href{https://social-media-scribe-app.vercel.app/}{Live Link (Placeholder)}}
+    {}
+    {}
+    \resumeItemListStart
+    \resumeItem{Developed an AI-driven post generator leveraging \textbf{React.js} and REST APIs, demonstrating strong technical skills in integrating diverse technologies.}
+    \resumeItem{Engineered modular JavaScript components, applying design fundamentals for maintainability and scalability in a web application.}
+    \resumeItem{Implemented secure user authentication and authorization using \textbf{JWT tokens}, ensuring quality and robust system functionality.}
+    \resumeItem{Contributed to delivering optimized high-quality code, ensuring seamless user experience and performance.}
+    \resumeItemListEnd
+    \resumeSubHeadingListEnd
+    %-----------ADDITIONAL INFO-----------
+    \section{Additional Information}
+    \resumeSubHeadingListStart
+    \resumeItem{\textbf{Languages:} English (Fluent), Telugu (Native)}
+    \resumeItem{\textbf{Interests:} Exploring Microservices architecture and cloud platforms, continuous learning of Spring Boot and Java enterprise development, LeetCode problem solving}
+    \resumeSubHeadingListEnd
+    \end{document}
