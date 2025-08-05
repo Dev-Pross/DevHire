@@ -21,70 +21,41 @@ except ImportError as e:
 
 LINKEDIN_LOGIN_URL = "https://www.linkedin.com/login"
 
-def extract_titles_from_resume(tex_path=None):
+# Default job titles to search
+DEFAULT_JOB_TITLES = [
+    "Full Stack Developer",
+    "Frontend Developer", 
+    "Backend Developer",
+    "Software Engineer",
+    "React Developer",
+    "JavaScript Developer",
+    "Node.js Developer",
+    "Web Developer"
+]
+
+# Default keywords for filtering
+DEFAULT_FILTERING_KEYWORDS = [
+    "React.js", "JavaScript", "Node.js", "Express.js", "HTML", "CSS",
+    "Bootstrap", "Java", "MySQL", "SQLite", "MongoDB", "JWT Token",
+    "REST API", "Android Development", "Linux", "GitHub", "Git",
+    "AI", "Machine Learning", "Data Structures", "Algorithms",
+    "Python", "Spring Boot", "TypeScript"
+]
+
+def get_job_titles_and_keywords(custom_titles=None, custom_keywords=None):
     """
-    Extract job titles from resume0.tex.
-    Titles are extracted from \resumeSubheading sections (the first parameter).
+    Get job titles and keywords, using custom inputs if provided, otherwise using defaults.
     """
-    print(f"[RESUME] Starting resume title extraction...")
+    print(f"[INPUT] Processing job titles and keywords...")
     
-    possible_paths = []
-    if tex_path is not None:
-        possible_paths.append(tex_path)
-    else:
-        possible_paths = [
-            os.path.join(os.path.dirname(__file__), "resume0.tex"),
-            r"D:\DevHire\backend_python\resume0.tex",
-            "backend_python/resume0.tex"
-        ]
+    # Use custom titles if provided, otherwise use defaults
+    job_titles = custom_titles if custom_titles is not None else DEFAULT_JOB_TITLES
+    filtering_keywords = custom_keywords if custom_keywords is not None else DEFAULT_FILTERING_KEYWORDS
     
-    print(f"[RESUME] Checking possible paths: {possible_paths}")
+    print(f"[INPUT] Using {len(job_titles)} job titles: {job_titles}")
+    print(f"[INPUT] Using {len(filtering_keywords)} filtering keywords: {filtering_keywords}")
     
-    for path in possible_paths:
-        if os.path.exists(path):
-            tex_path = path
-            print(f"[RESUME] Found resume file at: {tex_path}")
-            break
-    else:
-        print(f"[RESUME] No resume file found in any of the paths")
-        return []
-    
-    try:
-        with open(tex_path, "r", encoding="utf-8") as f:
-            text = f.read()
-        print(f"[RESUME] Successfully read resume file, size: {len(text)} characters")
-    except Exception as e:
-        print(f"[RESUME] Error reading resume file: {e}")
-        return []
-    
-    text_nocomment = re.sub(r"%.*", "", text)
-    titles = []
-    
-    # Extract from resumeSubheading - this is the job title (first parameter)
-    for m in re.finditer(r"\\resumeSubheading\s*\{([^\}]*)\}", text_nocomment):
-        title = m.group(1).strip()
-        if title and title.lower() not in ("", "education", "mvgr college of engineering", "government polytechnic college"):
-            # Clean up the title
-            title = re.sub(r'\{[^}]*\}', '', title)  # Remove any nested braces
-            title = title.strip()
-            if title and len(title) > 3:  # Only add if it's a meaningful title
-                titles.append(title)
-                print(f"[RESUME] Found job title from resumeSubheading: {title}")
-    
-    # Remove duplicates and filter out non-job titles
-    seen_titles = set()
-    result_titles = []
-    for t in titles:
-        t_norm = t.lower()
-        # Filter out education and other non-job titles
-        if (t_norm not in seen_titles and 
-            t_norm not in ("", "education", "mvgr college of engineering", "government polytechnic college") and
-            not any(edu_word in t_norm for edu_word in ["college", "university", "school", "diploma", "b.tech", "degree"])):
-            result_titles.append(t)
-            seen_titles.add(t_norm)
-    
-    print(f"[RESUME] Final extracted job titles: {result_titles}")
-    return result_titles
+    return job_titles, filtering_keywords
 
 async def linkedin_login(page, username, password):
     """Login to LinkedIn with comprehensive logging"""
@@ -166,8 +137,14 @@ async def scrape_job_details_fast(page, job_url):
     Fast version of job details scraping with optimized selectors and minimal waits.
     """
     try:
-        await page.goto(job_url, wait_until="domcontentloaded")
-        await asyncio.sleep(2)  # Slightly increased wait time
+        await page.goto(job_url, wait_until="domcontentloaded", timeout=30000)
+        await asyncio.sleep(3)  # Increased wait time for better loading
+        
+        # Wait for content to load
+        try:
+            await page.wait_for_selector('h1, .jobs-unified-top-card__job-title, .job-details-jobs-unified-top-card__job-title', timeout=10000)
+        except Exception:
+            pass  # Continue even if specific elements don't load
         
         job_data = {
             "url": job_url,
@@ -397,12 +374,14 @@ async def scrape_job_details_fast(page, job_url):
             "error": str(e)
         }
 
-async def scrape_job_urls_fast(context, titles, max_jobs_per_title=5):
+async def scrape_job_urls_fast(context, titles, max_jobs_per_title=15):
     """
-    Fast version of job URL scraping with parallel processing.
+    Enhanced job URL scraping with comprehensive search to find ALL available jobs.
+    Increased default to 15 jobs per title to ensure we capture everything.
     """
-    print(f"[SCRAPE] Starting fast job scraping for titles: {titles}")
+    print(f"[SCRAPE] Starting comprehensive job scraping for titles: {titles}")
     print(f"[SCRAPE] Max jobs per title: {max_jobs_per_title}")
+    print(f"[SCRAPE] Expected total jobs: {len(titles) * max_jobs_per_title}")
     
     all_jobs = {}
     
@@ -417,56 +396,151 @@ async def scrape_job_urls_fast(context, titles, max_jobs_per_title=5):
             search_url = f"https://www.linkedin.com/jobs/search/?keywords={encoded_title}"
             
             await page.goto(search_url, wait_until="domcontentloaded")
-            await asyncio.sleep(2)  # Reduced wait time
+            await asyncio.sleep(3)  # Increased wait time for better loading
             
-            # Quick scroll to load content
-            await page.mouse.wheel(0, 2000)
-            await asyncio.sleep(1)
+            # Multiple scrolls to load more content
+            for scroll in range(3):
+                await page.mouse.wheel(0, 3000)
+                await asyncio.sleep(1)
             
-            # Try to get job links quickly
+            # Try to get job links with comprehensive approach
             job_links = []
             
-            # Try the most common selectors first
+            # Comprehensive selectors to find ALL job cards
             selectors = [
                 'ul.scaffold-layout__list-container > li',
                 'li.jobs-search-results__list-item',
-                '[data-job-id]'
+                '[data-job-id]',
+                '.jobs-search-results__list-item',
+                '.scaffold-layout__list-container li',
+                '.jobs-search-results__list-item',
+                '.jobs-search-results__list-item a',
+                'a[href*="/jobs/view/"]',
+                '.job-search-card',
+                '.job-search-card a',
+                '.job-card-container',
+                '.job-card-container a'
             ]
             
+            # Try multiple approaches to find ALL job links
             for selector in selectors:
                 try:
                     cards = await page.locator(selector).all()
                     if cards and len(cards) > 0:
-                        for card in cards[:max_jobs_per_title]:
+                        print(f"[SCRAPE] Found {len(cards)} elements with selector: {selector}")
+                        for card in cards[:max_jobs_per_title * 2]:  # Get more to ensure we have enough
                             try:
-                                link_node = card.locator('a')
-                                if await link_node.count() > 0:
-                                    job_link = await link_node.nth(0).get_attribute('href')
-                                    if job_link:
-                                        if job_link.startswith('/'):
-                                            job_link = f"https://www.linkedin.com{job_link}"
-                                        if job_link not in job_links:
-                                            job_links.append(job_link)
+                                # Try to find links within the card
+                                link_selectors = ['a', 'a[href*="/jobs/view/"]', 'a[href*="/jobs/"]']
+                                for link_selector in link_selectors:
+                                    try:
+                                        link_nodes = card.locator(link_selector).all()
+                                        for link_node in link_nodes:
+                                            job_link = await link_node.get_attribute('href')
+                                            if job_link and '/jobs/view/' in job_link:
+                                                if job_link.startswith('/'):
+                                                    job_link = f"https://www.linkedin.com{job_link}"
+                                                if job_link not in job_links:
+                                                    job_links.append(job_link)
+                                                    if len(job_links) >= max_jobs_per_title:
+                                                        break
+                                        if len(job_links) >= max_jobs_per_title:
+                                            break
+                                    except Exception:
+                                        continue
+                                if len(job_links) >= max_jobs_per_title:
+                                    break
                             except Exception:
                                 continue
-                        if job_links:
+                        if len(job_links) >= max_jobs_per_title:
                             break
-                except Exception:
+                except Exception as e:
+                    print(f"[SCRAPE] Error with selector {selector}: {e}")
                     continue
             
-            # If no links found, try alternative approach
-            if not job_links:
+            # If still not enough links, try direct link extraction
+            if len(job_links) < max_jobs_per_title:
                 try:
+                    print(f"[SCRAPE] Trying direct link extraction...")
                     all_links = await page.locator('a[href*="/jobs/view/"]').all()
-                    for link in all_links[:max_jobs_per_title]:
+                    print(f"[SCRAPE] Found {len(all_links)} direct job links")
+                    for link in all_links[:max_jobs_per_title * 2]:
                         job_link = await link.get_attribute('href')
-                        if job_link:
+                        if job_link and '/jobs/view/' in job_link:
                             if job_link.startswith('/'):
                                 job_link = f"https://www.linkedin.com{job_link}"
                             if job_link not in job_links:
                                 job_links.append(job_link)
-                except Exception:
-                    pass
+                                if len(job_links) >= max_jobs_per_title:
+                                    break
+                except Exception as e:
+                    print(f"[SCRAPE] Error in direct link extraction: {e}")
+            
+            # Try one more approach - look for any job-related links
+            if len(job_links) < max_jobs_per_title:
+                try:
+                    print(f"[SCRAPE] Trying comprehensive link search...")
+                    all_links = await page.locator('a').all()
+                    for link in all_links:
+                        try:
+                            href = await link.get_attribute('href')
+                            if href and '/jobs/view/' in href:
+                                if href.startswith('/'):
+                                    href = f"https://www.linkedin.com{href}"
+                                if href not in job_links:
+                                    job_links.append(href)
+                                    if len(job_links) >= max_jobs_per_title:
+                                        break
+                        except Exception:
+                            continue
+                except Exception as e:
+                    print(f"[SCRAPE] Error in comprehensive link search: {e}")
+            
+            # Try to get more jobs by clicking "See more jobs" or pagination
+            if len(job_links) < max_jobs_per_title:
+                try:
+                    print(f"[SCRAPE] Trying to load more jobs...")
+                    # Look for "See more jobs" button or pagination
+                    more_selectors = [
+                        'button[aria-label*="See more jobs"]',
+                        'button[aria-label*="Load more"]',
+                        '.infinite-scroller__show-more-button',
+                        'button:has-text("See more jobs")',
+                        'button:has-text("Load more")',
+                        '.artdeco-pagination__button--next',
+                        'button[aria-label="Next"]'
+                    ]
+                    
+                    for more_selector in more_selectors:
+                        try:
+                            more_button = page.locator(more_selector).first
+                            if await more_button.count() > 0:
+                                print(f"[SCRAPE] Found more button: {more_selector}")
+                                await more_button.click()
+                                await asyncio.sleep(2)
+                                
+                                # Scroll again to load new content
+                                for scroll in range(2):
+                                    await page.mouse.wheel(0, 2000)
+                                    await asyncio.sleep(1)
+                                
+                                # Try to get more links
+                                additional_links = await page.locator('a[href*="/jobs/view/"]').all()
+                                for link in additional_links:
+                                    job_link = await link.get_attribute('href')
+                                    if job_link and '/jobs/view/' in job_link:
+                                        if job_link.startswith('/'):
+                                            job_link = f"https://www.linkedin.com{job_link}"
+                                        if job_link not in job_links:
+                                            job_links.append(job_link)
+                                            if len(job_links) >= max_jobs_per_title:
+                                                break
+                                break
+                        except Exception as e:
+                            print(f"[SCRAPE] Error with more button {more_selector}: {e}")
+                            continue
+                except Exception as e:
+                    print(f"[SCRAPE] Error loading more jobs: {e}")
             
             print(f"[SCRAPE] Found {len(job_links)} job links for '{title}'")
             return title, job_links
@@ -481,12 +555,27 @@ async def scrape_job_urls_fast(context, titles, max_jobs_per_title=5):
     tasks = [process_title(title) for title in titles]
     results = await asyncio.gather(*tasks)
     
-    # Now scrape job details in parallel
+    # Now scrape job details in parallel with retry mechanism
     async def scrape_job_details_parallel(job_url):
         page = await context.new_page()
         try:
             job_details = await scrape_job_details_fast(page, job_url)
             return job_details
+        except Exception as e:
+            print(f"[SCRAPE] Error scraping {job_url}: {e}")
+            # Return a basic job structure with error
+            return {
+                "url": job_url,
+                "title": "",
+                "company": "",
+                "location": "",
+                "description": "",
+                "requirements": "",
+                "posted_date": "",
+                "job_type": "",
+                "experience_level": "",
+                "error": str(e)
+            }
         finally:
             await page.close()
     
@@ -518,20 +607,63 @@ async def scrape_job_urls_fast(context, titles, max_jobs_per_title=5):
     
     return all_jobs
 
-async def main():
+def filter_jobs_by_keywords(job_data, keywords):
+    """
+    Filter jobs based on keywords found in job description or requirements.
+    """
+    print(f"[FILTER] Filtering jobs based on {len(keywords)} keywords: {keywords}")
+    
+    filtered_jobs = {}
+    total_jobs = 0
+    filtered_count = 0
+    
+    for title, jobs in job_data.items():
+        filtered_jobs[title] = []
+        total_jobs += len(jobs)
+        
+        for job in jobs:
+            # Combine description and requirements for keyword search
+            search_text = ""
+            if job.get('description'):
+                search_text += job['description'].lower()
+            if job.get('requirements'):
+                search_text += job['requirements'].lower()
+            
+            # Check if any keyword is present
+            if search_text:
+                for keyword in keywords:
+                    if keyword.lower() in search_text:
+                        filtered_jobs[title].append(job)
+                        filtered_count += 1
+                        break
+    
+    print(f"[FILTER] Total jobs: {total_jobs}")
+    print(f"[FILTER] Jobs matching keywords: {filtered_count}")
+    
+    return filtered_jobs
+
+async def main(custom_titles=None, custom_keywords=None, max_jobs_per_title=15):
+    """
+    Main function to scrape LinkedIn jobs.
+    
+    Args:
+        custom_titles (list, optional): Custom job titles to search. If None, uses defaults.
+        custom_keywords (list, optional): Custom keywords for filtering. If None, uses defaults.
+        max_jobs_per_title (int, optional): Maximum jobs to scrape per title. Default is 15.
+    """
     print(f"[MAIN] Starting Fast LinkedIn job scraper...")
     print(f"[MAIN] Timestamp: {datetime.now()}")
     
-    # Extract titles from resume
-    print(f"\n[MAIN] Step 1: Extracting job titles from resume")
-    resume_tex_path = None
-    titles = extract_titles_from_resume(resume_tex_path)
+    # Get job titles and keywords
+    print(f"\n[MAIN] Step 1: Processing job titles and keywords")
+    titles, filtering_keywords = get_job_titles_and_keywords(custom_titles, custom_keywords)
     
     if not titles:
-        print(f"[MAIN] No job titles found in resume. Exiting.")
+        print(f"[MAIN] No job titles provided. Exiting.")
         return {}
     
-    print(f"[MAIN] Extracted {len(titles)} titles: {titles}")
+    print(f"[MAIN] Using {len(titles)} titles: {titles}")
+    print(f"[MAIN] Using {len(filtering_keywords)} keywords: {filtering_keywords}")
     
     # Check credentials
     print(f"\n[MAIN] Step 2: Checking LinkedIn credentials")
@@ -578,43 +710,94 @@ async def main():
     # Scrape jobs with fast method
     print(f"\n[MAIN] Step 5: Fast scraping job URLs and details")
     start_time = time.time()
-    job_data = await scrape_job_urls_fast(context, titles, max_jobs_per_title=5)
+    job_data = await scrape_job_urls_fast(context, titles, max_jobs_per_title=max_jobs_per_title)
     end_time = time.time()
     
     print(f"[MAIN] Scraping completed in {end_time - start_time:.2f} seconds")
     
+    # Filter jobs by keywords
+    print(f"\n[MAIN] Step 6: Filtering jobs by keywords")
+    filtered_job_data = filter_jobs_by_keywords(job_data, filtering_keywords)
+    
     # Cleanup
-    print(f"\n[MAIN] Step 6: Cleaning up resources")
+    print(f"\n[MAIN] Step 7: Cleaning up resources")
     await context.close()
     await browser.close()
     await playwright.stop()
     print(f"[MAIN] Resources cleaned up")
     
     # Save results to file
-    print(f"\n[MAIN] Step 7: Saving results")
+    print(f"\n[MAIN] Step 8: Saving results")
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"linkedin_jobs_fast_{timestamp}.json"
     
     try:
         with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(job_data, f, indent=2, ensure_ascii=False)
+            json.dump(filtered_job_data, f, indent=2, ensure_ascii=False)
         print(f"[MAIN] Results saved to: {filename}")
     except Exception as e:
         print(f"[MAIN] Error saving results: {e}")
     
-    return job_data
+    return filtered_job_data
+
+def print_job_summary(job_data):
+    """
+    Print a comprehensive summary of all jobs found.
+    """
+    print(f"\n[SUMMARY] =================================")
+    print(f"[SUMMARY] JOB SCRAPING SUMMARY")
+    print(f"[SUMMARY] =================================")
+    
+    total_jobs = sum(len(jobs) for jobs in job_data.values())
+    total_titles = len(job_data)
+    
+    print(f"[SUMMARY] Total job titles searched: {total_titles}")
+    print(f"[SUMMARY] Total jobs found: {total_jobs}")
+    print(f"[SUMMARY] Average jobs per title: {total_jobs/total_titles:.1f}" if total_titles > 0 else "[SUMMARY] No jobs found")
+    
+    print(f"\n[SUMMARY] Breakdown by job title:")
+    for title, jobs in job_data.items():
+        print(f"[SUMMARY]   {title}: {len(jobs)} jobs")
+        if jobs:
+            companies = set()
+            for job in jobs:
+                if job.get('company'):
+                    companies.add(job['company'])
+            print(f"[SUMMARY]     Companies: {len(companies)} unique companies")
+    
+    print(f"[SUMMARY] =================================")
 
 if __name__ == "__main__":
     print(f"[SCRIPT] Fast LinkedIn Job Scraper Started")
     print(f"[SCRIPT] =================================")
     
+    # Example usage:
+    # 1. Use default titles and keywords
+    # result = asyncio.run(main())
+    
+    # 2. Use custom titles and default keywords
+    # custom_titles = ["Python Developer", "Data Scientist", "DevOps Engineer"]
+    # result = asyncio.run(main(custom_titles=custom_titles))
+    
+    # 3. Use custom titles and custom keywords
+    # custom_titles = ["Python Developer", "Data Scientist"]
+    # custom_keywords = ["Python", "Django", "Flask", "Machine Learning"]
+    # result = asyncio.run(main(custom_titles=custom_titles, custom_keywords=custom_keywords))
+    
+    # 4. Use custom titles, keywords, and job count
+    # result = asyncio.run(main(custom_titles=custom_titles, custom_keywords=custom_keywords, max_jobs_per_title=10))
+    
     try:
+        # Using default values for demonstration
         result = asyncio.run(main())
         
         print(f"\n[SCRIPT] =================================")
         print(f"[SCRIPT] Final Results:")
         
         if result:
+            # Print comprehensive summary
+            print_job_summary(result)
+            
             total_jobs = sum(len(jobs) for jobs in result.values())
             print(f"[SCRIPT] Total jobs found: {total_jobs}")
             
