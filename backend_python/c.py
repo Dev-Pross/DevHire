@@ -207,13 +207,21 @@ def process_batch(resume_url:str,jobs:List[Dict[str,str]])->List[Dict[str,Any]]:
 
 # ╭── File helpers & main ────────────────────────────────────────╮
 def load_jobs(p:str):
-    data=json.load(open(p,encoding="utf-8"))
+    if not Path(p).exists():
+        log.error("Job file not found: %s", p)
+        return []
+    with open(p, encoding="utf-8") as f:
+        data = json.load(f)
     return [{"job_url":j.get("job_url") or j.get("jobUrl"),
              "job_description":j.get("job_description") or j.get("description")}
             for j in data if j.get("job_url") or j.get("jobUrl")]
 
 def run_all(jfile:str,resume_url:str,batch=15):
-    jobs=load_jobs(jfile); res=[]
+    jobs=load_jobs(jfile)
+    if not jobs:
+        log.error("No jobs loaded. Exiting.")
+        return []
+    res=[]
     for i in range(0,len(jobs),batch):
         res+=process_batch(resume_url,jobs[i:i+batch])
         if i+batch<len(jobs): log.debug("Pause 30 s"); time.sleep(30)
@@ -221,7 +229,11 @@ def run_all(jfile:str,resume_url:str,batch=15):
 
 if __name__=="__main__":
     RESUME_URL="https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1753977528980_New%20Resume.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzUzOTc3NTI4OTgwX05ldyBSZXN1bWUucGRmIiwiaWF0IjoxNzUzOTc3NzgxLCJleHAiOjE3NTQ1ODI1ODF9.7VB4p1cXBEJiRqlNz-WfibpQT5SYuGguU-olU9k4Al4"
-    JOBS_JSON ="./linkedin_jobs.json"
+    JOBS_JSON ="./linkedin_jobs_2025-07-31_17-35-34.json"
     OUT       ="tailored_resumes_batch_kv.json"
-    Path(OUT).write_text(json.dumps(run_all(JOBS_JSON,RESUME_URL),indent=2),encoding="utf-8")
-    log.info("Done → %s",OUT)
+    results = run_all(JOBS_JSON, RESUME_URL)
+    if results:
+        Path(OUT).write_text(json.dumps(results,indent=2),encoding="utf-8")
+        log.info("Done → %s",OUT)
+    else:
+        log.error("No output written due to previous errors.")
