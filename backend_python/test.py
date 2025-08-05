@@ -161,6 +161,64 @@ async def linkedin_login(page, username, password):
         print(f"[LOGIN] Error during login process: {e}")
         return False
 
+async def debug_single_job(context, job_url):
+    """
+    Debug function to test scraping a single job URL.
+    """
+    print(f"[DEBUG] Testing single job URL: {job_url}")
+    
+    page = await context.new_page()
+    try:
+        await page.goto(job_url, wait_until="domcontentloaded")
+        await asyncio.sleep(5)
+        
+        # Take a screenshot for debugging
+        screenshot_path = "debug_job_page.png"
+        await page.screenshot(path=screenshot_path)
+        print(f"[DEBUG] Screenshot saved to: {screenshot_path}")
+        
+        # Get page title and URL
+        page_title = await page.title()
+        current_url = page.url
+        print(f"[DEBUG] Page title: {page_title}")
+        print(f"[DEBUG] Current URL: {current_url}")
+        
+        # Try to get any text content
+        try:
+            body_text = await page.locator('body').text_content()
+            print(f"[DEBUG] Body text length: {len(body_text) if body_text else 0}")
+            if body_text:
+                print(f"[DEBUG] First 500 chars of body: {body_text[:500]}")
+        except Exception as e:
+            print(f"[DEBUG] Error getting body text: {e}")
+        
+        # Try to find any h1 elements
+        try:
+            h1_elements = await page.locator('h1').all()
+            print(f"[DEBUG] Found {len(h1_elements)} h1 elements")
+            for i, h1 in enumerate(h1_elements):
+                h1_text = await h1.text_content()
+                print(f"[DEBUG] H1 {i+1}: {h1_text}")
+        except Exception as e:
+            print(f"[DEBUG] Error getting h1 elements: {e}")
+        
+        # Try to find any elements with "job" in the class name
+        try:
+            job_elements = await page.locator('[class*="job"]').all()
+            print(f"[DEBUG] Found {len(job_elements)} elements with 'job' in class name")
+            for i, elem in enumerate(job_elements[:5]):  # Only first 5
+                elem_text = await elem.text_content()
+                elem_class = await elem.get_attribute('class')
+                print(f"[DEBUG] Job element {i+1} class: {elem_class}")
+                print(f"[DEBUG] Job element {i+1} text: {elem_text[:100] if elem_text else 'None'}")
+        except Exception as e:
+            print(f"[DEBUG] Error getting job elements: {e}")
+        
+    except Exception as e:
+        print(f"[DEBUG] Error in debug function: {e}")
+    finally:
+        await page.close()
+
 async def scrape_job_details(page, job_url):
     """
     Scrape detailed information from a single job posting page.
@@ -169,7 +227,7 @@ async def scrape_job_details(page, job_url):
     
     try:
         await page.goto(job_url, wait_until="domcontentloaded")
-        await asyncio.sleep(2)
+        await asyncio.sleep(3)  # Increased wait time
         
         job_data = {
             "url": job_url,
@@ -183,60 +241,82 @@ async def scrape_job_details(page, job_url):
             "experience_level": ""
         }
         
-        # Extract job title
+        # Extract job title - Updated selectors
         try:
             title_selectors = [
                 'h1.job-details-jobs-unified-top-card__job-title',
                 '.job-details-jobs-unified-top-card__job-title',
                 'h1[data-test-id="job-details-jobs-unified-top-card__job-title"]',
                 '.jobs-unified-top-card__job-title',
-                'h1'
+                'h1.jobs-unified-top-card__job-title',
+                '.job-details-jobs-unified-top-card__job-title h1',
+                'h1',
+                '.jobs-unified-top-card__job-title-text',
+                '[data-test-id="job-details-jobs-unified-top-card__job-title"]'
             ]
             
             for selector in title_selectors:
                 try:
-                    title_element = await page.locator(selector).first
-                    if await title_element.count() > 0:
-                        job_data["title"] = await title_element.text_content()
-                        job_data["title"] = job_data["title"].strip() if job_data["title"] else ""
-                        if job_data["title"]:
+                    title_elements = await page.locator(selector).all()
+                    for element in title_elements:
+                        title_text = await element.text_content()
+                        if title_text and title_text.strip():
+                            job_data["title"] = title_text.strip()
                             print(f"[DETAILS] Found title: {job_data['title']}")
                             break
-                except Exception:
+                    if job_data["title"]:
+                        break
+                except Exception as e:
+                    print(f"[DETAILS] Title selector {selector} failed: {e}")
                     continue
         except Exception as e:
             print(f"[DETAILS] Error extracting title: {e}")
         
-        # Extract company name
+        # Extract company name - Updated selectors
         try:
             company_selectors = [
                 '.job-details-jobs-unified-top-card__company-name',
                 '.jobs-unified-top-card__company-name',
                 '[data-test-id="job-details-jobs-unified-top-card__company-name"]',
-                '.job-details-jobs-unified-top-card__subtitle-primary-grouping'
+                '.job-details-jobs-unified-top-card__subtitle-primary-grouping',
+                '.jobs-unified-top-card__subtitle-primary-grouping',
+                '.job-details-jobs-unified-top-card__company-name a',
+                '.jobs-unified-top-card__company-name a',
+                '.job-details-jobs-unified-top-card__subtitle-primary-grouping a',
+                '.jobs-unified-top-card__subtitle-primary-grouping a'
             ]
             
             for selector in company_selectors:
                 try:
-                    company_element = await page.locator(selector).first
-                    if await company_element.count() > 0:
-                        job_data["company"] = await company_element.text_content()
-                        job_data["company"] = job_data["company"].strip() if job_data["company"] else ""
-                        if job_data["company"]:
+                    company_elements = await page.locator(selector).all()
+                    for element in company_elements:
+                        company_text = await element.text_content()
+                        if company_text and company_text.strip():
+                            job_data["company"] = company_text.strip()
                             print(f"[DETAILS] Found company: {job_data['company']}")
                             break
-                except Exception:
+                    if job_data["company"]:
+                        break
+                except Exception as e:
+                    print(f"[DETAILS] Company selector {selector} failed: {e}")
                     continue
         except Exception as e:
             print(f"[DETAILS] Error extracting company: {e}")
         
-        # Extract location
+        # Extract location - Updated selectors
         try:
             location_selectors = [
                 '.job-details-jobs-unified-top-card__bullet',
                 '.jobs-unified-top-card__bullet',
                 '[data-test-id="job-details-jobs-unified-top-card__bullet"]',
-                '.job-details-jobs-unified-top-card__subtitle-primary-grouping'
+                '.job-details-jobs-unified-top-card__subtitle-primary-grouping',
+                '.jobs-unified-top-card__subtitle-primary-grouping',
+                '.job-details-jobs-unified-top-card__bullet span',
+                '.jobs-unified-top-card__bullet span',
+                '.job-details-jobs-unified-top-card__subtitle-primary-grouping span',
+                '.jobs-unified-top-card__subtitle-primary-grouping span',
+                '.job-details-jobs-unified-top-card__subtitle-secondary-grouping',
+                '.jobs-unified-top-card__subtitle-secondary-grouping'
             ]
             
             for selector in location_selectors:
@@ -244,68 +324,153 @@ async def scrape_job_details(page, job_url):
                     location_elements = await page.locator(selector).all()
                     for element in location_elements:
                         location_text = await element.text_content()
-                        if location_text and any(word in location_text.lower() for word in ["remote", "hybrid", "on-site", "location", "india", "us", "uk"]):
-                            job_data["location"] = location_text.strip()
-                            print(f"[DETAILS] Found location: {job_data['location']}")
-                            break
+                        if location_text and location_text.strip():
+                            # Check if it looks like a location
+                            location_lower = location_text.lower()
+                            if any(word in location_lower for word in ["remote", "hybrid", "on-site", "location", "india", "us", "uk", "new york", "california", "texas", "florida", "bangalore", "mumbai", "delhi", "pune", "chennai", "hyderabad"]):
+                                job_data["location"] = location_text.strip()
+                                print(f"[DETAILS] Found location: {job_data['location']}")
+                                break
+                            # Also check for general location patterns
+                            elif any(char in location_text for char in [",", "•", "|"]) and len(location_text.strip()) > 3:
+                                job_data["location"] = location_text.strip()
+                                print(f"[DETAILS] Found location (pattern): {job_data['location']}")
+                                break
                     if job_data["location"]:
                         break
-                except Exception:
+                except Exception as e:
+                    print(f"[DETAILS] Location selector {selector} failed: {e}")
                     continue
         except Exception as e:
             print(f"[DETAILS] Error extracting location: {e}")
         
-        # Extract job description
+        # Extract job description - Updated selectors
         try:
             description_selectors = [
                 '.jobs-description__content',
                 '.job-details-jobs-unified-top-card__job-description',
                 '.jobs-box__html-content',
                 '[data-test-id="job-details-jobs-unified-top-card__job-description"]',
-                '.jobs-description'
+                '.jobs-description',
+                '.jobs-description__content .jobs-box__html-content',
+                '.jobs-description__content .jobs-description__content',
+                '.jobs-description__content .jobs-box__html-content .jobs-box__html-content',
+                '.jobs-description__content .jobs-box__html-content .jobs-description__content',
+                '.jobs-description__content .jobs-description__content .jobs-box__html-content',
+                '.jobs-description__content .jobs-description__content .jobs-description__content',
+                '.jobs-description__content .jobs-box__html-content .jobs-description__content .jobs-box__html-content',
+                '.jobs-description__content .jobs-box__html-content .jobs-description__content .jobs-description__content',
+                '.jobs-description__content .jobs-box__html-content .jobs-box__html-content',
+                '.jobs-description__content .jobs-description__content .jobs-box__html-content .jobs-description__content',
+                '.jobs-description__content .jobs-description__content .jobs-description__content .jobs-box__html-content',
+                '.jobs-description__content .jobs-description__content .jobs-description__content .jobs-description__content'
             ]
             
             for selector in description_selectors:
                 try:
-                    desc_element = await page.locator(selector).first
-                    if await desc_element.count() > 0:
-                        job_data["description"] = await desc_element.text_content()
-                        job_data["description"] = job_data["description"].strip() if job_data["description"] else ""
-                        if job_data["description"]:
+                    desc_elements = await page.locator(selector).all()
+                    for element in desc_elements:
+                        desc_text = await element.text_content()
+                        if desc_text and desc_text.strip():
+                            job_data["description"] = desc_text.strip()
                             # Truncate description if too long
                             if len(job_data["description"]) > 2000:
                                 job_data["description"] = job_data["description"][:2000] + "..."
                             print(f"[DETAILS] Found description (length: {len(job_data['description'])})")
                             break
-                except Exception:
+                    if job_data["description"]:
+                        break
+                except Exception as e:
+                    print(f"[DETAILS] Description selector {selector} failed: {e}")
                     continue
         except Exception as e:
             print(f"[DETAILS] Error extracting description: {e}")
         
-        # Extract requirements (look for specific sections)
+        # Extract requirements - Updated selectors
         try:
             requirements_selectors = [
                 '.jobs-description__content h3:has-text("Requirements") + ul',
                 '.jobs-description__content h3:has-text("Qualifications") + ul',
                 '.jobs-description__content h3:has-text("Skills") + ul',
-                '.jobs-description__content ul'
+                '.jobs-description__content h3:has-text("Requirements") + ol',
+                '.jobs-description__content h3:has-text("Qualifications") + ol',
+                '.jobs-description__content h3:has-text("Skills") + ol',
+                '.jobs-description__content ul',
+                '.jobs-description__content ol',
+                '.jobs-box__html-content ul',
+                '.jobs-box__html-content ol',
+                '.jobs-description__content .jobs-box__html-content ul',
+                '.jobs-description__content .jobs-box__html-content ol',
+                '.jobs-description__content .jobs-description__content ul',
+                '.jobs-description__content .jobs-description__content ol',
+                '.jobs-description__content .jobs-box__html-content .jobs-box__html-content ul',
+                '.jobs-description__content .jobs-box__html-content .jobs-box__html-content ol',
+                '.jobs-description__content .jobs-description__content .jobs-box__html-content ul',
+                '.jobs-description__content .jobs-description__content .jobs-box__html-content ol',
+                '.jobs-description__content .jobs-description__content .jobs-description__content ul',
+                '.jobs-description__content .jobs-description__content .jobs-description__content ol'
             ]
             
             for selector in requirements_selectors:
                 try:
-                    req_element = await page.locator(selector).first
-                    if await req_element.count() > 0:
-                        job_data["requirements"] = await req_element.text_content()
-                        job_data["requirements"] = job_data["requirements"].strip() if job_data["requirements"] else ""
-                        if job_data["requirements"]:
+                    req_elements = await page.locator(selector).all()
+                    for element in req_elements:
+                        req_text = await element.text_content()
+                        if req_text and req_text.strip():
+                            job_data["requirements"] = req_text.strip()
                             if len(job_data["requirements"]) > 1000:
                                 job_data["requirements"] = job_data["requirements"][:1000] + "..."
                             print(f"[DETAILS] Found requirements (length: {len(job_data['requirements'])})")
                             break
-                except Exception:
+                    if job_data["requirements"]:
+                        break
+                except Exception as e:
+                    print(f"[DETAILS] Requirements selector {selector} failed: {e}")
                     continue
         except Exception as e:
             print(f"[DETAILS] Error extracting requirements: {e}")
+        
+        # Try to get any text content if we haven't found description yet
+        if not job_data["description"]:
+            try:
+                print(f"[DETAILS] Trying to get any text content from the page...")
+                # Get all text content from the main content area
+                main_content_selectors = [
+                    'main',
+                    '.jobs-description__content',
+                    '.jobs-box__html-content',
+                    '.jobs-description',
+                    '.job-details-jobs-unified-top-card__job-description',
+                    '[data-test-id="job-details-jobs-unified-top-card__job-description"]'
+                ]
+                
+                for selector in main_content_selectors:
+                    try:
+                        content_elements = await page.locator(selector).all()
+                        for element in content_elements:
+                            content_text = await element.text_content()
+                            if content_text and content_text.strip() and len(content_text.strip()) > 100:
+                                job_data["description"] = content_text.strip()
+                                if len(job_data["description"]) > 2000:
+                                    job_data["description"] = job_data["description"][:2000] + "..."
+                                print(f"[DETAILS] Found content from {selector} (length: {len(job_data['description'])})")
+                                break
+                        if job_data["description"]:
+                            break
+                    except Exception as e:
+                        print(f"[DETAILS] Content selector {selector} failed: {e}")
+                        continue
+            except Exception as e:
+                print(f"[DETAILS] Error getting general content: {e}")
+        
+        # Debug: Print page title and URL to see what we're actually on
+        try:
+            page_title = await page.title()
+            current_url = page.url
+            print(f"[DETAILS] Page title: {page_title}")
+            print(f"[DETAILS] Current URL: {current_url}")
+        except Exception as e:
+            print(f"[DETAILS] Error getting page info: {e}")
         
         return job_data
         
@@ -483,6 +648,9 @@ async def main():
     print(f"\n[MAIN] Step 2: Checking LinkedIn credentials")
     if LINKEDIN_ID is None or LINKEDIN_PASSWORD is None:
         print(f"[MAIN] LinkedIn credentials not found in config. Exiting.")
+        print(f"[MAIN] Please create a .env file in the backend_python directory with:")
+        print(f"[MAIN] LINKEDIN_ID=your_linkedin_email@example.com")
+        print(f"[MAIN] LINKEDIN_PASSWORD=your_linkedin_password")
         return {}
     
     print(f"[MAIN] Credentials found, proceeding with scraping")
@@ -493,7 +661,7 @@ async def main():
         playwright = await async_playwright().start()
         print(f"[MAIN] Playwright started successfully")
         
-        browser = await playwright.chromium.launch(headless=True)
+        browser = await playwright.chromium.launch(headless=False)  # Set to False for debugging
         print(f"[MAIN] Browser launched successfully")
         
         context = await browser.new_context()
@@ -518,19 +686,24 @@ async def main():
     
     print(f"[MAIN] LinkedIn login successful")
     
+    # DEBUG: Test a single job URL first
+    print(f"\n[MAIN] Step 5: DEBUG - Testing single job URL")
+    test_job_url = "https://www.linkedin.com/jobs/view/4238704831/"
+    await debug_single_job(context, test_job_url)
+    
     # Scrape jobs
-    print(f"\n[MAIN] Step 5: Scraping job URLs and details")
-    job_data = await scrape_job_urls_by_titles(context, titles, max_jobs_per_title=5)  # Reduced to 5 for faster processing
+    print(f"\n[MAIN] Step 6: Scraping job URLs and details")
+    job_data = await scrape_job_urls_by_titles(context, titles, max_jobs_per_title=3)  # Reduced to 3 for faster processing
     
     # Cleanup
-    print(f"\n[MAIN] Step 6: Cleaning up resources")
+    print(f"\n[MAIN] Step 7: Cleaning up resources")
     await context.close()
     await browser.close()
     await playwright.stop()
     print(f"[MAIN] Resources cleaned up")
     
     # Save results to file
-    print(f"\n[MAIN] Step 7: Saving results")
+    print(f"\n[MAIN] Step 8: Saving results")
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"linkedin_jobs_detailed_{timestamp}.json"
     
@@ -581,3 +754,4 @@ if __name__ == "__main__":
         traceback.print_exc()
     
     print(f"[SCRIPT] Script completed.")
+
