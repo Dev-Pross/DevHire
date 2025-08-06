@@ -393,8 +393,9 @@ async def scrape_job_urls_fast(context, titles, max_jobs_per_title=15):
         try:
             # Encode title for URL
             encoded_title = title.replace(' ', '%20')
-            search_url = f"https://www.linkedin.com/jobs/search/?keywords={encoded_title}"
-            
+            # search_url = f"https://www.linkedin.com/jobs/search/?keywords={encoded_title}"
+            search_url = f"https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={encoded_title}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD"
+            print(f"[SCRAPE] Navigating to: {search_url}")
             await page.goto(search_url, wait_until="domcontentloaded")
             await asyncio.sleep(3)  # Increased wait time for better loading
             
@@ -682,7 +683,7 @@ async def main(custom_titles=None, custom_keywords=None, max_jobs_per_title=15):
         playwright = await async_playwright().start()
         print(f"[MAIN] Playwright started successfully")
         
-        browser = await playwright.chromium.launch(headless=True)  # Back to headless for speed
+        browser = await playwright.chromium.launch(headless=False)  # Back to headless for speed
         print(f"[MAIN] Browser launched successfully")
         
         context = await browser.new_context()
