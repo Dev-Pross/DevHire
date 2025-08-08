@@ -46,8 +46,8 @@ def main(user, url):
                 contents = f"""You are an AI hiring assistant helping with job matching based on resumes.
                         Your task is to analyze the following resume content and extract TWO separate lists:
 
-                        1. **SUITABLE JOB TITLES** - Extract 5-8 powerful, specific job titles that comprehensively reflect the candidate's skills, experience, and seniority level.
-                        2. **JOB KEYWORDS** - Extract up to 20 relevant keywords covering technologies, skills, tools, domains, and role-related terms.
+                        1. **SUITABLE JOB TITLES** - Extract 5-10 powerful, specific job titles that comprehensively reflect the candidate's skills, experience, and seniority level.
+                        2. **JOB KEYWORDS** - Extract up to 30 relevant keywords covering technologies, skills, tools, domains, and role-related terms.
 
                         📌 Guidelines for Job Titles:
                         - Include both direct job titles (e.g., "Frontend Developer") and adjacent roles (e.g., "UI Engineer")

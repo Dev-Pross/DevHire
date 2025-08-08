@@ -1,4 +1,0 @@
-playwright
-requests
-asyncio
-loguru

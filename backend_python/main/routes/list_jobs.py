@@ -2,7 +2,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl
 from typing import List, Dict, Any, Optional
-from agents.scraper import run_scraper_in_new_loop  
+from agents.scraper_agent import run_scraper_in_new_loop  
 from concurrent.futures import ThreadPoolExecutor 
 from agents import parse_agent
 import os
@@ -13,18 +13,18 @@ class JobRequest(BaseModel):
     file_url: str
 
 class Job(BaseModel):
-    title: str
-    job_id: str
-    company_name: str
-    location: str
+    title: Optional[str] = "Title not available"  # Allow None with default
+    job_id: Optional[str] = "ID not available"    # Make this optional too
+    company_name: Optional[str] = None
+    location: Optional[str] = None
     experience: Optional[str] = None
     salary: Optional[str] = None
-    key_skills: List[str]
+    key_skills: List[str] = []                     # Default to empty list
     job_url: HttpUrl
     posted_at: Optional[str] = None
-    job_description: str
-    source: str
-    relevance_score: str
+    job_description: str = "Description not available"  # Provide default
+    source: str = "linkedin"                       # Default value
+    relevance_score: Optional[str] = "unknown"     # Make optional with default
 
 class ResponseJob(BaseModel):
     jobs: List[Job]
@@ -46,6 +46,9 @@ async def getJobs(request: JobRequest):
         
         titles = [title.strip() for title in titles_string.split(",")]
         keywords = [keyword.strip() for keyword in keywords_string.split(",")]
+        keywords.append('web developer')
+        keywords.append("software Developer")
+        keywords.append("full stack")
 
 
         print(titles,"\n", keywords)
