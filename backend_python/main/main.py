@@ -3,6 +3,7 @@ from database.db_engine import Base, engine
 from contextlib import asynccontextmanager
 from main.routes.cookie_receiver import router as cookie_router
 from main.routes.list_jobs import router as list_jobs
+from main.routes.apply_jobs import router as apply_jobs
 from fastapi.middleware.cors import CORSMiddleware
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,6 +28,7 @@ app.add_middleware(
 
 app.include_router(cookie_router)
 app.include_router(list_jobs)
+app.include_router(apply_jobs)
 
 @app.get("/")
 def root():

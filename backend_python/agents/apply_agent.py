@@ -920,11 +920,17 @@ def make_resume_payload(b64: str) -> dict:
         "buffer": base64.b64decode(b64),
     }
 
-async def login(page: Page) -> bool:
+async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     await page.goto(LINKEDIN_LOGIN_URL, wait_until="networkidle")
     if "/feed" in page.url:
         log.info("✅ Already logged in")
         return True
+    
+    if user_id and password :
+        print("user and password provided")
+        global LINKEDIN_ID, LINKEDIN_PASSWORD
+        LINKEDIN_ID = user_id
+        LINKEDIN_PASSWORD = password
 
     log.info("🔐 Logging in...")
     await page.fill("#username", LINKEDIN_ID)
@@ -959,15 +965,20 @@ async def safe_goto(page: Page, url: str, retries: int = 3) -> bool:
     return False
 
 # ─────────────────────────── MAIN ──────────────────────────
-async def main():
-    with open("tailored_resumes_batch_kv.json", encoding="utf-8") as f:
-        raw = json.load(f)
+async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, password: str | None = None):
+    status=dict()
+    if not jobs_data:
+        with open("tailored_resumes_batch_kv.json", encoding="utf-8") as f:
+            raw = json.load(f)
 
-    jobs = (
-        [raw]
-        if isinstance(raw, dict) and "job_url" in raw
-        else list(raw.values()) if isinstance(raw, dict) else raw
-    )
+        jobs = (
+            [raw]
+            if isinstance(raw, dict) and "job_url" in raw
+            else list(raw.values()) if isinstance(raw, dict) else raw
+        )
+
+    if jobs_data :
+        jobs = jobs_data
     log.info(f"📋 Loaded {len(jobs)} job(s) to process")
 
     pw = await async_playwright().start()
@@ -977,7 +988,7 @@ async def main():
     await Stealth().apply_stealth_async(page)
 
     try:
-        if not await login(page):
+        if not await login(page, user_id, password):
             return
 
         agent = EasyApplyAgent(page)
@@ -1038,6 +1049,19 @@ async def main():
         log.info(f"❌ Failed applications: {failed}")
         log.info(f"📊 Success rate: {(applied/(applied+failed)*100):.1f}%")
         log.info(f"{'='*60}")
+        # status.append({
+        #     "applied": applied,
+        #     "failed": failed,
+        #     "success_rate": (applied / (applied + failed) * 100) if (applied + failed) > 0 else 0
+        # })
+
+        status = {
+            "applied": applied,
+            "failed": failed,
+            "success_rate": (applied / (applied + failed) * 100) if (applied + failed) > 0 else 0
+        }
+
+        return status
 
     finally:
         await context.close()

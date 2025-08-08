@@ -55,22 +55,53 @@ LOGGED_IN_CONTEXT = None
 # ---------------------------------------------------------------------------
 
 async def apply_forced_zoom(page):
-    """Apply forced 50% zoom that LinkedIn cannot override"""
+    """Apply zoom that actually makes content fit the entire browser window"""
     await page.evaluate('''
         () => {
-            // Force zoom the entire document
-            document.documentElement.style.transform = 'scale(0.5)';
-            document.documentElement.style.transformOrigin = 'top left';
-            document.documentElement.style.width = '100%';
-            document.documentElement.style.height = '100%';
+            // Remove LinkedIn's max-width constraints
+            const style = document.createElement('style');
+            style.textContent = `
+                .application-outlet, 
+                .global-nav,
+                .main, 
+                .jobs-search-page,
+                .scaffold-layout,
+                .jobs-search-results-list {
+                    max-width: none !important;
+                    width: 100% !important;
+                }
+                
+                .scaffold-layout__sidebar {
+                    display: none !important;  /* Hide sidebar to use full width */
+                }
+                
+                .scaffold-layout__main {
+                    max-width: none !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                }
+                
+                /* Make job cards smaller and fit more per row */
+                .job-card-container {
+                    width: 300px !important;
+                    margin: 5px !important;
+                }
+                
+                .jobs-search-results-list {
+                    display: flex !important;
+                    flex-wrap: wrap !important;
+                    justify-content: space-between !important;
+                }
+            `;
+            document.head.appendChild(style);
             
-            // Also apply to body as backup
+            // Also apply transform zoom
             document.body.style.transform = 'scale(0.5)';
             document.body.style.transformOrigin = 'top left';
-            document.body.style.width = '100%';
-            document.body.style.height = '100%';
+            document.body.style.width = '142%';
+            document.body.style.height = '142%';
             
-            console.log('FORCED 50% zoom applied');
+            console.log('Full-page zoom with layout optimization applied');
         }
     ''')
 
@@ -316,7 +347,7 @@ async def extract_job_description_fixed(context, job_url):
                     return f"Navigation failed after {max_retries} attempts: {str(nav_error)[:100]}"
         
         # Minimal wait after navigation
-        await asyncio.sleep(2)
+        await asyncio.sleep(6)
         
         # Click "See more" button to reveal full description
         await click_see_more_button(detail_page)
@@ -578,7 +609,7 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
 # ---------------------------------------------------------------------------
 
 genai.configure(api_key=GOOGLE_API)
-model = genai.GenerativeModel("gemini-2.0-flash-exp")
+model = genai.GenerativeModel("gemini-2.5-flash-lite")
 
 def create_bulk_prompt(jobs_dict: dict) -> str:
     SYSTEM_PROMPT = """
@@ -586,6 +617,8 @@ def create_bulk_prompt(jobs_dict: dict) -> str:
     
     EXTRACTION RULES:
     - Extract Job ID from URL (number after /jobs/view/)
+    - Extract proper titles.
+    - Dont make any syntax errors for JSON file.
     - For location: Default to "India" since search was India-filtered  
     - For Experience: Look for years, "freshers", "entry level"
     - For Salary: Include currency (₹, INR, $, USD)
@@ -607,7 +640,7 @@ def create_bulk_prompt(jobs_dict: dict) -> str:
         "job_description": "full description",
         "source": "linkedin",
         "relevance_score": "high/medium/low based on technical content"
-      }
+      },
     ]
     
     Return ONLY the JSON array.
@@ -712,7 +745,7 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
     print(f"🚀 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
     
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=False)
         
         try:
             print("🔐 Performing LinkedIn login...")
