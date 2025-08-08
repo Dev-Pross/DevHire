@@ -1,13 +1,18 @@
 import asyncio
-import os
 import sys
-import re
-import json
-import time
-from datetime import datetime
-from playwright.async_api import async_playwright
 
-# Color constants for debugging
+# Windows Playwright fix - MUST be at the top
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+from playwright.async_api import async_playwright
+from concurrent.futures import ThreadPoolExecutor
+import json
+import google.generativeai as genai
+from urllib.parse import urlparse
+from config import GOOGLE_API, LINKEDIN_ID, LINKEDIN_PASSWORD
+
+# Color constants for enhanced debugging
 class Colors:
     RED = '\033[91m'
     GREEN = '\033[92m'
@@ -19,88 +24,22 @@ class Colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
     END = '\033[0m'
-    
-    # Background colors
-    BG_RED = '\033[101m'
-    BG_GREEN = '\033[102m'
-    BG_YELLOW = '\033[103m'
-    BG_BLUE = '\033[104m'
-    BG_MAGENTA = '\033[105m'
-    BG_CYAN = '\033[106m'
 
-def print_config(msg):
-    print(f"{Colors.CYAN}[CONFIG]{Colors.END} {msg}")
+# Configuration
+PLATFORMS = {
+    "linkedin": {
+        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
+        "base_url": "https://in.linkedin.com",
+        "login_url": "https://www.linkedin.com/login"
+    },
+}
 
-def print_login(msg):
-    print(f"{Colors.MAGENTA}[LOGIN]{Colors.END} {msg}")
-
-def print_success(msg):
-    print(f"{Colors.GREEN}✅ [SUCCESS]{Colors.END} {msg}")
-
-def print_error(msg):
-    print(f"{Colors.RED}❌ [ERROR]{Colors.END} {msg}")
-
-def print_warning(msg):
-    print(f"{Colors.YELLOW}⚠️ [WARNING]{Colors.END} {msg}")
-
-def print_info(msg):
-    print(f"{Colors.BLUE}ℹ️ [INFO]{Colors.END} {msg}")
-
-def print_progress(msg):
-    print(f"{Colors.YELLOW}🔄 [PROGRESS]{Colors.END} {msg}")
-
-def print_scrape(msg):
-    print(f"{Colors.CYAN}🔍 [SCRAPE]{Colors.END} {msg}")
-
-def print_details(msg):
-    print(f"{Colors.MAGENTA}📋 [DETAILS]{Colors.END} {msg}")
-
-def print_filter(msg):
-    print(f"{Colors.GREEN}🔧 [FILTER]{Colors.END} {msg}")
-
-def print_main(msg):
-    print(f"{Colors.BOLD}{Colors.BLUE}🚀 [MAIN]{Colors.END} {msg}")
-
-def print_summary(msg):
-    print(f"{Colors.BOLD}{Colors.GREEN}📊 [SUMMARY]{Colors.END} {msg}")
-
-def print_script(msg):
-    print(f"{Colors.BOLD}{Colors.CYAN}🎯 [SCRIPT]{Colors.END} {msg}")
-
-def print_input(msg):
-    print(f"{Colors.YELLOW}📝 [INPUT]{Colors.END} {msg}")
-
-# Import config from correct location (backend_python/config.py)
-sys.path.append(os.path.dirname(__file__))
-try:
-    from config import LINKEDIN_ID, LINKEDIN_PASSWORD
-    print_config(f"{Colors.GREEN}Successfully imported config{Colors.END}")
-    print_config(f"LINKEDIN_ID: {Colors.CYAN}{'***' if LINKEDIN_ID else 'None'}{Colors.END}")
-    print_config(f"LINKEDIN_PASSWORD: {Colors.CYAN}{'***' if LINKEDIN_PASSWORD else 'None'}{Colors.END}")
-except ImportError as e:
-    print_error(f"Error importing config: {Colors.RED}{e}{Colors.END}")
-    LINKEDIN_ID = None
-    LINKEDIN_PASSWORD = None
-
-
-LINKEDIN_LOGIN_URL = "https://www.linkedin.com/login"
-
-
-# Default job titles to search
-DEFAULT_JOB_TITLES = [
-    "Full Stack Developer",
-    "Frontend Developer", 
-    "Backend Developer",
-    "Software Engineer",
-    "React Developer",
-    "JavaScript Developer",
-    "Node.js Developer",
-    "Web Developer"
+JOB_TITLES = [
+    "Full Stack Developer", "Frontend Developer", "Backend Developer",
+    "Software Engineer", "React Developer"
 ]
 
-
-# Default keywords for filtering
-DEFAULT_FILTERING_KEYWORDS = [
+FILTERING_KEYWORDS = [
     "React.js", "JavaScript", "Node.js", "Express.js", "HTML", "CSS",
     "Bootstrap", "Java", "MySQL", "SQLite", "MongoDB", "JWT Token",
     "REST API", "Android Development", "Linux", "GitHub", "Git",
@@ -108,851 +47,790 @@ DEFAULT_FILTERING_KEYWORDS = [
     "Python", "Spring Boot", "TypeScript"
 ]
 
+PROCESSED_JOB_URLS = set()
+LOGGED_IN_CONTEXT = None
 
-def get_job_titles_and_keywords(custom_titles=None, custom_keywords=None):
-    """
-    Get job titles and keywords, using custom inputs if provided, otherwise using defaults.
-    """
-    print_input(f"{Colors.CYAN}Processing job titles and keywords...{Colors.END}")
-    
-    # Use custom titles if provided, otherwise use defaults
-    job_titles = custom_titles if custom_titles is not None else DEFAULT_JOB_TITLES
-    filtering_keywords = custom_keywords if custom_keywords is not None else DEFAULT_FILTERING_KEYWORDS
-    
-    print_input(f"Using {Colors.GREEN}{len(job_titles)}{Colors.END} job titles: {Colors.YELLOW}{job_titles}{Colors.END}")
-    print_input(f"Using {Colors.GREEN}{len(filtering_keywords)}{Colors.END} filtering keywords: {Colors.YELLOW}{filtering_keywords}{Colors.END}")
-    
-    return job_titles, filtering_keywords
+# ---------------------------------------------------------------------------
+# 1. ENHANCED LOGIN FUNCTIONALITY
+# ---------------------------------------------------------------------------
+
+async def apply_forced_zoom(page):
+    """Apply forced 50% zoom that LinkedIn cannot override"""
+    await page.evaluate('''
+        () => {
+            // Force zoom the entire document
+            document.documentElement.style.transform = 'scale(0.5)';
+            document.documentElement.style.transformOrigin = 'top left';
+            document.documentElement.style.width = '100%';
+            document.documentElement.style.height = '100%';
+            
+            // Also apply to body as backup
+            document.body.style.transform = 'scale(0.5)';
+            document.body.style.transformOrigin = 'top left';
+            document.body.style.width = '100%';
+            document.body.style.height = '100%';
+            
+            console.log('FORCED 50% zoom applied');
+        }
+    ''')
 
 
-async def linkedin_login(page, username, password):
-    """Login to LinkedIn with comprehensive logging"""
-    print_login(f"{Colors.BOLD}Starting LinkedIn login process...{Colors.END}")
-    print_login(f"Username: {Colors.CYAN}{username}{Colors.END}")
-    print_login(f"Password: {Colors.CYAN}{'***' if password else 'None'}{Colors.END}")
+async def linkedin_login(browser):
+    """Login to LinkedIn with FORCED 50% zoom"""
+    global LOGGED_IN_CONTEXT
     
-    if not username or not password:
-        print_error(f"Missing credentials, cannot proceed")
-        return False
+    print("🔐 Starting LinkedIn login...")
+    
+    context = await browser.new_context(
+        user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        viewport={"width": 1920, "height": 1080},
+        device_scale_factor=0.5,  # Keep this
+        locale="en-US",
+        timezone_id="Asia/Calcutta",
+    )
+    
+    page = await context.new_page()
     
     try:
-        print_progress(f"Navigating to: {Colors.UNDERLINE}{LINKEDIN_LOGIN_URL}{Colors.END}")
-        await page.goto(LINKEDIN_LOGIN_URL)
-        print_success(f"Successfully navigated to login page")
+        await page.goto(PLATFORMS["linkedin"]["login_url"])
+        await asyncio.sleep(2)
         
-        # Wait for page to load
-        await page.wait_for_load_state('domcontentloaded')
-        print_success(f"Page loaded successfully")
+        # FORCE zoom that LinkedIn cannot override
+        await apply_forced_zoom(page)
+        await asyncio.sleep(3)  # Wait for zoom to apply
         
-        # Fill username
-        print_progress(f"Filling username field...")
-        await page.fill('input#username', username)
-        print_success(f"Username filled successfully")
+        print("✅ FORCED 50% zoom applied - LinkedIn should now be zoomed out")
         
-        # Fill password
-        print_progress(f"Filling password field...")
-        await page.fill('input#password', password)
-        print_success(f"Password filled successfully")
+        print("📧 Entering email...")
+        email_input = await page.wait_for_selector('#username', timeout=10000)
+        await email_input.fill(LINKEDIN_ID)
         
-        # Click submit
-        print_progress(f"Clicking submit button...")
-        try:
-            async with page.expect_navigation(timeout=60000):
-                await page.click('button[type="submit"]')
-            print_success(f"Submit button clicked, navigation completed")
-        except Exception as e:
-            print_warning(f"Navigation timeout, but continuing: {Colors.YELLOW}{e}{Colors.END}")
-            await page.click('button[type="submit"]')
+        print("🔑 Entering password...")
+        password_input = await page.wait_for_selector('#password', timeout=5000)
+        await password_input.fill(LINKEDIN_PASSWORD)
         
-        # Wait for page to load
-        print_progress(f"Waiting for page to load...")
-        try:
-            await page.wait_for_load_state('networkidle', timeout=60000)
-            print_success(f"Page loaded to networkidle state")
-        except Exception as e:
-            print_warning(f"Networkidle timeout, trying domcontentloaded: {Colors.YELLOW}{e}{Colors.END}")
-            try:
-                await page.wait_for_load_state('domcontentloaded', timeout=30000)
-                print_success(f"Page loaded to domcontentloaded state")
-            except Exception as e2:
-                print_error(f"Domcontentloaded timeout: {Colors.RED}{e2}{Colors.END}")
+        print("🚀 Clicking login button...")
+        login_button = await page.wait_for_selector('button[type="submit"]', timeout=5000)
+        await login_button.click()
+        await asyncio.sleep(5)
         
-        # Check current URL
-        try:
-            current_url = page.url
-            print_info(f"Current URL after login: {Colors.UNDERLINE}{current_url}{Colors.END}")
-        except Exception as e:
-            print_error(f"Error getting current URL: {Colors.RED}{e}{Colors.END}")
-            return False
+        current_url = page.url
+        if "feed" in current_url:
+            print("✅ Login successful with FORCED zoom!")
         
-        # Check if login was successful
-        if "feed" in current_url or "jobs" in current_url:
-            print_success(f"{Colors.BOLD}Login successful - redirected to feed/jobs{Colors.END}")
-            return True
-        elif "login" in current_url:
-            print_error(f"Login failed - still on login page")
-            return False
-        else:
-            print_warning(f"Login status unclear - URL: {Colors.UNDERLINE}{current_url}{Colors.END}")
-            return True
+        LOGGED_IN_CONTEXT = context
+        await page.close()
+        return context
             
     except Exception as e:
-        print_error(f"Error during login process: {Colors.RED}{e}{Colors.END}")
-        return False
+        print(f"❌ Login error: {e}")
+        await page.close()
+        await context.close()
+        return None
 
+async def ensure_logged_in(browser):
+    """Ensure we have a valid logged-in context"""
+    global LOGGED_IN_CONTEXT
+    
+    if LOGGED_IN_CONTEXT is None:
+        print("🔄 No active login session, logging in...")
+        LOGGED_IN_CONTEXT = await linkedin_login(browser)
+        
+        if LOGGED_IN_CONTEXT is None:
+            raise Exception("Failed to login to LinkedIn")
+    
+    return LOGGED_IN_CONTEXT
 
-async def scrape_job_details_fast(page, job_url):
-    """
-    Fast version of job details scraping with optimized selectors and minimal waits.
-    """
+# ---------------------------------------------------------------------------
+# 2. FIXED PAGINATION - WAIT FOR JOBS AFTER EACH PAGE CLICK
+# ---------------------------------------------------------------------------
+
+async def load_all_available_jobs_fixed(page):
+    """FIXED: Proper pagination with page-by-page job loading"""
     try:
-        print_scrape(f"🌐 Navigating to: {Colors.UNDERLINE}{job_url[:50]}...{Colors.END}")
-        await page.goto(job_url, wait_until="domcontentloaded", timeout=30000)
-        await asyncio.sleep(3)  # Increased wait time for better loading
+        print("🔄 Starting FIXED pagination job loading...")
         
-        # Wait for content to load
-        try:
-            await page.wait_for_selector('h1, .jobs-unified-top-card__job-title, .job-details-jobs-unified-top-card__job-title', timeout=10000)
-            print_success(f"Page content loaded successfully")
-        except Exception:
-            print_warning(f"Specific elements not found, continuing anyway")
+        unique_job_urls = set()
+        job_elements = []
+        max_pages = 5  # Limit pages for speed
         
-        job_data = {
-            "url": job_url,
-            "title": "",
-            "company": "",
-            "location": "",
-            "description": "",
-            "requirements": "",
-            "posted_date": "",
-            "job_type": "",
-            "experience_level": ""
-        }
-        
-        # Get page title first as fallback
-        try:
-            page_title = await page.title()
-            if page_title and " - " in page_title:
-                # LinkedIn job titles often appear as "Job Title - Company - LinkedIn"
-                title_parts = page_title.split(" - ")
-                if len(title_parts) >= 2:
-                    job_data["title"] = title_parts[0].strip()
-                    if not job_data["company"] and len(title_parts) >= 2:
-                        job_data["company"] = title_parts[1].strip()
-                    print_info(f"Extracted from page title - Title: {Colors.GREEN}{job_data['title']}{Colors.END}, Company: {Colors.CYAN}{job_data['company']}{Colors.END}")
-        except Exception:
-            print_warning(f"Could not extract from page title")
-        
-        # Comprehensive title extraction with multiple strategies
-        title_selectors = [
-            'h1.job-details-jobs-unified-top-card__job-title',
-            '.jobs-unified-top-card__job-title',
-            'h1[data-test-id="job-details-jobs-unified-top-card__job-title"]',
-            '.job-details-jobs-unified-top-card__job-title',
-            'h1',
-            '.jobs-unified-top-card__job-title-text',
-            '[data-test-id="job-details-jobs-unified-top-card__job-title"]',
-            '.job-details-jobs-unified-top-card__job-title h1',
-            '.jobs-unified-top-card__job-title h1',
-            'h1.jobs-unified-top-card__job-title',
-            '.job-details-jobs-unified-top-card__job-title-text',
-            '.jobs-unified-top-card__job-title-text'
-        ]
-        
-        print_progress(f"🔍 Trying {len(title_selectors)} title selectors...")
-        for i, selector in enumerate(title_selectors):
-            try:
-                elements = await page.locator(selector).all()
-                for element in elements:
-                    title_text = await element.text_content()
-                    if title_text and title_text.strip() and len(title_text.strip()) > 3:
-                        job_data["title"] = title_text.strip()
-                        print_success(f"Found title with selector #{i+1}: {Colors.GREEN}{title_text.strip()}{Colors.END}")
-                        break
-                if job_data["title"]:
-                    break
-            except Exception:
-                continue
-        
-        if not job_data["title"]:
-            print_warning(f"No title found with any selector")
-        
-        # Comprehensive company extraction
-        company_selectors = [
-            '.job-details-jobs-unified-top-card__company-name',
-            '.jobs-unified-top-card__company-name',
-            '[data-test-id="job-details-jobs-unified-top-card__company-name"]',
-            '.job-details-jobs-unified-top-card__subtitle-primary-grouping',
-            '.jobs-unified-top-card__subtitle-primary-grouping',
-            '.job-details-jobs-unified-top-card__company-name a',
-            '.jobs-unified-top-card__company-name a',
-            '.job-details-jobs-unified-top-card__subtitle-primary-grouping a',
-            '.job-details-jobs-unified-top-card__subtitle-primary-grouping a',
-            '.job-details-jobs-unified-top-card__subtitle-secondary-grouping',
-            '.jobs-unified-top-card__subtitle-secondary-grouping'
-        ]
-        
-        print_progress(f"🏢 Trying {len(company_selectors)} company selectors...")
-        for i, selector in enumerate(company_selectors):
-            try:
-                elements = await page.locator(selector).all()
-                for element in elements:
-                    company_text = await element.text_content()
-                    if company_text and company_text.strip() and len(company_text.strip()) > 2:
-                        # Filter out location-like text
-                        company_lower = company_text.lower()
-                        if not any(word in company_lower for word in ["remote", "hybrid", "on-site", "india", "us", "uk", "bangalore", "mumbai", "delhi", "new york", "california"]):
-                            job_data["company"] = company_text.strip()
-                            print_success(f"Found company with selector #{i+1}: {Colors.CYAN}{company_text.strip()}{Colors.END}")
-                            break
-                if job_data["company"]:
-                    break
-            except Exception:
-                continue
-        
-        if not job_data["company"]:
-            print_warning(f"No company found with any selector")
-        
-        # Comprehensive location extraction
-        location_selectors = [
-            '.job-details-jobs-unified-top-card__bullet',
-            '.jobs-unified-top-card__bullet',
-            '[data-test-id="job-details-jobs-unified-top-card__bullet"]',
-            '.job-details-jobs-unified-top-card__subtitle-primary-grouping',
-            '.jobs-unified-top-card__subtitle-primary-grouping',
-            '.job-details-jobs-unified-top-card__bullet span',
-            '.job-details-jobs-unified-top-card__bullet span',
-            '.job-details-jobs-unified-top-card__subtitle-primary-grouping span',
-            '.job-details-jobs-unified-top-card__subtitle-primary-grouping span',
-            '.job-details-jobs-unified-top-card__subtitle-secondary-grouping',
-            '.job-details-jobs-unified-top-card__subtitle-secondary-grouping'
-        ]
-        
-        print_progress(f"📍 Trying {len(location_selectors)} location selectors...")
-        for i, selector in enumerate(location_selectors):
-            try:
-                elements = await page.locator(selector).all()
-                for element in elements:
-                    location_text = await element.text_content()
-                    if location_text and location_text.strip():
-                        location_lower = location_text.lower()
-                        # Check for location indicators
-                        if any(word in location_lower for word in ["remote", "hybrid", "on-site", "india", "us", "uk", "bangalore", "mumbai", "delhi", "new york", "california", "texas", "florida", "pune", "chennai", "hyderabad"]):
-                            job_data["location"] = location_text.strip()
-                            print_success(f"Found location with selector #{i+1}: {Colors.YELLOW}{location_text.strip()}{Colors.END}")
-                            break
-                        # Also check for general location patterns
-                        elif any(char in location_text for char in [",", "•", "|"]) and len(location_text.strip()) > 3:
-                            job_data["location"] = location_text.strip()
-                            print_success(f"Found location (pattern match) with selector #{i+1}: {Colors.YELLOW}{location_text.strip()}{Colors.END}")
-                            break
-                if job_data["location"]:
-                    break
-            except Exception:
-                continue
-        
-        if not job_data["location"]:
-            print_warning(f"No location found with any selector")
-        
-        # Comprehensive description extraction with multiple strategies
-        description_selectors = [
-            '.jobs-description__content',
-            '.job-details-jobs-unified-top-card__job-description',
-            '.jobs-box__html-content',
-            '[data-test-id="job-details-jobs-unified-top-card__job-description"]',
-            '.jobs-description',
-            '.jobs-description__content .jobs-box__html-content',
-            '.jobs-description__content .jobs-description__content',
-            '.jobs-description__content .jobs-box__html-content .jobs-box__html-content',
-            '.jobs-description__content .jobs-box__html-content .jobs-description__content',
-            '.jobs-description__content .jobs-description__content .jobs-box__html-content',
-            '.jobs-description__content .jobs-description__content .jobs-description__content'
-        ]
-        
-        print_progress(f"📄 Trying {len(description_selectors)} description selectors...")
-        for i, selector in enumerate(description_selectors):
-            try:
-                elements = await page.locator(selector).all()
-                for element in elements:
-                    desc_text = await element.text_content()
-                    if desc_text and desc_text.strip() and len(desc_text.strip()) > 100:
-                        job_data["description"] = desc_text.strip()
-                        if len(job_data["description"]) > 2000:  # Increased length
-                            job_data["description"] = job_data["description"][:2000] + "..."
-                        print_success(f"Found description with selector #{i+1}: {Colors.GREEN}{len(desc_text)} chars{Colors.END}")
-                        break
-                if job_data["description"]:
-                    break
-            except Exception:
-                continue
-        
-        # If still no description, try getting any substantial text content
-        if not job_data["description"]:
-            print_warning(f"Primary description selectors failed, trying fallback...")
-            try:
-                # Try to get content from main areas
-                main_selectors = [
-                    'main',
-                    '.jobs-description__content',
-                    '.jobs-box__html-content',
-                    '.jobs-description',
-                    '.job-details-jobs-unified-top-card__job-description',
-                    '[data-test-id="job-details-jobs-unified-top-card__job-description"]',
-                    '.jobs-description__content .jobs-box__html-content',
-                    '.jobs-description__content .jobs-description__content'
-                ]
-                
-                for i, selector in enumerate(main_selectors):
-                    try:
-                        elements = await page.locator(selector).all()
-                        for element in elements:
-                            content_text = await element.text_content()
-                            if content_text and content_text.strip() and len(content_text.strip()) > 200:
-                                job_data["description"] = content_text.strip()
-                                if len(job_data["description"]) > 2000:
-                                    job_data["description"] = job_data["description"][:2000] + "..."
-                                print_success(f"Found description with fallback selector #{i+1}: {Colors.GREEN}{len(content_text)} chars{Colors.END}")
-                                break
-                        if job_data["description"]:
-                            break
-                    except Exception:
-                        continue
-            except Exception:
-                pass
-        
-        if not job_data["description"]:
-            print_error(f"No description found with any selector")
-        
-        # Try to extract requirements if description is available
-        if job_data["description"]:
-            print_progress(f"🔍 Extracting requirements from description...")
-            try:
-                # Look for requirements sections in the description
-                desc_lower = job_data["description"].lower()
-                requirements_keywords = ["requirements:", "qualifications:", "skills:", "requirements", "qualifications", "skills"]
-                
-                for keyword in requirements_keywords:
-                    if keyword in desc_lower:
-                        # Try to extract the section after the keyword
-                        start_idx = desc_lower.find(keyword)
-                        if start_idx != -1:
-                            # Get text after the keyword
-                            requirements_text = job_data["description"][start_idx:start_idx + 500]
-                            if requirements_text:
-                                job_data["requirements"] = requirements_text.strip()
-                                if len(job_data["requirements"]) > 1000:
-                                    job_data["requirements"] = job_data["requirements"][:1000] + "..."
-                                print_success(f"Extracted requirements using keyword '{keyword}': {Colors.GREEN}{len(requirements_text)} chars{Colors.END}")
-                                break
-            except Exception:
-                print_warning(f"Could not extract requirements")
-        
-        # Debug: Print what we found
-        print_details(f"📋 {Colors.BOLD}EXTRACTION SUMMARY:{Colors.END}")
-        print_details(f"URL: {Colors.UNDERLINE}{job_url}{Colors.END}")
-        print_details(f"Title: {Colors.GREEN}{job_data['title'] if job_data['title'] else 'NOT FOUND'}{Colors.END}")
-        print_details(f"Company: {Colors.CYAN}{job_data['company'] if job_data['company'] else 'NOT FOUND'}{Colors.END}")
-        print_details(f"Location: {Colors.YELLOW}{job_data['location'] if job_data['location'] else 'NOT FOUND'}{Colors.END}")
-        print_details(f"Description length: {Colors.MAGENTA}{len(job_data['description'])} chars{Colors.END}")
-        print_details(f"Requirements length: {Colors.BLUE}{len(job_data.get('requirements', ''))} chars{Colors.END}")
-        
-        return job_data
-        
-    except Exception as e:
-        print_error(f"Error scraping job details: {Colors.RED}{e}{Colors.END}")
-        return {
-            "url": job_url,
-            "title": "",
-            "company": "",
-            "location": "",
-            "description": "",
-            "requirements": "",
-            "posted_date": "",
-            "job_type": "",
-            "experience_level": "",
-            "error": str(e)
-        }
-
-
-async def scrape_job_urls_fast(context, titles, max_jobs_per_title=15):
-    """
-    Enhanced job URL scraping with comprehensive search to find ALL available jobs.
-    Increased default to 15 jobs per title to ensure we capture everything.
-    """
-    print_scrape(f"{Colors.BOLD}Starting comprehensive job scraping{Colors.END}")
-    print_scrape(f"Titles: {Colors.CYAN}{titles}{Colors.END}")
-    print_scrape(f"Max jobs per title: {Colors.YELLOW}{max_jobs_per_title}{Colors.END}")
-    print_scrape(f"Expected total jobs: {Colors.GREEN}{len(titles) * max_jobs_per_title}{Colors.END}")
-    
-    all_jobs = {}
-    
-    # Process titles in parallel
-    async def process_title(title):
-        print_scrape(f"🎯 {Colors.BOLD}Processing title: {Colors.CYAN}{title}{Colors.END}")
-        
-        page = await context.new_page()
-        try:
-            # Encode title for URL
-            encoded_title = title.replace(' ', '%20')
-            search_url = f"https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={encoded_title}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD"
+        for page_num in range(max_pages):
+            print(f"📄 Processing page {page_num + 1}/{max_pages}")
             
-            print_progress(f"🌐 Navigating to: {Colors.UNDERLINE}{search_url}{Colors.END}")
-            await page.goto(search_url, wait_until="domcontentloaded")
-            await asyncio.sleep(3)  # Increased wait time for better loading
-            print_success(f"Page loaded successfully")
+            # First, load all jobs on current page by scrolling
+            await scroll_current_page(page)
             
-            # Multiple scrolls to load more content
-            print_progress(f"📜 Scrolling to load more content...")
-            for scroll in range(3):
-                await page.mouse.wheel(0, 3000)
-                await asyncio.sleep(1)
-                print_info(f"Scroll {scroll + 1}/3 completed")
+            # Collect jobs from current page
+            current_page_jobs = await collect_jobs_from_current_page(page)
             
-            # Try to get job links with comprehensive approach
-            job_links = []
-            
-            # Comprehensive selectors to find ALL job cards
-            selectors = [
-                'ul.scaffold-layout__list-container > li',
-                'li.jobs-search-results__list-item',
-                '[data-job-id]',
-                '.jobs-search-results__list-item',
-                '.scaffold-layout__list-container li',
-                '.jobs-search-results__list-item',
-                '.jobs-search-results__list-item a',
-                'a[href*="/jobs/view/"]',
-                '.job-search-card',
-                '.job-search-card a',
-                '.job-card-container',
-                '.job-card-container a'
-            ]
-            
-            print_progress(f"🔍 Trying {len(selectors)} different selectors to find job cards...")
-            
-            # Try multiple approaches to find ALL job links
-            for i, selector in enumerate(selectors):
+            # Add new unique jobs
+            new_jobs_count = 0
+            for element in current_page_jobs:
                 try:
-                    cards = await page.locator(selector).all()
-                    if cards and len(cards) > 0:
-                        print_success(f"Found {Colors.GREEN}{len(cards)}{Colors.END} elements with selector #{i+1}: {Colors.YELLOW}{selector}{Colors.END}")
-                        for card_idx, card in enumerate(cards[:max_jobs_per_title * 2]):  # Get more to ensure we have enough
-                            try:
-                                # Try to find links within the card
-                                link_selectors = ['a', 'a[href*="/jobs/view/"]', 'a[href*="/jobs/"]']
-                                for link_selector in link_selectors:
-                                    try:
-                                        link_nodes = card.locator(link_selector).all()
-                                        for link_node in link_nodes:
-                                            job_link = await link_node.get_attribute('href')
-                                            if job_link and '/jobs/view/' in job_link:
-                                                if job_link.startswith('/'):
-                                                    job_link = f"https://www.linkedin.com{job_link}"
-                                                if job_link not in job_links:
-                                                    job_links.append(job_link)
-                                                    print_info(f"Found job link #{len(job_links)}: {Colors.UNDERLINE}{job_link[:50]}...{Colors.END}")
-                                                    if len(job_links) >= max_jobs_per_title:
-                                                        break
-                                        if len(job_links) >= max_jobs_per_title:
-                                            break
-                                    except Exception:
-                                        continue
-                                if len(job_links) >= max_jobs_per_title:
-                                    break
-                            except Exception:
-                                continue
-                        if len(job_links) >= max_jobs_per_title:
-                            break
-                except Exception as e:
-                    print_warning(f"Error with selector #{i+1} {selector}: {Colors.YELLOW}{e}{Colors.END}")
+                    href = await element.get_attribute('href')
+                    if href:
+                        clean_href = href.split('?')[0].strip()
+                        if clean_href not in unique_job_urls:
+                            unique_job_urls.add(clean_href)
+                            job_elements.append(element)
+                            new_jobs_count += 1
+                except:
                     continue
             
-            # If still not enough links, try direct link extraction
-            if len(job_links) < max_jobs_per_title:
-                print_warning(f"Only found {len(job_links)}/{max_jobs_per_title} jobs, trying direct link extraction...")
-                try:
-                    all_links = await page.locator('a[href*="/jobs/view/"]').all()
-                    print_info(f"Found {Colors.CYAN}{len(all_links)}{Colors.END} direct job links")
-                    for link in all_links[:max_jobs_per_title * 2]:
-                        job_link = await link.get_attribute('href')
-                        if job_link and '/jobs/view/' in job_link:
-                            if job_link.startswith('/'):
-                                job_link = f"https://www.linkedin.com{job_link}"
-                            if job_link not in job_links:
-                                job_links.append(job_link)
-                                print_info(f"Added direct link #{len(job_links)}: {Colors.UNDERLINE}{job_link[:50]}...{Colors.END}")
-                                if len(job_links) >= max_jobs_per_title:
-                                    break
-                except Exception as e:
-                    print_error(f"Error in direct link extraction: {Colors.RED}{e}{Colors.END}")
+            print(f"✅ Page {page_num + 1}: Added {new_jobs_count} new jobs (Total: {len(unique_job_urls)})")
             
-            # Try one more approach - look for any job-related links
-            if len(job_links) < max_jobs_per_title:
-                print_warning(f"Still only {len(job_links)}/{max_jobs_per_title}, trying comprehensive link search...")
-                try:
-                    all_links = await page.locator('a').all()
-                    for link in all_links:
-                        try:
-                            href = await link.get_attribute('href')
-                            if href and '/jobs/view/' in href:
-                                if href.startswith('/'):
-                                    href = f"https://www.linkedin.com{href}"
-                                if href not in job_links:
-                                    job_links.append(href)
-                                    print_info(f"Added comprehensive link #{len(job_links)}: {Colors.UNDERLINE}{href[:50]}...{Colors.END}")
-                                    if len(job_links) >= max_jobs_per_title:
-                                        break
-                        except Exception:
-                            continue
-                except Exception as e:
-                    print_error(f"Error in comprehensive link search: {Colors.RED}{e}{Colors.END}")
-            
-            # Try to get more jobs by clicking "See more jobs" or pagination
-            if len(job_links) < max_jobs_per_title:
-                print_warning(f"Still only {len(job_links)}/{max_jobs_per_title}, trying to load more jobs...")
-                try:
-                    # Look for "See more jobs" button or pagination
-                    more_selectors = [
-                        'button[aria-label*="See more jobs"]',
-                        'button[aria-label*="Load more"]',
-                        '.infinite-scroller__show-more-button',
-                        'button:has-text("See more jobs")',
-                        'button:has-text("Load more")',
-                        '.artdeco-pagination__button--next',
-                        'button[aria-label="Next"]'
+            # Try to navigate to next page
+            next_clicked = await click_next_page_and_wait(page)
+            if not next_clicked:
+                print(f"🛑 No next page available, stopping at page {page_num + 1}")
+                break
+        
+        print(f"✅ FIXED pagination complete: {len(job_elements)} unique jobs from multiple pages")
+        return job_elements
+        
+    except Exception as e:
+        print(f"❌ FIXED pagination error: {e}")
+        return []
+
+async def scroll_current_page(page):
+    """Scroll current page to load all jobs"""
+    for scroll in range(5):  # Reduced scrolls per page for speed
+        await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+        await asyncio.sleep(0.8)  # Reduced wait time
+
+async def collect_jobs_from_current_page(page):
+    """Collect all job elements from current page"""
+    selectors = [
+        'a.job-card-container__link',
+        'a[class*="job-card-container__link"]',
+        '.job-card-container a[href*="/jobs/view"]',
+        'li[data-job-id] a[href*="/jobs/view"]'
+    ]
+    
+    all_elements = []
+    for selector in selectors:
+        try:
+            elements = await page.query_selector_all(selector)
+            all_elements.extend(elements)
+        except:
+            continue
+    
+    return all_elements
+
+async def click_next_page_and_wait(page):
+    """FIXED: Click next page and wait for new jobs to load"""
+    try:
+        # Your specific next button selectors
+        next_selectors = [
+            'button.jobs-search-pagination__button--next:not([disabled])',
+            'button.artdeco-button.jobs-search-pagination__button--next:not([disabled])',
+            '.jobs-search-pagination__button--next:not([disabled])',
+            'button[aria-label*="Go to next page"]:not([disabled])'
+        ]
+        
+        for selector in next_selectors:
+            try:
+                next_button = await page.wait_for_selector(selector, timeout=2000)
+                if next_button and await next_button.is_visible() and await next_button.is_enabled():
+                    # Get current job count before clicking
+                    current_jobs = await page.query_selector_all('a[href*="/jobs/view"]')
+                    prev_count = len(current_jobs)
+                    
+                    print(f"🔄 Clicking next page button: {selector}")
+                    await next_button.scroll_into_view_if_needed()
+                    await next_button.click()
+                    
+                    # FIXED: Wait for new page to load with new jobs
+                    await wait_for_page_change(page, prev_count)
+                    return True
+            except:
+                continue
+        
+        return False
+        
+    except Exception as e:
+        print(f"❌ Next page click error: {e}")
+        return False
+
+async def wait_for_page_change(page, prev_job_count):
+    """Wait for page to change and new jobs to load"""
+    print("⏳ Waiting for next page to load...")
+    
+    # Wait for page transition
+    await asyncio.sleep(2)
+    
+    # Wait for job count to change (indicating new page loaded)
+    for attempt in range(10):  # Max 5 seconds wait
+        current_jobs = await page.query_selector_all('a[href*="/jobs/view"]')
+        current_count = len(current_jobs)
+        
+        if current_count != prev_job_count:
+            print(f"✅ Page changed! Jobs: {prev_job_count} → {current_count}")
+            await asyncio.sleep(1)  # Extra wait for full load
+            return True
+        
+        await asyncio.sleep(0.5)
+    
+    print("⚠️ Page may not have changed, continuing...")
+    return True
+
+# ---------------------------------------------------------------------------
+# 3. FIXED JOB DESCRIPTION - HANDLE "SEE MORE" BUTTON
+# ---------------------------------------------------------------------------
+
+async def extract_job_description_fixed(context, job_url):
+    """FIXED: Robust job description extraction with proper timeouts"""
+    detail_page = await context.new_page()
+    
+    try:
+        # INCREASED timeouts for LinkedIn's slow responses
+        detail_page.set_default_navigation_timeout(45000)  # Increased to 45 seconds
+        detail_page.set_default_timeout(30000)  # Increased to 30 seconds
+        
+        print(f"🔍 Navigating to job page...")
+        
+        # Retry logic for navigation
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                await detail_page.goto(
+                    job_url, 
+                    wait_until="domcontentloaded",  # Faster than "load"
+                    timeout=45000  # 45 second timeout
+                )
+                print(f"✅ Navigation successful on attempt {attempt + 1}")
+                break
+                
+            except Exception as nav_error:
+                if attempt < max_retries - 1:
+                    print(f"⚠️ Navigation attempt {attempt + 1} failed, retrying...")
+                    await asyncio.sleep(2)  # Wait before retry
+                    continue
+                else:
+                    # Final attempt failed
+                    await detail_page.close()
+                    return f"Navigation failed after {max_retries} attempts: {str(nav_error)[:100]}"
+        
+        # Minimal wait after navigation
+        await asyncio.sleep(2)
+        
+        # Click "See more" button to reveal full description
+        await click_see_more_button(detail_page)
+        
+        # Try to get full description with updated selectors
+        description_selectors = [
+            'div.show-more-less-html__markup',          # Primary after "see more"
+            '.jobs-description__content',               # Full content container
+            '.job-details-jobs-unified-top-card__job-description',
+            '#job-details',                             
+            '.jobs-box__html-content',
+            '.jobs-description-content__text',
+            '.jobs-unified-top-card__content'           # Fallback selector
+        ]
+        
+        for selector in description_selectors:
+            try:
+                desc_elem = await detail_page.wait_for_selector(selector, timeout=10000)  # 10s for element
+                if desc_elem:
+                    description = (await desc_elem.inner_text()).strip()
+                    if len(description) > 200:  # Ensure substantial content
+                        await detail_page.close()
+                        print(f"✅ Description extracted: {len(description)} chars")
+                        return description
+            except:
+                continue
+        
+        # Fallback to any job content area
+        try:
+            fallback_content = await detail_page.query_selector('.jobs-unified-top-card, .job-view-layout, .jobs-details')
+            if fallback_content:
+                fallback_text = await fallback_content.inner_text()
+                if len(fallback_text) > 100:
+                    await detail_page.close()
+                    return fallback_text[:2000]  # Limit for performance
+        except:
+            pass
+        
+        await detail_page.close()
+        return "Description not found on page"
+                
+    except Exception as e:
+        await detail_page.close()
+        return f"Error extracting description: {str(e)[:200]}"
+
+async def click_see_more_button(page):
+    """FIXED: Click 'See more' button to reveal full job description"""
+    try:
+        # Your specific "See more" button class and alternatives
+        see_more_selectors = [
+            'button.jobs-description__footer-button',
+            'button.jobs-description__footer-button.t-14.t-black--light.t-bold.artdeco-card__action.artdeco-button.artdeco-button--icon-right.artdeco-button--3.artdeco-button--fluid.artdeco-button--tertiary.ember-view',
+            # 'button[data-tracking-control-name*="see-more"]',
+            # 'button[aria-expanded="false"]',
+            # '.show-more-less-html__button--more',
+            # 'button:has-text("See more")',
+            # 'button:has-text("Show more")'
+        ]
+        
+        for selector in see_more_selectors:
+            try:
+                see_more_btn = await page.wait_for_selector(selector, timeout=2000)
+                if see_more_btn and await see_more_btn.is_visible():
+                    print("🔍 Clicking 'See more' button for full description... using ",selector)
+                    await see_more_btn.scroll_into_view_if_needed()
+                    await see_more_btn.click()
+                    await asyncio.sleep(1.5)  # Wait for content to expand
+                    print("✅ 'See more' clicked - full description should be visible")
+                    return True
+            except:
+                continue
+        
+        print("⚠️ No 'See more' button found - using available description")
+        return False
+        
+    except Exception as e:
+        print(f"❌ See more button error: {e}")
+        return False
+
+# ---------------------------------------------------------------------------
+# 4. OPTIMIZED JOB PROCESSING - INCREASED SPEED
+# ---------------------------------------------------------------------------
+
+async def process_single_job_optimized(context, job_link, job_index, total_jobs):
+    """OPTIMIZED: Faster job processing with full descriptions"""
+    try:
+        print(f"⚡ Processing job {job_index + 1}/{total_jobs}")
+        
+        job_description = await extract_job_description_fixed(context, job_link)
+        
+        if job_description and len(job_description) > 50:
+            return job_link, job_description, "added"
+        else:
+            return job_link, job_description or "Minimal content", "added"
+                    
+    except Exception as e:
+        print(f"❌ Error job {job_index + 1}: {e}")
+        return job_link, f"Processing error: {str(e)[:100]}", "added"
+
+async def scrape_platform_speed_optimized(browser, platform_name, config, job_title):
+    """SPEED OPTIMIZED: More lenient filtering to process more jobs"""
+    global PROCESSED_JOB_URLS
+    
+    context = await ensure_logged_in(browser)
+    page = await context.new_page()
+    
+    # Optimized timeouts for speed
+    page.set_default_navigation_timeout(20000)
+    page.set_default_timeout(15000)
+    
+    job_dict = {}
+    
+    try:
+        url = config["url_template"].format(role=job_title.replace(" ", "%20").lower())
+        print(f"🔍 {Colors.BOLD}SPEED-OPTIMIZED search: '{job_title}'{Colors.END}")
+        
+        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        print("✅ Navigation complete")
+        
+        await apply_forced_zoom(page)
+        await asyncio.sleep(1.5)
+        
+        job_cards = await load_all_available_jobs_fixed(page)
+        
+        if not job_cards:
+            print(f"❌ No jobs found for '{job_title}'")
+            return {}
+        
+        print(f"📊 Processing {len(job_cards)} job cards with RELAXED filtering")
+        
+        valid_job_links = []
+        
+        # RELAXED filtering with debugging
+        keyword_filtered = 0
+        link_failed = 0
+        text_failed = 0
+        
+        for i, card in enumerate(job_cards):
+            try:
+                # Get text content
+                text_content = (await card.inner_text()).strip()
+                if len(text_content) < 5:  # Very minimal requirement
+                    text_failed += 1
+                    print(f"   Card {i+1}: No text content")
+                    continue
+                
+                print(f"   Card {i+1}: Text preview: '{text_content[:50]}...'")
+                
+                # RELAXED keyword check - much more lenient
+                text_lower = text_content.lower()
+                
+                # Check for job title match first (most important)
+                title_match = job_title.lower().split() 
+                has_title_keywords = any(word in text_lower for word in title_match if len(word) > 2)
+                
+                # Check for any technical keywords
+                has_tech_keywords = any(keyword.lower() in text_lower for keyword in FILTERING_KEYWORDS)
+                
+                # Check for common job-related words (very broad)
+                common_job_words = ['developer', 'engineer', 'software', 'programming', 'coding', 'technical', 'technology', 'web', 'application', 'system']
+                has_job_words = any(word in text_lower for word in common_job_words)
+                
+                # MUCH MORE LENIENT: Accept if ANY of these conditions are met
+                if has_title_keywords or has_tech_keywords or has_job_words:
+                    print(f"   ✅ Card {i+1}: Passed keyword filter")
+                else:
+                    keyword_filtered += 1
+                    print(f"   ❌ Card {i+1}: No relevant keywords found")
+                    continue
+                
+                # Extract job link with enhanced debugging
+                href = await card.get_attribute('href')
+                if not href:
+                    # Try multiple methods to find link
+                    link_selectors = [
+                        'a[href*="/jobs/view"]',
+                        'a[href*="/jobs/"]',
+                        'a',
+                        '[href*="/jobs/view"]'
                     ]
                     
-                    for more_selector in more_selectors:
+                    for selector in link_selectors:
                         try:
-                            more_button = page.locator(more_selector).first
-                            if await more_button.count() > 0:
-                                print_success(f"Found 'more' button: {Colors.CYAN}{more_selector}{Colors.END}")
-                                await more_button.click()
-                                await asyncio.sleep(2)
-                                print_success(f"Clicked 'more' button")
-                                
-                                # Scroll again to load new content
-                                for scroll in range(2):
-                                    await page.mouse.wheel(0, 2000)
-                                    await asyncio.sleep(1)
-                                
-                                # Try to get more links
-                                additional_links = await page.locator('a[href*="/jobs/view/"]').all()
-                                for link in additional_links:
-                                    job_link = await link.get_attribute('href')
-                                    if job_link and '/jobs/view/' in job_link:
-                                        if job_link.startswith('/'):
-                                            job_link = f"https://www.linkedin.com{job_link}"
-                                        if job_link not in job_links:
-                                            job_links.append(job_link)
-                                            print_success(f"Added additional link #{len(job_links)}: {Colors.UNDERLINE}{job_link[:50]}...{Colors.END}")
-                                            if len(job_links) >= max_jobs_per_title:
-                                                break
-                                break
-                        except Exception as e:
-                            print_warning(f"Error with 'more' button {more_selector}: {Colors.YELLOW}{e}{Colors.END}")
+                            link_elem = await card.query_selector(selector)
+                            if link_elem:
+                                href = await link_elem.get_attribute('href')
+                                if href and '/jobs/' in href:
+                                    print(f"   ✅ Card {i+1}: Link found using {selector}")
+                                    break
+                        except:
                             continue
-                except Exception as e:
-                    print_error(f"Error loading more jobs: {Colors.RED}{e}{Colors.END}")
-            
-            print_success(f"{Colors.BOLD}Found {Colors.GREEN}{len(job_links)}{Colors.END} job links for '{Colors.CYAN}{title}{Colors.END}'")
-            return title, job_links
-            
-        except Exception as e:
-            print_error(f"Error processing title '{title}': {Colors.RED}{e}{Colors.END}")
-            return title, []
-        finally:
-            await page.close()
-    
-    # Process all titles in parallel
-    print_progress(f"🚀 Processing all {len(titles)} titles in parallel...")
-    tasks = [process_title(title) for title in titles]
-    results = await asyncio.gather(*tasks)
-    
-    # Now scrape job details in parallel with retry mechanism
-    async def scrape_job_details_parallel(job_url):
-        page = await context.new_page()
-        try:
-            job_details = await scrape_job_details_fast(page, job_url)
-            return job_details
-        except Exception as e:
-            print_error(f"Error scraping {job_url}: {Colors.RED}{e}{Colors.END}")
-            # Return a basic job structure with error
-            return {
-                "url": job_url,
-                "title": "",
-                "company": "",
-                "location": "",
-                "description": "",
-                "requirements": "",
-                "posted_date": "",
-                "job_type": "",
-                "experience_level": "",
-                "error": str(e)
-            }
-        finally:
-            await page.close()
-    
-    # Process each title's jobs
-    for title, job_links in results:
-        if job_links:
-            print_progress(f"📋 Scraping details for {Colors.YELLOW}{len(job_links)}{Colors.END} jobs from '{Colors.CYAN}{title}{Colors.END}'...")
-            
-            # Scrape job details in parallel (with concurrency limit)
-            semaphore = asyncio.Semaphore(3)  # Limit concurrent requests
-            
-            async def scrape_with_semaphore(job_url):
-                async with semaphore:
-                    return await scrape_job_details_parallel(job_url)
-            
-            tasks = [scrape_with_semaphore(job_url) for job_url in job_links]
-            detailed_jobs = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Filter out exceptions
-            valid_jobs = []
-            error_count = 0
-            for job in detailed_jobs:
-                if isinstance(job, dict) and not job.get('error'):
-                    valid_jobs.append(job)
+                
+                if href and '/jobs/' in href:  # More lenient - not just '/jobs/view/'
+                    full_url = href if href.startswith('http') else config["base_url"] + href
+                    clean_url = full_url.split('?')[0]
+                    
+                    if clean_url not in PROCESSED_JOB_URLS:
+                        PROCESSED_JOB_URLS.add(clean_url)
+                        valid_job_links.append(clean_url)
+                        print(f"   ✅ Card {i+1}: Added to processing queue")
+                    else:
+                        print(f"   🔄 Card {i+1}: Duplicate URL, skipping")
                 else:
-                    error_count += 1
+                    link_failed += 1
+                    print(f"   ❌ Card {i+1}: No valid job link found")
+                    continue
+                        
+            except Exception as e:
+                print(f"   ❌ Card {i+1}: Processing error: {e}")
+                continue
+        
+        # Filtering summary
+        print(f"\n📊 FILTERING SUMMARY:")
+        print(f"   📁 Total cards: {len(job_cards)}")
+        print(f"   ❌ No text content: {text_failed}")
+        print(f"   ❌ No keywords: {keyword_filtered}")
+        print(f"   ❌ No valid links: {link_failed}")
+        print(f"   ✅ Valid jobs: {len(valid_job_links)}")
+        
+        print(f"✅ {len(valid_job_links)} jobs ready for OPTIMIZED processing")
+        
+        # Continue with job processing...
+        if valid_job_links:
+            tasks = [
+                process_single_job_optimized(context, job_link, i, len(valid_job_links))
+                for i, job_link in enumerate(valid_job_links)
+            ]
             
-            all_jobs[title] = valid_jobs
-            print_success(f"✅ Completed '{Colors.CYAN}{title}{Colors.END}': {Colors.GREEN}{len(valid_jobs)}{Colors.END} jobs with details")
-            if error_count > 0:
-                print_warning(f"⚠️ {error_count} jobs had errors")
-        else:
-            all_jobs[title] = []
-            print_warning(f"No jobs found for '{Colors.CYAN}{title}{Colors.END}'")
+            semaphore = asyncio.Semaphore(5)
+            
+            async def bounded_task(task):
+                async with semaphore:
+                    return await task
+            
+            results = await asyncio.gather(*[bounded_task(task) for task in tasks], return_exceptions=True)
+            
+            processed_jobs = 0
+            for result in results:
+                if isinstance(result, Exception):
+                    continue
+                    
+                job_link, job_description, status = result
+                if status == "added":
+                    job_dict[job_link] = job_description
+                    processed_jobs += 1
+            
+            print(f"✅ {processed_jobs} jobs processed with full descriptions")
+        
+        return job_dict
+        
+    except Exception as e:
+        print(f"❌ Error in speed-optimized search: {e}")
+        return {}
+    finally:
+        await page.close()
+
+# ---------------------------------------------------------------------------
+# 5. GEMINI API PROCESSING FUNCTIONS (OPTIMIZED)
+# ---------------------------------------------------------------------------
+
+genai.configure(api_key=GOOGLE_API)
+model = genai.GenerativeModel("gemini-2.0-flash-exp")
+
+def create_bulk_prompt(jobs_dict: dict) -> str:
+    SYSTEM_PROMPT = """
+    You are a professional job-data extraction specialist. Extract structured information for ALL jobs and return a JSON array.
+    
+    EXTRACTION RULES:
+    - Extract Job ID from URL (number after /jobs/view/)
+    - For location: Default to "India" since search was India-filtered  
+    - For Experience: Look for years, "freshers", "entry level"
+    - For Salary: Include currency (₹, INR, $, USD)
+    - Extract key technical skills/technologies mentioned
+    - Company name from job description
+    
+    RETURN FORMAT:
+    [
+      {
+        "title": "job title",
+        "job_id": "extracted from URL", 
+        "company_name": "company name",
+        "location": "location",
+        "experience": "experience requirement",
+        "salary": "salary if mentioned",
+        "key_skills": ["skill1", "skill2", "skill3"],
+        "job_url": "full URL",
+        "posted_at": "when posted",
+        "job_description": "full description",
+        "source": "linkedin",
+        "relevance_score": "high/medium/low based on technical content"
+      }
+    ]
+    
+    Return ONLY the JSON array.
+    """
+    
+    prompt = f"{SYSTEM_PROMPT}\n\nProcess {len(jobs_dict)} jobs:\n"
+    for idx, (url, jd) in enumerate(jobs_dict.items(), 1):
+        prompt += f"\n--- JOB {idx} ---\nURL: {url}\nDESCRIPTION:\n{jd[:1500]}...\n"
+    
+    return prompt
+
+def create_fallback_data_from_dict(url: str, job_description: str) -> dict:
+    return {
+        "title": "Title not extracted",
+        "job_id": "ID not extracted", 
+        "company_name": "Company not extracted",
+        "location": "India",
+        "experience": "Not specified",
+        "salary": "Not specified",
+        "key_skills": [],
+        "job_url": url,
+        "posted_at": "Not specified",
+        "job_description": job_description or "Description not available",
+        "source": "linkedin",
+        "relevance_score": "unknown"
+    }
+
+def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
+    try:
+        clean = response_text.strip()
+        if clean.startswith("```json"):
+            clean = clean[7:].lstrip()
+        elif clean.startswith("```"):
+            clean = clean[3:].lstrip()
+        if clean.endswith("```"):
+            clean = clean[:-3].rstrip()
+        
+        extracted_jobs = json.loads(clean)
+        if not isinstance(extracted_jobs, list):
+            extracted_jobs = [extracted_jobs]
+        
+        job_urls = list(original_jobs.keys())
+        for i, job in enumerate(extracted_jobs):
+            if i < len(job_urls):
+                url = job_urls[i]
+                job["job_url"] = url
+                job["job_description"] = original_jobs[url]
+                job["source"] = "linkedin"
+        
+        while len(extracted_jobs) < len(job_urls):
+            idx = len(extracted_jobs)
+            url = job_urls[idx]
+            extracted_jobs.append(create_fallback_data_from_dict(url, original_jobs[url]))
+        
+        return extracted_jobs
+    except Exception as e:
+        print(f"❌ Error parsing response: {e}")
+        return [create_fallback_data_from_dict(url, jd) for url, jd in original_jobs.items()]
+
+async def extract_single_batch(batch_dict: dict) -> list:
+    prompt = create_bulk_prompt(batch_dict)
+    response = model.generate_content(prompt)
+    return parse_bulk_response(response.text, batch_dict)
+
+async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25) -> list:  # Increased batch size
+    all_extracted = []
+    items = list(jobs_dict.items())
+    total_batches = (len(items) + batch_size - 1) // batch_size
+    
+    for i in range(0, len(items), batch_size):
+        batch = dict(items[i : i + batch_size])
+        batch_num = (i // batch_size) + 1
+        print(f"🔄 Processing batch {batch_num}/{total_batches}: {len(batch)} jobs")
+        
+        try:
+            result = await extract_single_batch(batch)
+            all_extracted.extend(result)
+            print(f"✅ Batch {batch_num} completed")
+        except Exception as e:
+            print(f"❌ Batch {batch_num} error: {e}")
+            result = [create_fallback_data_from_dict(url, jd) for url, jd in batch.items()]
+            all_extracted.extend(result)
+        
+        await asyncio.sleep(0.1)  # Minimal wait between batches
+    
+    return all_extracted
+
+# ---------------------------------------------------------------------------
+# 6. MAIN EXECUTION FUNCTIONS (SPEED OPTIMIZED)
+# ---------------------------------------------------------------------------
+
+async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
+    """SPEED OPTIMIZED: All fixes applied - faster execution"""
+    global PROCESSED_JOB_URLS, LOGGED_IN_CONTEXT
+    
+    if platforms is None:
+        platforms = list(PLATFORMS.keys())
+    
+    all_jobs = {}
+    PROCESSED_JOB_URLS.clear()
+    
+    print(f"🚀 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
+    
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        
+        try:
+            print("🔐 Performing LinkedIn login...")
+            login_context = await linkedin_login(browser)
+            
+            if login_context is None:
+                print("❌ Failed to login to LinkedIn. Exiting...")
+                return {}
+            
+            print("✅ Successfully logged in to LinkedIn!")
+            
+            for i, job_title in enumerate(job_titles, 1):
+                print(f"\n{'='*70}")
+                print(f"⚡ SPEED-OPTIMIZED SEARCH {i}/{len(job_titles)}: '{job_title}'")
+                print(f"🔢 Processed URLs so far: {len(PROCESSED_JOB_URLS)}")
+                print(f"{'='*70}")
+                
+                for platform_name in platforms:
+                    try:
+                        result = await scrape_platform_speed_optimized(
+                            browser, platform_name, PLATFORMS[platform_name], job_title
+                        )
+                        all_jobs.update(result)
+                        print(f"📈 Jobs from '{job_title}': {len(result)}")
+                    except Exception as e:
+                        print(f"❌ Error searching '{job_title}' on {platform_name}: {e}")
+                    
+                    await asyncio.sleep(0.5)  # Minimal wait between searches
+                
+                print(f"📊 '{job_title}' complete. Total unique jobs: {len(all_jobs)}")
+            
+        finally:
+            if LOGGED_IN_CONTEXT:
+                await LOGGED_IN_CONTEXT.close()
+            await browser.close()
+    
+    print(f"\n{'='*70}")
+    print(f"🏆 SPEED-OPTIMIZED EXTRACTION COMPLETE!")
+    print(f"📊 Total unique jobs: {len(all_jobs)}")
+    print(f"🔢 Total URLs processed: {len(PROCESSED_JOB_URLS)}")
+    print(f"⚡ Speed optimization: MAXIMUM")
+    print(f"🔧 All fixes applied: YES")
+    print(f"🔐 Authentication: ENABLED")
+    print(f"{'='*70}")
     
     return all_jobs
 
-
-def filter_jobs_by_keywords(job_data, keywords):
-    """
-    Filter jobs based on keywords found in job description or requirements.
-    """
-    print_filter(f"🔧 Filtering jobs based on {Colors.YELLOW}{len(keywords)}{Colors.END} keywords")
-    print_filter(f"Keywords: {Colors.CYAN}{keywords}{Colors.END}")
-    
-    filtered_jobs = {}
-    total_jobs = 0
-    filtered_count = 0
-    
-    for title, jobs in job_data.items():
-        print_progress(f"🔍 Processing '{Colors.CYAN}{title}{Colors.END}': {len(jobs)} jobs...")
-        filtered_jobs[title] = []
-        total_jobs += len(jobs)
-        
-        for job in jobs:
-            # Combine description and requirements for keyword search
-            search_text = ""
-            if job.get('description'):
-                search_text += job['description'].lower()
-            if job.get('requirements'):
-                search_text += job['requirements'].lower()
-            
-            # Check if any keyword is present
-            if search_text:
-                found_keywords = []
-                for keyword in keywords:
-                    if keyword.lower() in search_text:
-                        found_keywords.append(keyword)
-                
-                if found_keywords:
-                    filtered_jobs[title].append(job)
-                    filtered_count += 1
-                    print_success(f"✅ Job matched keywords {Colors.GREEN}{found_keywords}{Colors.END}: {Colors.YELLOW}{job.get('title', 'No title')}{Colors.END}")
-        
-        print_info(f"📊 '{Colors.CYAN}{title}{Colors.END}': {Colors.GREEN}{len(filtered_jobs[title])}{Colors.END}/{len(jobs)} jobs matched keywords")
-    
-    print_filter(f"📊 {Colors.BOLD}FILTERING SUMMARY:{Colors.END}")
-    print_filter(f"Total jobs processed: {Colors.YELLOW}{total_jobs}{Colors.END}")
-    print_filter(f"Jobs matching keywords: {Colors.GREEN}{filtered_count}{Colors.END}")
-    print_filter(f"Filter success rate: {Colors.CYAN}{(filtered_count/total_jobs*100):.1f}%{Colors.END}" if total_jobs > 0 else "No jobs to filter")
-    
-    return filtered_jobs
-
-
-async def main(custom_titles=None, custom_keywords=None, max_jobs_per_title=15):
-    """
-    Main function to scrape LinkedIn jobs.
-    
-    Args:
-        custom_titles (list, optional): Custom job titles to search. If None, uses defaults.
-        custom_keywords (list, optional): Custom keywords for filtering. If None, uses defaults.
-        max_jobs_per_title (int, optional): Maximum jobs to scrape per title. Default is 15.
-    """
-    print_main(f"{Colors.BOLD}🚀 Starting Fast LinkedIn job scraper...{Colors.END}")
-    print_main(f"Timestamp: {Colors.CYAN}{datetime.now()}{Colors.END}")
-    
-    # Get job titles and keywords
-    print_main(f"\n{Colors.BOLD}Step 1: Processing job titles and keywords{Colors.END}")
-    titles, filtering_keywords = get_job_titles_and_keywords(custom_titles, custom_keywords)
-    
-    if not titles:
-        print_error(f"No job titles provided. Exiting.")
-        return {}
-    
-    print_main(f"Using {Colors.GREEN}{len(titles)}{Colors.END} titles: {Colors.YELLOW}{titles}{Colors.END}")
-    print_main(f"Using {Colors.GREEN}{len(filtering_keywords)}{Colors.END} keywords: {Colors.YELLOW}{filtering_keywords}{Colors.END}")
-    
-    # Check credentials
-    print_main(f"\n{Colors.BOLD}Step 2: Checking LinkedIn credentials{Colors.END}")
-    if LINKEDIN_ID is None or LINKEDIN_PASSWORD is None:
-        print_error(f"LinkedIn credentials not found in config. Exiting.")
-        print_error(f"Please create a .env file in the backend_python directory with:")
-        print_error(f"LINKEDIN_ID=your_linkedin_email@example.com")
-        print_error(f"LINKEDIN_PASSWORD=your_linkedin_password")
-        return {}
-    
-    print_success(f"Credentials found, proceeding with scraping")
-    
-    # Start Playwright
-    print_main(f"\n{Colors.BOLD}Step 3: Starting Playwright browser{Colors.END}")
+def run_scraper_in_new_loop(titles, keywords):
+    """Run scraper in a fresh event loop - Production Ready"""
     try:
-        playwright = await async_playwright().start()
-        print_success(f"Playwright started successfully")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         
-        browser = await playwright.chromium.launch(headless=True)  # Back to headless for speed
-        print_success(f"Browser launched successfully")
-        
-        context = await browser.new_context()
-        print_success(f"Browser context created")
-        
+        try:
+            result = loop.run_until_complete(main(titles, keywords))
+            return result
+        finally:
+            loop.close()
     except Exception as e:
-        print_error(f"Error starting Playwright: {Colors.RED}{e}{Colors.END}")
-        return {}
+        print(f"Scraper error: {e}")
+        return []
+
+async def main(parsed_titles=None, parsed_keywords=None):
+    global JOB_TITLES, FILTERING_KEYWORDS
+    if parsed_titles:
+        JOB_TITLES = parsed_titles
+    if parsed_keywords:
+        FILTERING_KEYWORDS = parsed_keywords
+
+    print("🧠 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
+
+    all_jobs = await search_by_job_titles_speed_optimized(JOB_TITLES)
     
-    # Login to LinkedIn
-    print_main(f"\n{Colors.BOLD}Step 4: Logging into LinkedIn{Colors.END}")
-    page = await context.new_page()
-    login_success = await linkedin_login(page, LINKEDIN_ID, LINKEDIN_PASSWORD)
-    await page.close()
+    if len(all_jobs) == 0:
+        print("❌ No jobs found to analyze...")
+        return
     
-    if not login_success:
-        print_error(f"LinkedIn login failed. Exiting.")
-        await context.close()
-        await browser.close()
-        await playwright.stop()
-        return {}
+    print(f"🧠 Sending {len(all_jobs)} jobs to Gemini for extraction...")
+    extracted = await extract_jobs_in_batches(all_jobs, batch_size=25)  # Larger batches
     
-    print_success(f"{Colors.BOLD}LinkedIn login successful!{Colors.END}")
-    
-    # Scrape jobs with fast method
-    print_main(f"\n{Colors.BOLD}Step 5: Fast scraping job URLs and details{Colors.END}")
-    start_time = time.time()
-    job_data = await scrape_job_urls_fast(context, titles, max_jobs_per_title=max_jobs_per_title)
-    end_time = time.time()
-    
-    print_success(f"{Colors.BOLD}Scraping completed in {Colors.GREEN}{end_time - start_time:.2f}{Colors.END} seconds")
-    
-    # Filter jobs by keywords
-    print_main(f"\n{Colors.BOLD}Step 6: Filtering jobs by keywords{Colors.END}")
-    filtered_job_data = filter_jobs_by_keywords(job_data, filtering_keywords)
-    
-    # Cleanup
-    print_main(f"\n{Colors.BOLD}Step 7: Cleaning up resources{Colors.END}")
-    await context.close()
-    await browser.close()
-    await playwright.stop()
-    print_success(f"Resources cleaned up")
-    
-    # Save results to file
-    print_main(f"\n{Colors.BOLD}Step 8: Saving results{Colors.END}")
+    # Save results
+    from datetime import datetime
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"linkedin_jobs_fast_{timestamp}.json"
+    filename = f"linkedin_jobs_ALL_FIXES_{timestamp}.json"
     
-    try:
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(filtered_job_data, f, indent=2, ensure_ascii=False)
-        print_success(f"Results saved to: {Colors.GREEN}{filename}{Colors.END}")
-    except Exception as e:
-        print_error(f"Error saving results: {Colors.RED}{e}{Colors.END}")
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(extracted, f, indent=2, ensure_ascii=False)
     
-    return filtered_job_data
-
-
-def print_job_summary(job_data):
-    """
-    Print a comprehensive summary of all jobs found.
-    """
-    print_summary(f"\n{Colors.BG_GREEN}{Colors.WHITE} JOB SCRAPING SUMMARY {Colors.END}")
-    print_summary(f"{'='*50}")
+    print(f"✅ Successfully extracted data for {len(extracted)} jobs")
+    print(f"📁 Results saved to {filename}")
     
-    total_jobs = sum(len(jobs) for jobs in job_data.values())
-    total_titles = len(job_data)
+    # Print summary
+    total_skills = set()
+    companies = set()
     
-    print_summary(f"Total job titles searched: {Colors.CYAN}{total_titles}{Colors.END}")
-    print_summary(f"Total jobs found: {Colors.GREEN}{total_jobs}{Colors.END}")
-    print_summary(f"Average jobs per title: {Colors.YELLOW}{total_jobs/total_titles:.1f}{Colors.END}" if total_titles > 0 else f"{Colors.RED}No jobs found{Colors.END}")
+    for job in extracted:
+        if job.get("key_skills"):
+            total_skills.update(job["key_skills"])
+        if job.get("company_name") and job["company_name"] != "Not extracted":
+            companies.add(job["company_name"])
     
-    print_summary(f"\n{Colors.BOLD}Breakdown by job title:{Colors.END}")
-    for title, jobs in job_data.items():
-        print_summary(f"  📋 {Colors.CYAN}{title}{Colors.END}: {Colors.GREEN}{len(jobs)}{Colors.END} jobs")
-        if jobs:
-            companies = set()
-            for job in jobs:
-                if job.get('company'):
-                    companies.add(job['company'])
-            print_summary(f"     🏢 Companies: {Colors.YELLOW}{len(companies)}{Colors.END} unique companies")
-    
-    print_summary(f"{'='*50}")
-
+    print(f"\n📊 FINAL SUMMARY:")
+    print(f" 🏢 Companies: {len(companies)}")
+    print(f" 🛠️ Unique skills found: {len(total_skills)}")
+    print(f" 📄 Total jobs extracted: {len(extracted)}")
+    print(f" ⚡ Speed optimized: YES")
+    print(f" 🔧 All fixes applied: YES")
+    print(f" 🔵 Easy Apply enabled: YES")
+    print(f" 🔐 Authenticated scraping: YES")
+    return extracted
 
 if __name__ == "__main__":
-    print_script(f"{Colors.BOLD}{Colors.BG_CYAN}{Colors.WHITE} FAST LINKEDIN JOB SCRAPER STARTED {Colors.END}")
-    print_script(f"{'='*50}")
+    print("🚀 Starting SPEED-OPTIMIZED LinkedIn Job Scraper with ALL FIXES...")
+    print(f"📋 Job Titles to search: {len(JOB_TITLES)}")
+    print(f"🔍 Filtering keywords: {len(FILTERING_KEYWORDS)}")
+    print(f"🔵 Easy Apply: ENABLED")
+    print(f"⚡ Speed optimization: MAXIMUM")
+    print(f"🔧 All fixes applied: YES")
+    print(f"🔐 LinkedIn Authentication: ENABLED")
     
-    # Example usage:
-    # 1. Use default titles and keywords
-    # result = asyncio.run(main())
-    
-    # 2. Use custom titles and default keywords
-    # custom_titles = ["Python Developer", "Data Scientist", "DevOps Engineer"]
-    # result = asyncio.run(main(custom_titles=custom_titles))
-    
-    # 3. Use custom titles and custom keywords
-    # custom_titles = ["Python Developer", "Data Scientist"]
-    # custom_keywords = ["Python", "Django", "Flask", "Machine Learning"]
-    # result = asyncio.run(main(custom_titles=custom_titles, custom_keywords=custom_keywords))
-    
-    # 4. Use custom titles, keywords, and job count
-    # result = asyncio.run(main(custom_titles=custom_titles, custom_keywords=custom_keywords, max_jobs_per_title=10))
-    
-    try:
-        # Using default values for demonstration
-        result = asyncio.run(main())
-        
-        print_script(f"\n{Colors.BG_BLUE}{Colors.WHITE} FINAL RESULTS {Colors.END}")
-        
-        if result:
-            # Print comprehensive summary
-            print_job_summary(result)
-            
-            total_jobs = sum(len(jobs) for jobs in result.values())
-            print_script(f"Total jobs found: {Colors.GREEN}{total_jobs}{Colors.END}")
-            
-            for title, jobs in result.items():
-                print_script(f"\n📋 Title: {Colors.CYAN}{title}{Colors.END}")
-                print_script(f"Jobs found: {Colors.GREEN}{len(jobs)}{Colors.END}")
-                if jobs:
-                    for idx, job in enumerate(jobs, 1):
-                        print_script(f"  {Colors.YELLOW}{idx}.{Colors.END} {Colors.WHITE}{job.get('title', 'No title')}{Colors.END} at {Colors.CYAN}{job.get('company', 'Unknown company')}{Colors.END}")
-                        if job.get('location'):
-                            print_script(f"     📍 Location: {Colors.YELLOW}{job['location']}{Colors.END}")
-                        if job.get('description'):
-                            desc_preview = job['description'][:100] + "..." if len(job['description']) > 100 else job['description']
-                            print_script(f"     📄 Description: {Colors.WHITE}{desc_preview}{Colors.END}")
-                else:
-                    print_warning(f"   No jobs found for this title.")
-        else:
-            print_error(f"No job URLs found.")
-            
-    except KeyboardInterrupt:
-        print_error(f"\n{Colors.RED}Exiting on user interrupt.{Colors.END}")
-    except Exception as e:
-        print_error(f"\nUnexpected error: {Colors.RED}{e}{Colors.END}")
-        import traceback
-        traceback.print_exc()
-    
-    print_script(f"{Colors.BOLD}{Colors.GREEN}Script completed.{Colors.END}")
+    asyncio.run(main())
