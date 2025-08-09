@@ -745,7 +745,7 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
     print(f"🚀 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
     
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=True)
         
         try:
             print("🔐 Performing LinkedIn login...")
