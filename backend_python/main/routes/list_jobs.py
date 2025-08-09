@@ -10,7 +10,8 @@ import json
 
 class JobRequest(BaseModel):
     user_id: str
-    file_url: str
+    password: str
+    file_url: HttpUrl
 
 class Job(BaseModel):
     title: Optional[str] = "Title not available"  # Allow None with default
@@ -59,7 +60,9 @@ async def getJobs(request: JobRequest):
                 executor,
                 run_scraper_in_new_loop,
                 titles,  # Pass the string directly
-                keywords  # Pass the string directly
+                keywords,  # Pass the string directly
+                request.user_id,
+                request.password
             )
         
         if not jobs:
