@@ -28,7 +28,7 @@ class Colors:
 # Configuration
 PLATFORMS = {
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r178200&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
+        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
         "base_url": "https://in.linkedin.com",
         "login_url": "https://www.linkedin.com/login"
     },
@@ -932,7 +932,17 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
     print(f"🚀 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
     
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(
+            executable_path='/usr/bin/chromium-browser',  # Use system Chromium
+        headless=True,
+        args=[
+            '--no-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor'
+        ]
+        )
         
         try:
             print("🔐 Performing LinkedIn login...")
