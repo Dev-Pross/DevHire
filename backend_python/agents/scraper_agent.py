@@ -933,7 +933,6 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            executable_path='/usr/bin/chromium-browser',  # Use system Chromium
         headless=True,
         args=[
             '--no-sandbox',
