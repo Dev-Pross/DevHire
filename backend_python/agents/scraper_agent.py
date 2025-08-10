@@ -28,7 +28,7 @@ class Colors:
 # Configuration
 PLATFORMS = {
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
+        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r178200&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
         "base_url": "https://in.linkedin.com",
         "login_url": "https://www.linkedin.com/login"
     },
@@ -54,56 +54,98 @@ LOGGED_IN_CONTEXT = None
 # 1. ENHANCED LOGIN FUNCTIONALITY
 # ---------------------------------------------------------------------------
 
-async def apply_forced_zoom(page):
-    """Apply zoom that actually makes content fit the entire browser window"""
-    await page.evaluate('''
-        () => {
-            // Remove LinkedIn's max-width constraints
-            const style = document.createElement('style');
-            style.textContent = `
-                .application-outlet, 
-                .global-nav,
-                .main, 
-                .jobs-search-page,
-                .scaffold-layout,
-                .jobs-search-results-list {
-                    max-width: none !important;
-                    width: 100% !important;
-                }
-                
-                .scaffold-layout__sidebar {
-                    display: none !important;  /* Hide sidebar to use full width */
-                }
-                
-                .scaffold-layout__main {
-                    max-width: none !important;
-                    width: 100% !important;
-                    margin: 0 !important;
-                }
-                
-                /* Make job cards smaller and fit more per row */
-                .job-card-container {
-                    width: 300px !important;
-                    margin: 5px !important;
-                }
-                
-                .jobs-search-results-list {
-                    display: flex !important;
-                    flex-wrap: wrap !important;
-                    justify-content: space-between !important;
-                }
-            `;
-            document.head.appendChild(style);
-            
-            // Also apply transform zoom
-            document.body.style.transform = 'scale(0.5)';
-            document.body.style.transformOrigin = 'top left';
-            document.body.style.width = '142%';
-            document.body.style.height = '142%';
-            
-            console.log('Full-page zoom with layout optimization applied');
-        }
-    ''')
+# async def apply_forced_zoom(page):
+#     """Perfect page alignment + scrolling fix"""
+#     # await page.evaluate('''
+#     # () => {
+#     #     const style = document.createElement('style');
+#     #     style.textContent = `
+#     #     /* Remove all margins and padding */
+#     #     * { box-sizing: border-box !important; }
+        
+#     #     html, body {
+#     #         margin: 0 !important;
+#     #         padding: 0 !important;
+#     #         height: 100vh !important;
+#     #         overflow: hidden !important;
+#     #     }
+        
+#     #     /* Hide LinkedIn header to save space */
+#     #     .global-nav,
+#     #     .msg-overlay-list-bubble,
+#     #     .application-outlet > nav {
+#     #         display: none !important;
+#     #     }
+        
+#     #     /* Main app container full height */
+#     #     .application-outlet {
+#     #         height: 100vh !important;
+#     #         display: flex !important;
+#     #         flex-direction: column !important;
+#     #     }
+        
+#     #     /* Jobs page container */
+#     #     .jobs-search-page {
+#     #         flex: 1 !important;
+#     #         height: 100% !important;
+#     #         display: flex !important;
+#     #         flex-direction: column !important;
+#     #     }
+        
+#     #     /* Remove sidebar completely */
+#     #     .scaffold-layout__sidebar,
+#     #     .jobs-search-filters-panel {
+#     #         display: none !important;
+#     #     }
+        
+#     #     /* Main content area full width and height */
+#     #     .scaffold-layout__content {
+#     #         flex: 1 !important;
+#     #         width: 100% !important;
+#     #         display: flex !important;
+#     #     }
+        
+#     #     .scaffold-layout__main {
+#     #         width: 100% !important;
+#     #         height: 100% !important;
+#     #         flex: 1 !important;
+#     #         display: flex !important;
+#     #         flex-direction: column !important;
+#     #     }
+        
+#     #     /* Job results container - KEY FIX */
+#     #     .jobs-search-results-list,
+#     #     ul[data-view-name="jobs-search-results-list"] {
+#     #         flex: 1 !important;
+#     #         height: 100% !important;
+#     #         max-height: none !important;
+#     #         overflow-y: auto !important;
+#     #         padding: 2px !important;
+#     #         margin: 0 !important;
+#     #         list-style: none !important;
+#     #     }
+        
+#     #     /* Compact job cards */
+#     #     .job-card-container,
+#     #     .jobs-search-results__list-item {
+#     #         margin: 1px 0 !important;
+#     #         min-height: 70px !important;
+#     #         max-height: 80px !important;
+#     #     }
+        
+#     #     /* Hide pagination */
+#     #     .jobs-search-pagination {
+#     #         display: none !important;
+#     #     }
+#     #     `;
+#     #     document.head.appendChild(style);
+        
+#     #     // Apply 33% zoom
+#     #     //document.documentElement.style.zoom = '0.';
+        
+#     #     console.log('✅ Perfect alignment + zoom applied');
+#     # }
+#     # ''')
 
 
 async def linkedin_login(browser):
@@ -119,7 +161,7 @@ async def linkedin_login(browser):
             "Chrome/120.0.0.0 Safari/537.36"
         ),
         viewport={"width": 1920, "height": 1080},
-        device_scale_factor=0.5,  # Keep this
+        # device_scale_factor=0.5,  # Keep this
         locale="en-US",
         timezone_id="Asia/Calcutta",
     )
@@ -131,8 +173,8 @@ async def linkedin_login(browser):
         await asyncio.sleep(2)
         
         # FORCE zoom that LinkedIn cannot override
-        await apply_forced_zoom(page)
-        await asyncio.sleep(3)  # Wait for zoom to apply
+        # await apply_forced_zoom(page)
+        # await asyncio.sleep(3)  # Wait for zoom to apply
         
         print("✅ FORCED 50% zoom applied - LinkedIn should now be zoomed out")
         
@@ -228,10 +270,151 @@ async def load_all_available_jobs_fixed(page):
         return []
 
 async def scroll_current_page(page):
-    """Scroll current page to load all jobs"""
-    for scroll in range(5):  # Reduced scrolls per page for speed
-        await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-        await asyncio.sleep(0.8)  # Reduced wait time
+    """Fixed scrolling that actually moves the content"""
+    try:
+        print("🔄 Starting enhanced scrolling with multiple selectors...")
+        
+        # Extended list of possible LinkedIn job list selectors
+        job_list_selectors = [
+            '.scaffold-layout__content ul',
+            '[data-view-name*="jobs-search"]',
+            '.scaffold-layout__main ul',
+            '.jobs-search-results-list',
+            'ul[data-view-name="jobs-search-results-list"]',
+            '.jobs-search-results__list',
+            '.jobs-search-two-pane__results ul',
+            '.jobs-search-results',
+            'ul[role="list"]',
+        ]
+        
+        job_list_element = None
+        working_selector = None
+        
+        # Find working selector
+        for selector in job_list_selectors:
+            try:
+                print(f"🔍 Trying selector: {selector}")
+                job_list_element = await page.wait_for_selector(selector, timeout=2000)
+                if job_list_element and await job_list_element.is_visible():
+                    working_selector = selector
+                    print(f"✅ Found working selector: {selector}")
+                    break
+            except:
+                continue
+        
+        if working_selector:
+            # Enhanced scrolling with multiple methods
+            for i in range(8):
+                scroll_result = await page.evaluate(f'''
+                    () => {{
+                        const jobList = document.querySelector('{working_selector}');
+                        if (jobList) {{
+                            const beforeScroll = jobList.scrollTop;
+                            
+                            // Method 1: Standard scrollTop
+                            jobList.scrollTop = jobList.scrollHeight;
+                            
+                            // Method 2: ScrollBy method
+                            jobList.scrollBy(0, 1000);
+                            setTimeout(() => {{
+                                jobList.scrollBy(0, 500);
+                            }}, 1000);
+                            
+                            // Method 3: Force scroll on parent containers
+                            let parent = jobList.parentElement;
+                            while (parent && parent !== document.body) {{
+                                if (parent.scrollHeight > parent.clientHeight) {{
+                                    parent.scrollTop = parent.scrollHeight;
+                                    parent.scrollBy(0, 500);
+                                    setTimeout(() => {{
+                                        jobList.scrollBy(0, 500);
+                                    }}, 1000);
+                                }}
+                                parent = parent.parentElement;
+                            }}
+                            
+                            // Method 4: Scroll the main content area
+                            const mainContent = document.querySelector('.scaffold-layout__main');
+                            if (mainContent) {{
+                                mainContent.scrollTop = mainContent.scrollHeight;
+                            }}
+                            
+                            // Method 5: Page-level scroll as backup
+                            window.scrollBy(0, 800);
+
+                            
+                            const afterScroll = Math.max(
+                                jobList.scrollTop, 
+                                window.pageYOffset,
+                                document.documentElement.scrollTop
+                            );
+                            
+                            return {{
+                                scrolled: afterScroll > beforeScroll,
+                                scrollTop: afterScroll,
+                                scrollHeight: jobList.scrollHeight,
+                                clientHeight: jobList.clientHeight,
+                                canScroll: jobList.scrollHeight > jobList.clientHeight,
+                                windowScroll: window.pageYOffset
+                            }};
+                        }}
+                        return {{scrolled: false}};
+                    }}
+                ''')
+                
+                print(f"📜 Scroll {i+1}/8: Top={scroll_result.get('scrollTop', 0)}, Window={scroll_result.get('windowScroll', 0)}, CanScroll={scroll_result.get('canScroll', False)}")
+                
+                # Additional Playwright-native scrolling
+                try:
+                    if job_list_element:
+                        await job_list_element.scroll_into_view_if_needed()
+                        await page.mouse.wheel(0, 500)# Mouse wheel scroll
+                        
+                except:
+                    pass
+                
+                await asyncio.sleep(1.5)  # Longer wait for content loading
+        else:
+            # Fallback to page scrolling
+            print("⚠️ No job list container found, using page scroll")
+            for i in range(6):
+                await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+                await page.mouse.wheel(0, 500)
+                print(f"📜 Page scroll {i+1}/6")
+                await asyncio.sleep(1.5)
+        
+        print("✅ Enhanced scrolling completed")
+        
+        # Force additional job loading
+        await page.evaluate('window.dispatchEvent(new Event("scroll"))')
+        await asyncio.sleep(2)
+        
+    except Exception as e:
+        print(f"❌ Enhanced scroll error: {e}")
+
+
+async def force_layout_fix(page):
+    """Force proper layout after zoom"""
+    await page.evaluate('''
+        () => {
+            // Force layout recalculation
+            document.body.offsetHeight;
+            
+            // Ensure job list container is properly sized
+            const jobList = document.querySelector('.jobs-search-results-list');
+            if (jobList) {
+                jobList.style.height = '100%';
+                jobList.style.overflowY = 'auto';
+                
+                // Force scroll container recognition
+                jobList.scrollTop = 1;
+                jobList.scrollTop = 0;
+            }
+            
+            console.log('✅ Layout forced');
+        }
+    ''')
+
 
 async def collect_jobs_from_current_page(page):
     """Collect all job elements from current page"""
@@ -467,8 +650,12 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
         await page.goto(url, wait_until="domcontentloaded", timeout=30000)
         print("✅ Navigation complete")
         
-        await apply_forced_zoom(page)
-        await asyncio.sleep(1.5)
+        # await apply_forced_zoom(page)
+        # await asyncio.sleep(1)
+
+        # Force layout fix
+        await force_layout_fix(page)
+        await asyncio.sleep(1)
         
         job_cards = await load_all_available_jobs_fixed(page)
         

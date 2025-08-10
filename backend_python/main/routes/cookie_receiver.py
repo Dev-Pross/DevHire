@@ -25,16 +25,16 @@ class MultipleCookiesPayload(BaseModel):
 @router.post("/api/store-cookie")
 async def store_cookies(payload: MultipleCookiesPayload):
     try:
-        os.makedirs("/apply_agent/data_dump", exist_ok=True)
+        os.makedirs("/data_dump", exist_ok=True)
         # Save cookies to file
         cookies_dict = {cookie.name: cookie.value for cookie in payload.cookies}
-        with open(f"apply_agent/data_dump/cookies.json", "w", encoding="utf-8") as f:
+        with open(f"data_dump/cookies.json", "w", encoding="utf-8") as f:
             json.dump(cookies_dict, f, indent=2)
         # Save localStorage
-        with open(f"apply_agent/data_dump/localStorage.json", "w", encoding="utf-8") as f:
+        with open(f"data_dump/localStorage.json", "w", encoding="utf-8") as f:
             json.dump(payload.localStorage or {}, f, indent=2)
         # Save sessionStorage
-        with open(f"apply_agent/data_dump/sessionStorage.json", "w", encoding="utf-8") as f:
+        with open(f"data_dump/sessionStorage.json", "w", encoding="utf-8") as f:
             json.dump(payload.sessionStorage or {}, f, indent=2)
         return {"status": "success", "total_cookies": payload.total_cookies}
     except Exception as e:

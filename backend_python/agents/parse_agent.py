@@ -43,38 +43,67 @@ def main(user, url):
             resume_text = (parse_pdf(url))
             response = client.models.generate_content(
                 model="gemini-2.5-flash-lite-preview-06-17",
-                contents = f"""You are an AI hiring assistant helping with job matching based on resumes.
-                        Your task is to analyze the following resume content and extract TWO separate lists:
+                contents =f"""You are an elite AI hiring strategist and career intelligence specialist with deep expertise in talent acquisition, market trends, and career optimization across the global technology sector.
 
-                        1. **SUITABLE JOB TITLES** - Extract 5-10 powerful, specific job titles that comprehensively reflect the candidate's skills, experience, and seniority level.
-                        2. **JOB KEYWORDS** - Extract up to 30 relevant keywords covering technologies, skills, tools, domains, and role-related terms.
+                    Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:
 
-                        📌 Guidelines for Job Titles:
-                        - Include both direct job titles (e.g., "Frontend Developer") and adjacent roles (e.g., "UI Engineer")
-                        - Consider seniority level (Junior/Mid/Senior/Lead/Principal) based on experience
-                        - Include cross-domain titles if experience is multidisciplinary (e.g., "Full Stack Engineer", "DevOps Engineer")
-                        - Focus on the most marketable and accurate titles
-                        - Avoid generic titles (e.g., "Software Guy", "Developer")
+                    🎯 **PRIMARY OBJECTIVES:**
+                    1. **STRATEGIC JOB TITLES** - Generate 8-12 high-impact, market-aligned job titles that span the candidate's expertise spectrum
+                    2. **INTELLIGENT KEYWORDS** - Extract 20-25 precisely targeted keywords that create maximum ATS compatibility and recruiter appeal
 
-                        📌 Guidelines for Keywords:
-                        - Include programming languages, frameworks, libraries, and tools
-                        - Add domain-specific terms (e.g., "Machine Learning", "Cloud Computing", "E-commerce")
-                        - Include soft skills if clearly demonstrated (e.g., "Leadership", "Project Management")
-                        - Add certifications, methodologies, and industry terms
-                        - Include both technical and business-relevant keywords
-                        - Cover keywords that support ALL the job titles listed
+                    📊 **ADVANCED ANALYSIS FRAMEWORK:**
 
-                        📥 Resume Text:
-                        {resume_text}
+                    **For JOB TITLES - Apply Multi-Dimensional Matching:**
+                    • **Experience Calibration**: Analyze years of experience, project complexity, and leadership indicators to determine accurate seniority levels (Freshers/Entry/Junior/Mid/Senior/Staff/Principal/Architect/VP) make sure to find the best match for the candidate's experience
+                    • **Skill Intersection Analysis**: Identify overlapping competencies to suggest hybrid roles (e.g., "Full Stack Engineer", "DevSecOps Specialist", "AI/ML Engineer")
+                    • **Market Positioning**: Include both traditional titles recruiters search for AND emerging/trendy titles gaining market traction
+                    • **Industry Verticals**: Consider domain expertise (FinTech, HealthTech, EdTech, E-commerce, Gaming, etc.) for specialized titles
+                    • **Role Evolution Path**: Include both current-level roles AND natural next-step positions for career growth
+                    • **Geographical Relevance**: Consider titles popular in target markets (US, Europe, India, etc.)
 
-                        ✅ Output Format:
-                        Return ONLY the titles and keywords separated by "~" character in this exact format:
+                    **For KEYWORDS - Execute Comprehensive Extraction:**
+                    • **Technical Stack Taxonomy**: Programming languages, frameworks, libraries, databases, cloud platforms, tools, and methodologies
+                    • **Domain Intelligence**: Industry-specific terminology, business domains, and vertical expertise
+                    • **Soft Skills Mining**: Extract leadership, communication, problem-solving, and collaboration abilities from project descriptions and achievements
+                    • **Certification & Standards**: Professional certifications, compliance standards, and industry methodologies
+                    • **Emerging Technologies**: AI/ML, blockchain, IoT, edge computing, quantum computing if relevant
+                    • **Business Acumen**: Product management, strategy, analytics, and commercial awareness indicators
+                    • **Scale & Impact**: Keywords reflecting system scale, user base, performance metrics, and business impact
+                    • **Cross-Functional Abilities**: Keywords showing collaboration across teams, stakeholder management, and interdisciplinary skills
 
-                        Senior Software Engineer, Full Stack Developer, Backend Engineer, Frontend Developer, DevOps Engineer~Python, JavaScript, React, Node.js, AWS, Docker, Kubernetes, MongoDB, PostgreSQL, REST APIs, Microservices, Agile, Git, CI/CD, Machine Learning, TensorFlow, Leadership, Project Management, Cloud Computing, System Design
+                    ⚡ **STRATEGIC ENHANCEMENTS:**
+                    • **ATS Optimization**: Prioritize keywords frequently used in job descriptions for target roles
+                    • **Recruiter Psychology**: Include terms that trigger recruiter interest and convey seniority/expertise
+                    • **Competitive Differentiation**: Highlight unique combinations that set the candidate apart
+                    • **Future-Proofing**: Include emerging skills and technologies relevant to career trajectory
+                    • **Global Standards**: Use internationally recognized terminology and industry standards
 
-                        Order both lists from most relevant to least relevant based on the resume content.""",
+                    🎯 **QUALITY ASSURANCE CRITERIA:**
+                    • Job titles must be realistic, specific, and currently in-demand in the market
+                    • Keywords must be substantiated by actual resume evidence (no speculation)
+                    • Avoid company names, project codenames, or proprietary terminology
+                    • Ensure geographic and cultural relevance for target job markets
+                    • Balance technical depth with business relevance
+                    • Prioritize terms that maximize job matching algorithms
+
+                    📥 **Resume Content for Analysis:**
+                    {resume_text}
+
+                    🔥 **ENHANCED OUTPUT REQUIREMENTS:**
+                    • **Ranking Logic**: Order titles by market demand + skill alignment + experience match
+                    • **Keyword Weighting**: Prioritize by frequency in job descriptions + skill importance + uniqueness factor
+                    • **Completeness Check**: Ensure keywords support ALL listed job titles comprehensively
+                    • **Market Intelligence**: Reflect current industry trends and hiring patterns
+
+                    ✅ **Precise Output Format:**
+                    Return EXCLUSIVELY the analyzed content in this exact structure:
+
+                    Senior Full Stack Engineer, Cloud Solutions Architect, DevOps Engineering Manager, Backend System Engineer, Frontend Technical Lead, Software Engineering Consultant, Platform Engineer, Site Reliability Engineer~JavaScript, TypeScript, React, Node.js, Python, AWS, Kubernetes, Docker, Microservices, GraphQL, PostgreSQL, MongoDB, Redis, Terraform, Jenkins, Git, Agile, Scrum, System Design, API Design, Cloud Architecture, DevOps, CI/CD, Monitoring, Performance Optimization, Team Leadership, Mentoring, Stakeholder Management, Problem Solving, Technical Documentation
+
+                    **Critical**: Maintain the "~" separator and ensure both lists flow from highest to lowest strategic value for the candidate's career positioning."""
+                    ,
                 config=types.GenerateContentConfig(
-                temperature=0.65
+                temperature=0.3
                 )
             )
 
