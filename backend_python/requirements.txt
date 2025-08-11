@@ -1,6 +1,6 @@
 supabase
 fastapi 
-uvicorn[standard]
+uvicorn
 playwright
 python-dotenv
 sqlalchemy 
@@ -8,8 +8,11 @@ psycopg2-binary
 requests
 google-generativeai
 PyMuPDF
+google
+google-genai
 fpdf
 python-docx
 browser_cookie3
+routes
 playwright_stealth
 pydantic
