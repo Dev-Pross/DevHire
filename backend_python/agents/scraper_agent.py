@@ -1,5 +1,8 @@
 import asyncio
 import sys
+import tempfile
+import os
+from datetime import datetime
 
 # Windows Playwright fix - MUST be at the top
 if sys.platform == "win32":
@@ -53,6 +56,7 @@ LOGGED_IN_CONTEXT = None
 # ---------------------------------------------------------------------------
 # 1. ENHANCED LOGIN FUNCTIONALITY
 # ---------------------------------------------------------------------------
+
 
 # async def apply_forced_zoom(page):
 #     """Perfect page alignment + scrolling fix"""
@@ -148,6 +152,36 @@ LOGGED_IN_CONTEXT = None
 #     # ''')
 
 
+async def debug_capture_page(page, step_name, job_title=""):
+    """Capture screenshot and HTML at any step for debugging"""
+    try:
+        timestamp = datetime.now().strftime("%H%M%S")
+        temp_dir = tempfile.gettempdir()
+        
+        safe_title = job_title.replace(' ', '_').replace('/', '_') if job_title else ""
+        prefix = f"debug_{step_name}"
+        if safe_title:
+            prefix += f"_{safe_title}"
+        
+        png_path = os.path.join(temp_dir, f"{prefix}_{timestamp}.png")
+        html_path = os.path.join(temp_dir, f"{prefix}_{timestamp}.html")
+        
+        await page.screenshot(path=png_path, full_page=True)
+        html = await page.content()
+        
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html)
+        
+        print(f"🔍 DEBUG: Captured {step_name} - PNG: {os.path.basename(png_path)}")
+        print(f"📄 DEBUG: HTML snippet: {html[:300]}...")
+        
+        return {"png_path": png_path, "html_path": html_path}
+    except Exception as e:
+        print(f"❌ DEBUG capture failed for {step_name}: {e}")
+        return None
+
+
+
 async def linkedin_login(browser):
     """Login to LinkedIn with FORCED 50% zoom"""
     global LOGGED_IN_CONTEXT
@@ -171,6 +205,8 @@ async def linkedin_login(browser):
     try:
         await page.goto(PLATFORMS["linkedin"]["login_url"])
         await asyncio.sleep(2)
+
+        await debug_capture_page(page, "01_login_page_loaded")
         
         # FORCE zoom that LinkedIn cannot override
         # await apply_forced_zoom(page)
@@ -186,6 +222,8 @@ async def linkedin_login(browser):
         password_input = await page.wait_for_selector('#password', timeout=5000)
         await password_input.fill(LINKEDIN_PASSWORD)
         
+        await debug_capture_page(page, "02_credentials_filled")
+
         print("🚀 Clicking login button...")
         login_button = await page.wait_for_selector('button[type="submit"]', timeout=5000)
         await login_button.click()
@@ -198,6 +236,8 @@ async def linkedin_login(browser):
         if "challenge" in current_url:
             print(f"{Colors.RED}❌ Login challenge detected! Please resolve manually.{Colors.END}")
         
+        await debug_capture_page(page, "03_after_login_click")
+
         LOGGED_IN_CONTEXT = context
         await page.close()
         return context
@@ -306,6 +346,8 @@ async def scroll_current_page(page):
                 continue
         
         if working_selector:
+
+            await debug_capture_page(page, "07_container_found")
             # Enhanced scrolling with multiple methods
             for i in range(8):
                 scroll_result = await page.evaluate(f'''
@@ -378,6 +420,7 @@ async def scroll_current_page(page):
                 
                 await asyncio.sleep(1.5)  # Longer wait for content loading
         else:
+            await debug_capture_page(page, "07_no_container_found")
             # Fallback to page scrolling
             print("⚠️ No job list container found, using page scroll")
             for i in range(6):
@@ -390,6 +433,7 @@ async def scroll_current_page(page):
         
         # Force additional job loading
         await page.evaluate('window.dispatchEvent(new Event("scroll"))')
+        await debug_capture_page(page, "07_no_container_found")
         await asyncio.sleep(2)
         
     except Exception as e:
@@ -655,6 +699,7 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
         
         # await apply_forced_zoom(page)
         # await asyncio.sleep(1)
+        await debug_capture_page(page, "05_search_results", job_title)
 
         # Force layout fix
         await force_layout_fix(page)
@@ -662,6 +707,8 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
         
         job_cards = await load_all_available_jobs_fixed(page)
         
+        await debug_capture_page(page, "06_after_job_loading", job_title)
+
         if not job_cards:
             print(f"❌ No jobs found for '{job_title}'")
             return {}
