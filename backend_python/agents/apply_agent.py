@@ -982,7 +982,12 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
     log.info(f"📋 Loaded {len(jobs)} job(s) to process")
 
     pw = await async_playwright().start()
-    browser = await pw.chromium.launch(headless=False)
+    browser = await pw.chromium.launch(
+        headless=True,
+        args=[
+            '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
+        ]        
+                                       )
     context = await browser.new_context()
     page = await context.new_page()
     await Stealth().apply_stealth_async(page)
