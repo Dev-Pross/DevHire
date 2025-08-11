@@ -194,6 +194,9 @@ async def linkedin_login(browser):
         current_url = page.url
         if "feed" in current_url:
             print("✅ Login successful with FORCED zoom!")
+
+        if "challenge" in current_url:
+            print(f"{Colors.RED}❌ Login challenge detected! Please resolve manually.{Colors.END}")
         
         LOGGED_IN_CONTEXT = context
         await page.close()

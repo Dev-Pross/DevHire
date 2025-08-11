@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from main.routes.cookie_receiver import router as cookie_router
 from main.routes.list_jobs import router as list_jobs
 from main.routes.apply_jobs import router as apply_jobs
+from main.routes.debug_routes import router as debug_router
 from fastapi.middleware.cors import CORSMiddleware
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,6 +30,7 @@ app.add_middleware(
 app.include_router(cookie_router)
 app.include_router(list_jobs)
 app.include_router(apply_jobs)
+app.include_router(debug_router)
 
 @app.get("/")
 def root():
