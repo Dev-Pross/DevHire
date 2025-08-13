@@ -101,11 +101,11 @@ export default function SignIn() {
     setError("");
     setLoading(true);
     try {
-      await  signIn( "credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false
-      });
+      // await  signIn( "credentials", {
+      //   email: data.email,
+      //   password: data.password,
+      //   redirect: false
+      // });
 
       const { error: supabaseError } = await supabase.auth.signInWithPassword({
       email: data.email,

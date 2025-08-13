@@ -150,7 +150,7 @@ export default function SignUp() {
         password: data.password, 
       });
       router.push("/signin");
-      signUpNewUser();
+      signUpNewUser(data.email, data.password);
     } catch (err: any) {
       if (err && err.response && err.response.status === 411 || err.response.status === 409) {
         setError("Email already exists.");
@@ -162,10 +162,10 @@ export default function SignUp() {
       setLoading(false);
     }
   };
-  async function signUpNewUser() {
+  async function signUpNewUser(email: string, password: string) {
   const { data, error } = await supabase.auth.signUp({
-    email: 'valid.email@supabase.io',
-    password: 'example-password',
+    email: email,
+    password: password,
     options: {
       emailRedirectTo: 'http://localhost:3000/signin',
     },

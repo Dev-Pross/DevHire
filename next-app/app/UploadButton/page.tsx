@@ -1,9 +1,10 @@
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Button from "../components/Button";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import axios from "axios";
 import { supabase } from "../supabase";
+import { User } from "next-auth";
 // 1. Get S3 configuration from environment variables
 const s3Endpoint = process.env.NEXT_PUBLIC_S3_ENDPOINT as string;
 const s3Region = process.env.NEXT_PUBLIC_AWS_REGION as string;
@@ -22,8 +23,8 @@ const s3Bucket = process.env.NEXT_PUBLIC_S3_BUCKET as string || "user-name";
 //   forcePathStyle: true,
 // });
 
-const user = supabase.auth.getUser()
-console.log("user:", user);
+// const user = supabase.auth.getUser().then(({ data }) => data.user);
+
 
 
 export default function UploadButtonPage() {
@@ -33,7 +34,13 @@ export default function UploadButtonPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
-
+  const [user, setUser] = useState<User | null>(null);
+  useEffect(() => {
+  supabase.auth.getUser().then(({ data }) => {
+    setUser(data.user);
+  });
+}, []);
+console.log("user:", user);
   // 4. Open file dialog when button is clicked
   const handleFileButtonClick = () => {
     fileInputRef.current?.click();

@@ -20,7 +20,8 @@ app.add_middleware(
     allow_origins=["chrome-extension://ibdbgaedlhhpekneidifacdbjnpacfdd",  # Your extension ID
         "chrome-extension://*",  # Allow any Chrome extension (less secure)
         "http://localhost:8000",
-        "http://127.0.0.1:8000"],  # or ["http://localhost"] for strict control
+        "http://127.0.0.1:8000",
+        "http://localhost:3000"],  # or ["http://localhost"] for strict control
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
