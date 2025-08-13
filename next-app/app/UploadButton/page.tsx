@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react";
 import Button from "../components/Button";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import axios from "axios";
+import { supabase } from "../supabase";
 // 1. Get S3 configuration from environment variables
 const s3Endpoint = process.env.NEXT_PUBLIC_S3_ENDPOINT as string;
 const s3Region = process.env.NEXT_PUBLIC_AWS_REGION as string;
@@ -11,15 +12,19 @@ const s3SecretAccessKey = process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY as strin
 const s3Bucket = process.env.NEXT_PUBLIC_S3_BUCKET as string || "user-name";
 
 // 2. Initialize S3 client
-const s3 = new S3Client({
-  region: s3Region,
-  endpoint: s3Endpoint,
-  credentials: {
-    accessKeyId: s3AccessKeyId,
-    secretAccessKey: s3SecretAccessKey,
-  },
-  forcePathStyle: true,
-});
+// const s3 = new S3Client({
+//   region: s3Region,
+//   endpoint: s3Endpoint,
+//   credentials: {
+//     accessKeyId: s3AccessKeyId,
+//     secretAccessKey: s3SecretAccessKey,
+//   },
+//   forcePathStyle: true,
+// });
+
+const user = supabase.auth.getUser()
+console.log("user:", user);
+
 
 export default function UploadButtonPage() {
   // 3. Setup state and ref for file input and upload status
@@ -52,50 +57,97 @@ export default function UploadButtonPage() {
       const fileBuffer = await file.arrayBuffer();
 
       // 5c. Prepare upload parameters
-      const uploadParams = {
-        Bucket: s3Bucket,
-        Key: filePath,
-        Body: new Uint8Array(fileBuffer),
-        ContentType: file.type,
-      };
+      // const uploadParams = {
+      //   Bucket: s3Bucket,
+      //   Key: filePath,
+      //   Body: new Uint8Array(fileBuffer),
+      //   ContentType: file.type,
+      // };
 
-      // 5d. Upload file to S3
-      await s3.send(new PutObjectCommand(uploadParams));
+      const { data, error } = await supabase.storage
+        .from("user-resume")            // your bucket name
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type,
+        });
 
-      // 5e. Construct public URL for uploaded file
-      let fileUrl: string;
-      if (s3Endpoint.endsWith("/")) {
-        fileUrl = `${s3Endpoint}${s3Bucket}/${filePath}`;
-      } else {
-        fileUrl = `${s3Endpoint}/${s3Bucket}/${filePath}`;
-      }
+        if (error) throw error;
+
+      // Generate signed URL valid for 1 hour (3600 seconds)
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from("user-resume")
+        .createSignedUrl(filePath, 3600);
+
+        if (urlError) throw urlError;
 
       setUploadSuccess(`File uploaded successfully: ${file.name}`);
-      setUploadedUrl(fileUrl);
-      sendUrl()
-    } catch (err: any) {
-      // 6. Handle upload errors
-      let errorMsg = "Upload failed: ";
-      if (err?.Code === "NoSuchBucket" || (err?.name === "NoSuchBucket")) {
-        errorMsg += `Bucket "${s3Bucket}" not found. Please check your bucket name and that it exists.`;
-      } else if (err?.message) {
-        errorMsg += err.message;
-      } else {
-        errorMsg += JSON.stringify(err);
-      }
-      setUploadError(errorMsg);
+      setUploadedUrl(urlData?.signedUrl || null);
+
+      // Optional: send the URL to your backend
+      await sendUrl(urlData?.signedUrl || "");
+
+    } catch (error: any) {
+      setUploadError(`Upload failed: ${error.message || error.toString()}`);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
-   function sendUrl(){
-    const  res = axios.post("http://127.0.0.1:8000/get-jobs" , {
-      file_url : uploadedUrl,
-      user_id : "tujeoituioej"
-    })
-    console.log(res)
+
+      // 5d. Upload file to S3
+      // await s3.send(new PutObjectCommand(uploadParams));
+
+      // 5e. Construct public URL for uploaded file
+      // let fileUrl: string;
+      // if (s3Endpoint.endsWith("/")) {
+      //   fileUrl = `${s3Endpoint}${s3Bucket}/${filePath}`;
+      // } else {
+      //   fileUrl = `${s3Endpoint}/${s3Bucket}/${filePath}`;
+      // }
+
+      // setUploadSuccess(`File uploaded successfully: ${file.name}`);
+      // setUploadedUrl(fileUrl);
+      // console.log("File uploaded successfully:", fileUrl);
+      // sendUrl()
+  //   } 
+  //   catch (err: any) {
+  //     // 6. Handle upload errors
+  //     let errorMsg = "Upload failed: ";
+  //     if (err?.Code === "NoSuchBucket" || (err?.name === "NoSuchBucket")) {
+  //       errorMsg += `Bucket "${s3Bucket}" not found. Please check your bucket name and that it exists.`;
+  //     } else if (err?.message) {
+  //       errorMsg += err.message;
+  //     } else {
+  //       errorMsg += JSON.stringify(err);
+  //     }
+  //     setUploadError(errorMsg);
+  //   } finally {
+  //     setUploading(false);
+  //     if (fileInputRef.current) fileInputRef.current.value = "";
+  //   }
+  // };
+  //  function sendUrl(){
+  //   const  res = axios.post("http://127.0.0.1:8000/get-jobs" , {
+  //     file_url : uploadedUrl,
+  //     user_id : "tejabudumuru3@gmail.com",
+  //     password:"S@IS@r@N3"
+  //   })
+  async function sendUrl(url: string) {
+    if (!url) return;
+    try {
+      const res = await axios.post("http://127.0.0.1:8000/get-jobs", {
+        file_url: url,
+        user_id: "tejabudumuru3@gmail.com",
+        password: "S@IS@r@N3"
+      });
+      console.log(res)
+      console.log("Server response:", res.data);
+    } catch (err) {
+      console.error("Error sending URL to server:", err);
+    }
   }
+  
   return (
     <div>
       {/* 7. Upload button (hidden file input) */}
@@ -111,7 +163,7 @@ export default function UploadButtonPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".pdf,.docx"
+        accept=".pdf"
         required
         style={{ display: "none" }}
         onChange={handleFileChange}

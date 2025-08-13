@@ -4,6 +4,7 @@ import React, { useState, useCallback } from "react";
 import Link from "next/link";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import { supabase } from "../supabase";
 
 // SVG Eye and Eye Off Icons
 const EyeIcon = ({ className = "" }) => (
@@ -146,20 +147,30 @@ export default function SignUp() {
       await axios.post("/api/signup", {
         username: data.username,
         email: data.email,
-        password: data.password,
+        password: data.password, 
       });
       router.push("/signin");
+      signUpNewUser();
     } catch (err: any) {
-      if (err && err.response && err.response.status === 411) {
+      if (err && err.response && err.response.status === 411 || err.response.status === 409) {
         setError("Email already exists.");
       } else {
         setError("An error occurred during signup.");
-      }
+      }   
       console.log(err);
     } finally {
       setLoading(false);
     }
   };
+  async function signUpNewUser() {
+  const { data, error } = await supabase.auth.signUp({
+    email: 'valid.email@supabase.io',
+    password: 'example-password',
+    options: {
+      emailRedirectTo: 'http://localhost:3000/signin',
+    },
+  })
+}
 
   // Best image for a modern, tech, secure signup: Unsplash "cyber security" or "futuristic login"
   // We'll use: https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=800&q=80
