@@ -5,6 +5,7 @@ import Link from "next/link";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import NextAuth from "next-auth";
+import { supabase } from "../supabase";
 
 // SVG Eye and Eye Off Icons
 const EyeIcon = ({ className = "" }) => (
@@ -100,11 +101,21 @@ export default function SignIn() {
     setError("");
     setLoading(true);
     try {
-      await  signIn( "credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false
-      });
+      // await  signIn( "credentials", {
+      //   email: data.email,
+      //   password: data.password,
+      //   redirect: false
+      // });
+
+      const { error: supabaseError } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
+    });
+
+    if (supabaseError) {
+      console.error("Supabase sign-in failed:", supabaseError.message);
+      setError("Could not sign in to Supabase.");
+    }
       router.push("/");
     } catch (err: any) {
       if (err && err.response && err.response.status === 401) {

@@ -1,8 +1,0 @@
-python-dotenv
-sqlalchemy
-psycopg2-binary
-requests
-python-docx
-pymupdf
-fpdf
-google-generativeai

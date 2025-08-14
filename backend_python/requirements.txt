@@ -14,3 +14,5 @@ fpdf
 python-docx
 browser_cookie3
 routes
+playwright_stealth
+pydantic
