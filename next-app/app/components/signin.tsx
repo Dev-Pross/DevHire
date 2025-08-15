@@ -110,6 +110,7 @@ export default function SignIn() {
       const { error: supabaseError } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
+      
     });
 
     if (supabaseError) {

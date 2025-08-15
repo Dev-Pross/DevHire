@@ -144,12 +144,12 @@ export default function SignUp() {
     }
     setLoading(true);
     try {
-      await axios.post("/api/signup", {
-        username: data.username,
-        email: data.email,
-        password: data.password, 
-      });
-      router.push("/signin");
+      // await axios.post("/api/signup", {
+      //   username: data.username,
+      //   email: data.email,
+      //   password: data.password, 
+      // });
+      // router.push("/signin");
       signUpNewUser(data.email, data.password);
     } catch (err: any) {
       if (err && err.response && err.response.status === 411 || err.response.status === 409) {

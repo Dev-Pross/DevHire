@@ -48,14 +48,14 @@ def main(user, url):
                     Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:
 
                     🎯 **PRIMARY OBJECTIVES:**
-                    1. **STRATEGIC JOB TITLES** - Generate 8-12 high-impact, market-aligned job titles that span the candidate's expertise spectrum
+                    1. **STRATEGIC JOB TITLES** - Generate 5 solid and quality, high-impact, market-aligned job titles that should align with candidate's skill and expertise spectrum
                     2. **INTELLIGENT KEYWORDS** - Extract 20-25 precisely targeted keywords that create maximum ATS compatibility and recruiter appeal
 
                     📊 **ADVANCED ANALYSIS FRAMEWORK:**
 
                     **For JOB TITLES - Apply Multi-Dimensional Matching:**
                     • **Experience Calibration**: Analyze years of experience, project complexity, and leadership indicators to determine accurate seniority levels (Freshers/Entry/Junior/Mid/Senior/Staff/Principal/Architect/VP) make sure to find the best match for the candidate's experience
-                    • **Skill Intersection Analysis**: Identify overlapping competencies to suggest hybrid roles (e.g., "Full Stack Engineer", "DevSecOps Specialist", "AI/ML Engineer")
+                    • **Skill Intersection Analysis**: Identify overlapping competencies to suggest hybrid roles (e.g., "Full Stack Engineer", "DevSecOps Specialist", "AI/ML Engineer") dont give the general titles unless the candidate has not worked on any specific domain or technology that may be a personal project or an organization project
                     • **Market Positioning**: Include both traditional titles recruiters search for AND emerging/trendy titles gaining market traction
                     • **Industry Verticals**: Consider domain expertise (FinTech, HealthTech, EdTech, E-commerce, Gaming, etc.) for specialized titles
                     • **Role Evolution Path**: Include both current-level roles AND natural next-step positions for career growth
