@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.850.0",
-    "@prisma/client": "^6.12.0",
+    "@prisma/client": "^6.14.0",
     "@supabase/supabase-js": "^2.52.1",
     "@types/bcrypt": "^6.0.0",
     "@types/pg": "^8.15.4",
@@ -20,7 +20,6 @@
     "next-auth": "^4.24.11",
     "pf": "^0.0.1",
     "pg": "^8.16.3",
-    "prisma": "^6.12.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0"
@@ -33,6 +32,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.4.3",
+    "prisma": "^6.14.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
