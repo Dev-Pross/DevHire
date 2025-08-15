@@ -983,10 +983,10 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-        headless=True,
-        args=[
-            '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
-        ]
+            headless=True,
+            args=[
+                '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
+            ]
         )
         
         try:
@@ -1035,14 +1035,14 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
     
     return all_jobs
 
-def run_scraper_in_new_loop(titles, keywords, user_id=None, password=None):
+def run_scraper_in_new_loop(titles, keywords):
     """Run scraper in a fresh event loop - Production Ready"""
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
         try:
-            result = loop.run_until_complete(main(titles, keywords, user_id, password))
+            result = loop.run_until_complete(main(titles, keywords))
             return result
         finally:
             loop.close()
@@ -1050,20 +1050,12 @@ def run_scraper_in_new_loop(titles, keywords, user_id=None, password=None):
         print(f"Scraper error: {e}")
         return []
 
-async def main(parsed_titles=None, parsed_keywords=None, user_id = None, password=None):
-    global JOB_TITLES, FILTERING_KEYWORDS, LINKEDIN_ID, LINKEDIN_PASSWORD
+async def main(parsed_titles=None, parsed_keywords=None):
+    global JOB_TITLES, FILTERING_KEYWORDS
     if parsed_titles:
         JOB_TITLES = parsed_titles
     if parsed_keywords:
         FILTERING_KEYWORDS = parsed_keywords
-
-    if user_id and password:
-        print("✅ Setting custom credentials...")
-        LINKEDIN_ID = user_id
-        LINKEDIN_PASSWORD = password
-        print(f"✅ Credentials set - LINKEDIN_ID: {LINKEDIN_ID}")
-    else:
-        print(f"❌ Using env credentials - LINKEDIN_ID: {LINKEDIN_ID}, LINKEDIN_PASSWORD: {'***' if LINKEDIN_PASSWORD else 'None'}")
 
     print("🧠 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
 
