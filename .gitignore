@@ -9,3 +9,4 @@ node_modules/
 /backend_python/main/routes/__pycache__
 /backend_python/apply_agent/__pycache__
 /backend_python/data_dump/playwright_persistent
+/frontend
