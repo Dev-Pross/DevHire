@@ -134,12 +134,6 @@ console.log("user:", user);
   //     if (fileInputRef.current) fileInputRef.current.value = "";
   //   }
   // };
-  //  function sendUrl(){
-  //   const  res = axios.post("http://127.0.0.1:8000/get-jobs" , {
-  //     file_url : uploadedUrl,
-  //     user_id : "tejabudumuru3@gmail.com",
-  //     password:"S@IS@r@N3"
-  //   })
   async function sendUrl(url: string) {
     if (!url) return;
     try {
