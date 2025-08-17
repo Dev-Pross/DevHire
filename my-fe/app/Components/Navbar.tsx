@@ -1,5 +1,5 @@
 import React from 'react'
-
+import Link from 'next/link'
 const Navbar = () => {
   return (
     <div className='max-w-7xl mx-auto m-0 sticky top-0 z-50'>
@@ -10,9 +10,11 @@ const Navbar = () => {
                 <a className='text-white hover:text-gray-300 font-bold' href='#'>Pricing</a>
                 <a className='text-white hover:text-gray-300 font-bold' href='#'>About us</a>
             </div>
-            <a className='rounded-4xl pl-4 pr-4 border-2 p-1' href='#'>
+          
+              <Link href="/login" className='rounded-4xl pl-4 pr-4 border-2 p-1'>
                 Get Started
-            </a>
+              </Link>
+           
         </nav>
     </div>
   )
