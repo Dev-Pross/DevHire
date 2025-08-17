@@ -10,3 +10,5 @@ node_modules/
 /backend_python/apply_agent/__pycache__
 /backend_python/data_dump/playwright_persistent
 /frontend
+my-fe/package.json
+my-fe/package-lock.json
