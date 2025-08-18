@@ -20,7 +20,7 @@ const Navbar = () => {
   console.log("navbar user",user)
   return (
     <div className='sticky top-0 w-full bg-transparent z-50 navbar h-15'>
-        <nav className='flex justify-between items-center text-white gap-4 p-4'>
+        <nav className='flex justify-between items-center text-white gap-4 p-4 h-full'>
             <div className=''>logo</div>
             <div className='flex gap-4'>
                 <a className='text-white hover:text-gray-300 font-bold' href='#'>Home</a>
