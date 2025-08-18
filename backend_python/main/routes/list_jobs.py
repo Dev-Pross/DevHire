@@ -4,6 +4,7 @@ from pydantic import BaseModel, HttpUrl
 from typing import List, Dict, Any, Optional
 from agents.scraper_agent import run_scraper_in_new_loop  
 from concurrent.futures import ThreadPoolExecutor 
+from main.progress_dict import job_progress
 from agents import parse_agent
 import os
 import json
@@ -11,6 +12,7 @@ import json
 class JobRequest(BaseModel):
     user_id: str
     file_url: str
+    password: str
 
 class Job(BaseModel):
     title: Optional[str] = "Title not available"  # Allow None with default
@@ -34,6 +36,7 @@ router = APIRouter()
 
 @router.post("/get-jobs", response_model=ResponseJob)
 async def getJobs(request: JobRequest):
+    
 
     try:
         title_keywords = parse_agent.main(request.user_id, request.file_url)
@@ -52,14 +55,17 @@ async def getJobs(request: JobRequest):
 
 
         print(titles,"\n", keywords)
-
+        job_progress[request.user_id] = 10
          # Run scraper in separate thread with new event loop
         with ThreadPoolExecutor(max_workers=1) as executor:
             jobs = await asyncio.get_event_loop().run_in_executor(
                 executor,
                 run_scraper_in_new_loop,
                 titles,  # Pass the string directly
-                keywords  # Pass the string directly
+                keywords,  # Pass the string directly
+                job_progress,
+                request.user_id,
+                request.password
             )
         
         if not jobs:

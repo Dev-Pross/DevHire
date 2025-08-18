@@ -1,6 +1,6 @@
 "use client"
-import React from 'react'
-import { supabase } from '../supabaseClient'
+import React, { useState } from 'react'
+import { supabase } from '../utiles/supabaseClient'
 import {useRouter} from 'next/navigation'
 
 const Register = () => {
@@ -10,10 +10,13 @@ const Register = () => {
     const [confirmPassword, setConfirmPassword] = React.useState("")
     const [username, setUsername] = React.useState("")
     const [error, setError] = React.useState<string | null>(null)
+    const [loading, setLoading] = useState(false)
+    
     const router = useRouter()
 
     const RegisterHandler = ()=>{
         setError(null)
+        
         if(!email || !password || !confirmPassword || !username){
             setError("All fields are required")
         }
@@ -24,6 +27,7 @@ const Register = () => {
             setError("password isn't strong enough");
         }
         else{
+            setLoading(true)
             signUpNewUser(email,password,username)
         }
     }
@@ -73,12 +77,24 @@ const Register = () => {
                     </div>
                     <div className='flex items-center justify-between px-10'>
                         <button onClick={RegisterHandler} className='bg-[#27db78] hover:bg-[#159950] w-full text-black font-bold py-2 px-4 rounded-4xl focus:outline-none focus:shadow-outline' type='button'>
-                            Sign Up
+                           {loading ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <svg className="animate-spin h-5 w-5 text-black" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="black"/>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                                    </svg>
+                                    Signing in...
+                                </span>
+                                ) : (
+                                <span className="bg-black bg-clip-text text-transparent">
+                                    Sign Up
+                                </span>
+                                )}
                         </button>
                     </div>
                 </form>
                 <div className='w-full text-center mt-4 text-white'>
-                    Already have an account? <a href='#' className='text-blue-500'>Login</a>
+                    Already have an account? <a href='/login' className='text-blue-500'>Login</a>
                 </div>
             </div>
     </div>

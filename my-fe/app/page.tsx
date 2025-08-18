@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import Login from "./Components/Login";
 import Navbar from "./Components/Navbar";
 import Register from "./Components/Register";
-import { supabase } from "./supabaseClient";
+import { supabase } from "./utiles/supabaseClient";
+import Jobs from "./Components/Jobs";
 
 export default function Home() {
   const data = {
@@ -44,8 +45,9 @@ export default function Home() {
     >
       <Navbar />
       <div style={{ flex: 1}}>
-        {/* <Login /> */}
-        {/* < Register /> */}
+        {/* <Login />
+        < Register /> */}
+        <Jobs/>
       </div>
     </div>
   );

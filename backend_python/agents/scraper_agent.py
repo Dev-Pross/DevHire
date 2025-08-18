@@ -969,7 +969,7 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25) -> list
 # 6. MAIN EXECUTION FUNCTIONS (SPEED OPTIMIZED)
 # ---------------------------------------------------------------------------
 
-async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
+async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progress=None,user_id=None):
     """SPEED OPTIMIZED: All fixes applied - faster execution"""
     global PROCESSED_JOB_URLS, LOGGED_IN_CONTEXT
     
@@ -1003,7 +1003,9 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
                 print(f"\n{'='*70}")
                 print(f"⚡ SPEED-OPTIMIZED SEARCH {i}/{len(job_titles)}: '{job_title}'")
                 print(f"🔢 Processed URLs so far: {len(PROCESSED_JOB_URLS)}")
+                print(f"🔢 Progressed so far: {progress[user_id]}%")
                 print(f"{'='*70}")
+                
                 
                 for platform_name in platforms:
                     try:
@@ -1017,6 +1019,10 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
                     
                     await asyncio.sleep(0.5)  # Minimal wait between searches
                 
+                if len(job_title) == 5:
+                    progress[user_id] += 15
+                else:
+                    progress[user_id] += (75/len(job_titles))
                 print(f"📊 '{job_title}' complete. Total unique jobs: {len(all_jobs)}")
             
         finally:
@@ -1031,18 +1037,19 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None):
     print(f"⚡ Speed optimization: MAXIMUM")
     print(f"🔧 All fixes applied: YES")
     print(f"🔐 Authentication: ENABLED")
+    print(f" progress percentage: {progress[user_id]}%")
     print(f"{'='*70}")
     
     return all_jobs
 
-def run_scraper_in_new_loop(titles, keywords):
+def run_scraper_in_new_loop(titles, keywords, job_progress, user_id, password):
     """Run scraper in a fresh event loop - Production Ready"""
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
         try:
-            result = loop.run_until_complete(main(titles, keywords))
+            result = loop.run_until_complete(main(titles, keywords,job_progress, user_id, password))
             return result
         finally:
             loop.close()
@@ -1050,19 +1057,24 @@ def run_scraper_in_new_loop(titles, keywords):
         print(f"Scraper error: {e}")
         return []
 
-async def main(parsed_titles=None, parsed_keywords=None):
-    global JOB_TITLES, FILTERING_KEYWORDS
+async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=None, password=None ):
+    global JOB_TITLES, FILTERING_KEYWORDS, LINKEDIN_ID, LINKEDIN_PASSWORD
     if parsed_titles:
         JOB_TITLES = parsed_titles
     if parsed_keywords:
         FILTERING_KEYWORDS = parsed_keywords
+    if user_id and password:
+        LINKEDIN_ID = user_id
+        LINKEDIN_PASSWORD = password
+        print(f"login user id configured to {LINKEDIN_ID}")
 
     print("🧠 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
 
-    all_jobs = await search_by_job_titles_speed_optimized(JOB_TITLES)
+    all_jobs = await search_by_job_titles_speed_optimized(JOB_TITLES,progress=progress, user_id=user_id)
     
     if len(all_jobs) == 0:
         print("❌ No jobs found to analyze...")
+        progress[user_id] = 100
         return
     
     print(f"🧠 Sending {len(all_jobs)} jobs to Gemini for extraction...")
@@ -1073,8 +1085,8 @@ async def main(parsed_titles=None, parsed_keywords=None):
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"linkedin_jobs_ALL_FIXES_{timestamp}.json"
     
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(extracted, f, indent=2, ensure_ascii=False)
+    # with open(filename, "w", encoding="utf-8") as f:
+    #     json.dump(extracted, f, indent=2, ensure_ascii=False)
     
     print(f"✅ Successfully extracted data for {len(extracted)} jobs")
     print(f"📁 Results saved to {filename}")
@@ -1089,6 +1101,11 @@ async def main(parsed_titles=None, parsed_keywords=None):
         if job.get("company_name") and job["company_name"] != "Not extracted":
             companies.add(job["company_name"])
     
+    if(progress[user_id] == 85):
+        progress[user_id] += 15
+    else:
+        progress[user_id] += (100-progress[user_id])
+
     print(f"\n📊 FINAL SUMMARY:")
     print(f" 🏢 Companies: {len(companies)}")
     print(f" 🛠️ Unique skills found: {len(total_skills)}")
@@ -1097,6 +1114,8 @@ async def main(parsed_titles=None, parsed_keywords=None):
     print(f" 🔧 All fixes applied: YES")
     print(f" 🔵 Easy Apply enabled: YES")
     print(f" 🔐 Authenticated scraping: YES")
+    print(f" Progress: {progress[user_id]}%")
+
     return extracted
 
 if __name__ == "__main__":

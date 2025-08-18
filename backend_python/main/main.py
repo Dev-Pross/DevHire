@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from main.routes.progress_route import progress_router as progress_router 
 from database.db_engine import Base, engine
 from contextlib import asynccontextmanager
 from main.routes.cookie_receiver import router as cookie_router
@@ -14,6 +15,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.state.job_progress = {}
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,10 +29,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 app.include_router(cookie_router)
 app.include_router(list_jobs)
 app.include_router(apply_jobs)
+app.include_router(progress_router)
 app.include_router(debug_router)
 
 @app.get("/")
