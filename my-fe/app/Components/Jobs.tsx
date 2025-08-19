@@ -39,26 +39,36 @@ const Jobs = ({ url="", userId="",password="" }) => {
 
 
   useEffect(()=>{
+    const fetchJobs = async()=>{
       if(url==="" &&  userId==="" && password===""){
         console.log("all parameters are empty")
-
+        return
       }else if(userId===""){
         console.log("userid is empty")
+        return
       }
       else if(password===""){
         console.log("password is empty")
+        return
       }
       else if(url === ""){
         console.log("file url is empty")
-
+        return
       }
       else{
         console.log("calling agent to fetch jobs");
-        setJobs(sendUrl(url,userId,password))
+        const {data ,error} = await sendUrl(url,userId,password)
+        if(data)
+          setJobs(data.jobs)
+        else
+          console.log("error from fetching jobs ",error);
       }
+    }
+
+    fetchJobs()
 
     intervalRef.current = window.setInterval(()=>{
-    fetch("http://127.0.0.1:8000/jobs/tejabudumuru3@gmail.com/progress")
+    fetch(`http://127.0.0.1:8000/jobs/${userId}/progress`)
     .then((res)=>res.json())
     .then((data)=>{
       console.log("progress: ",data.progress);
@@ -94,7 +104,7 @@ const Jobs = ({ url="", userId="",password="" }) => {
 
 console.log("current step: ",currentStep);
 
-
+// setCurrentStep(1000)
   
 
   return (
@@ -169,8 +179,9 @@ console.log("current step: ",currentStep);
         ))}
       </div>
       <div className='right-15 h-full bg-no-repeat w-full'>
-        {/* Right content */}
-        <JobCards jobs={jobs}/>
+        {currentStep>100 &&
+          <JobCards jobs={jobs}/>
+        }
       </div>
     </div>
   );

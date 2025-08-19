@@ -10,11 +10,11 @@ try {
         });
         console.log(res)
         console.log("Server response:", res.data);
-        return res.data
+        return { data: res.data, error: null };
         
     } catch (err) {
     console.error("Error sending URL to server:", err);
-    return err
+    return { data: null, error: err };
     }
 }
 

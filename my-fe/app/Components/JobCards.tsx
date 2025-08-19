@@ -8,7 +8,7 @@ interface JobcardProps{
     location:string,
     experience:string,
     salary:string,
-    key_skills:[string],
+    key_skills:string[],
     job_url:string,
     posted_at:string,
     job_description:string,
@@ -16,7 +16,12 @@ interface JobcardProps{
     relevance_score:string,
 }
 
-const JobCards = (jobs: JobcardProps) => {
+interface JobCardsProps{
+    jobs:JobcardProps[];
+}
+
+const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {    
+    
     // const jobs = [
     //     {
     //         "title": "Dot Net Developer - Asp.net MVC",
@@ -98,11 +103,11 @@ const JobCards = (jobs: JobcardProps) => {
                 <button className='rounded-2xl border-2 px-6 py-2 curser-pointer text-white hover:bg-black' onClick={ApplierHandler}>Apply all</button>
             </div>
             </div>
-        <div className='flex flex-wrap'>
+        <div className='flex flex-wrap w-full'>
         {jobs.map(job => (
             <label
                 key={job.job_id}
-                className={`m-5 ml-8 mr-8 ml-4 rounded-xl min-h-70 min-w-70 bg-[#052718] shadow-lg shadow-[#052718]-500 relative
+                className={`m-5 ml-8 mr-8 ml-4 rounded-xl  size-130 w-7xl bg-[#052718] shadow-lg shadow-[#052718]-500 relative
                             ${selectedIds.some(selectedJob => selectedJob.job_id === job.job_id) ? 'border border-white shadow-white/50' : 'border border-transparent'} cursor-pointer max-w-xs`}
                 onClick={(e) => cardHandler(e, { job_id: job.job_id, job_url: job.job_id, job_description: job.job_description })}
             >
