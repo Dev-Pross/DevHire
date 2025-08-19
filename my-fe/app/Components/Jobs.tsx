@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import JobCards from './JobCards';
+import sendUrl from '../utiles/agentsCall';
 
   const steps = [
     {
@@ -29,13 +30,33 @@ import JobCards from './JobCards';
     }
   ];
 
-const Jobs = () => {
+const Jobs = ({ url="", userId="",password="" }) => {
 
   const intervalRef = useRef<number | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [jobs, setJobs] = useState<any>();
+  
 
 
   useEffect(()=>{
+      if(url==="" &&  userId==="" && password===""){
+        console.log("all parameters are empty")
+
+      }else if(userId===""){
+        console.log("userid is empty")
+      }
+      else if(password===""){
+        console.log("password is empty")
+      }
+      else if(url === ""){
+        console.log("file url is empty")
+
+      }
+      else{
+        console.log("calling agent to fetch jobs");
+        setJobs(sendUrl(url,userId,password))
+      }
+
     intervalRef.current = window.setInterval(()=>{
     fetch("http://127.0.0.1:8000/jobs/tejabudumuru3@gmail.com/progress")
     .then((res)=>res.json())
@@ -67,6 +88,9 @@ const Jobs = () => {
       }
     };
   },[])
+
+
+ 
 
 console.log("current step: ",currentStep);
 
@@ -144,9 +168,9 @@ console.log("current step: ",currentStep);
           </div>
         ))}
       </div>
-      <div className='left-0 w-full'>
+      <div className='right-15 h-full bg-no-repeat w-full'>
         {/* Right content */}
-        <JobCards/>
+        <JobCards jobs={jobs}/>
       </div>
     </div>
   );
