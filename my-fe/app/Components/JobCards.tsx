@@ -1,4 +1,4 @@
-import axios from 'axios';
+"use client"
 import React, { useState } from 'react'
 
 interface JobcardProps{

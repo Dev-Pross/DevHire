@@ -1,3 +1,4 @@
+"use client"
 import React, { useEffect, useRef, useState } from 'react';
 import JobCards from './JobCards';
 import sendUrl from '../utiles/agentsCall';
@@ -37,7 +38,6 @@ const Jobs = ({ url="", userId="",password="" }) => {
   const [jobs, setJobs] = useState<any>();
   
 
-
   useEffect(()=>{
     const fetchJobs = async()=>{
       if(url==="" &&  userId==="" && password===""){
@@ -66,8 +66,9 @@ const Jobs = ({ url="", userId="",password="" }) => {
     }
 
     fetchJobs()
-
-    intervalRef.current = window.setInterval(()=>{
+    if(userId)
+    {
+      intervalRef.current = window.setInterval(()=>{
     fetch(`http://127.0.0.1:8000/jobs/${userId}/progress`)
     .then((res)=>res.json())
     .then((data)=>{
@@ -97,15 +98,17 @@ const Jobs = ({ url="", userId="",password="" }) => {
         clearInterval(intervalRef.current);
       }
     };
+    }
+    else{
+      console.log("user id not provided");
+      
+    }
   },[])
 
 
  
 
-console.log("current step: ",currentStep);
-
-// setCurrentStep(1000)
-  
+console.log("current step: ",currentStep);  
 
   return (
     <div className='flex'>
