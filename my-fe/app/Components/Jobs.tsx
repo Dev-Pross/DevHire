@@ -109,7 +109,7 @@ console.log("current step: ",currentStep);
 
   return (
     <div className='flex'>
-      <div className='flex flex-col gap-0 bg-[#052718] p-8 py-20 shadow-lg shadow-[#052718]-500 w-full max-w-xs size-max sticky top-15 left-0 h-screen rounded-r-lg'>
+      <div className='flex flex-col gap-0 bg-[#052718] p-8 py-20 shadow-lg shadow-[#052718]-500 w-full max-w-xs size-max sticky top-15 left-0 h-screen rounded-r-lg cursor-default'>
         {steps.map((step, index) => (
           <div className="flex items-start" key={step.label}>
             {/* Connector Line & Circle Col */}
@@ -117,7 +117,7 @@ console.log("current step: ",currentStep);
               {/* Circle */}
               <div
                 className={`
-                  w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-900
+                  w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-900 
                   ${
                     index < currentStep
                       ? "bg-blue-600 border-blue-600"
@@ -178,7 +178,7 @@ console.log("current step: ",currentStep);
           </div>
         ))}
       </div>
-      <div className='right-15 h-full bg-no-repeat w-full'>
+      <div className='right-15 '>
         {currentStep>100 &&
           <JobCards jobs={jobs}/>
         }

@@ -94,7 +94,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
     }
   return (
     <>
-        <div className='w-full  h-fit p-4 flex justify-between items-center sticky top-15 backdrop-blur-xl z-50 '>
+        <div className='w-full   p-4 flex justify-between items-center sticky top-15 backdrop-blur-xl z-50 '>
             <div className='flex px-5 items-center '>
                 <p className='text-white font-sm font-light'>Selected jobs: {selectedIds.length}</p>
                 <button className='text-white font-sm font-light p-5 rounded-2xl border-1 px-6 py-2 mx-3' onClick={selectAllHandler}>select all</button>
@@ -107,8 +107,8 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
         {jobs.map(job => (
             <label
                 key={job.job_id}
-                className={`m-5 ml-8 mr-8 ml-4 rounded-xl  size-130 w-7xl bg-[#052718] shadow-lg shadow-[#052718]-500 relative
-                            ${selectedIds.some(selectedJob => selectedJob.job_id === job.job_id) ? 'border border-white shadow-white/50' : 'border border-transparent'} cursor-pointer max-w-xs`}
+                className={`m-5 ml-8 mr-8 ml-4 rounded-xl h-100 cursor-pointer max-w-sm bg-[#052718] shadow-lg shadow-[#052718]-500 relative 
+                            ${selectedIds.some(selectedJob => selectedJob.job_id === job.job_id) ? 'border border-white shadow-white/50' : 'border border-transparent'} `}
                 onClick={(e) => cardHandler(e, { job_id: job.job_id, job_url: job.job_id, job_description: job.job_description })}
             >
                 <input
@@ -126,8 +126,8 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
                         <a className='text-white hover:text-gray-100 font-bold text-xl' href={job.job_url} onClick={e => e.stopPropagation()}>{job.title}</a>
                         <p className='text-white hover:text-gray-100 font-thin text-sm'>{job.location}</p>
                 </div>
-                <div className='max-w-sm'>
-                    <div className='flex p-2 md:flex-wrap'>
+                <div className='max-w-lg'>
+                    <div className='flex p-2 flex-wrap'>
                         {job.key_skills.slice(0,10).map((skill,idx)=>(
                         <p className='px-4  rounded-full m-1 bg-gray-600 text-white font-thin' key={skill+idx}> {skill}</p>
                         ))}
@@ -138,7 +138,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
                         <p className='px-1 text-white hover:text-gray-100 font-light text-md '>Recommended : </p>
                         <p className='px-1 text-white hover:text-gray-100 font-bold text-lg '>{job.relevance_score}</p>
                     </div>
-                    <p className='text-white hover:text-gray-100 font-light text-md '>{job.experience}</p>
+                    <p className='text-white hover:text-gray-100 font-light text-md '>{job.experience && <p>exp: {job.experience}</p>}</p>
                 </div>
             </label>
         ))}
