@@ -128,7 +128,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
                 </div>
                 <div className='max-w-sm'>
                     <div className='flex p-2 md:flex-wrap'>
-                        {job.key_skills.map((skill,idx)=>(
+                        {job.key_skills.slice(0,10).map((skill,idx)=>(
                         <p className='px-4  rounded-full m-1 bg-gray-600 text-white font-thin' key={skill+idx}> {skill}</p>
                         ))}
                     </div>
