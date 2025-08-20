@@ -3,6 +3,7 @@ import { supabase } from "../../utiles/supabaseClient";
 import { useState } from "react";
 import getLoginUser from "@/app/utiles/getUserData";
 import Link from "next/link";
+import { motion  } from "framer-motion";
 export const HeroTalent = () => {
   const [user, setUser] = useState<{ email: string; user: string } | null>(
     null
@@ -36,10 +37,18 @@ export const HeroTalent = () => {
     <section className="h-screen w-full flex items-center px-30  ">
       <div className="flex-1 max-w-xl">
         <h1 className="text-6xl font-bold text-white  leading-tight mb-6">
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}  >
           Build Amazing Products withsome amazing Developers <br />
+
+          </motion.div>
         </h1>
 
-        <p className="text-xl text-stone-200 mb-8 leading-relaxed">
+        {/* <p className="text-xl text-stone-200 mb-8 leading-relaxed"> */}
+        <div>
+
           {user ? (
            <button className=" cursor-pointer border  bg-transparent  border-border-green-700 hover:bg-blue-600  text-white px-8 py-4 rounded-lg transition-colors">
                 Upload Resume
@@ -56,7 +65,8 @@ export const HeroTalent = () => {
               </button>
             </div>
           )}
-        </p>
+          </div>
+
         {/* <div className="space-x-4">
        
        
