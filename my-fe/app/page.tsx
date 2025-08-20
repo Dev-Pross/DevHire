@@ -5,7 +5,8 @@ import Navbar from "./Components/Navbar";
 import Register from "./Components/Register";
 import { supabase } from "./utiles/supabaseClient";
 import Jobs from "./Components/Jobs";
-
+import {HeroTalent} from "./Components/Landing-Page/hero-section";
+// import HeroTalent from "./Components/Landing-Page/HeroTalent";
 export default function Home() {
   const data = {
     email:"",
@@ -52,7 +53,9 @@ export default function Home() {
       <div style={{ flex: 1}}>
         {/* <Login />
         < Register /> */}
-        <Jobs url={ url } userId={ userid} password={password} />
+        {/* <Jobs url={ url } userId={ userid} password={password} />
+        <> */}
+        <HeroTalent/>
       </div>
     </div>
   );
