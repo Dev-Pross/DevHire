@@ -3,27 +3,27 @@ import React from 'react'
 const Apply = ({currentStep = 3}) => {
     const steps = [
     {
-      label: "Process started",
-      description: "Fetching relevant Job Titles",
+      label: "Processing jobs",
+      description: "1%",
       min:0
     },
     {
-      label: "Job Titles found!",
+      label: "Talioring Resume",
       description: "10%",
       min:10
     },
     {
-      label: "Getting Jobs from server",
+      label: "Proccessing Resumes",
       description: "40%",
       min:20
     },
     {
-      label: "Processing Jobs",
+      label: "Applying Jobs",
       description: "85%",
       min:85
     },
     {
-      label: "Select the Jobs to apply!",
+      label: "Applied Successfully",
       description: "100%",
       min:100
     }
