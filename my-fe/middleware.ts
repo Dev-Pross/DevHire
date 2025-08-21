@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get('sb-access-token')?.value
-  console.log("token: ",token)
+  const tokenCookie = request.cookies.getAll().find(cookie =>
+    cookie.name.startsWith('sb-') && cookie.name.endsWith('-auth-token')
+  );
+  const token = tokenCookie?.value
+  // console.log("token: ",token)
+
   if (!token) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
@@ -11,5 +15,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/Jobs/:path*'],
+  matcher: ['/Jobs/:path*','/apply'],
 }

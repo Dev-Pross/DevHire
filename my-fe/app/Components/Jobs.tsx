@@ -1,7 +1,7 @@
 "use client"
 import React, { useEffect, useRef, useState } from 'react';
 import JobCards from './JobCards';
-import sendUrl from '../utiles/agentsCall';
+import {sendUrl} from '../utiles/agentsCall';
 
   const steps = [
     {
@@ -36,6 +36,10 @@ const Jobs = ({ url="", userId="",password="" }) => {
   const intervalRef = useRef<number | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [jobs, setJobs] = useState<any>();
+
+  url="https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/SRINIVAS_SAI_SARAN_TEJA%20(1).pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS9TUklOSVZBU19TQUlfU0FSQU5fVEVKQSAoMSkucGRmIiwiaWF0IjoxNzU0Mzc4OTgwLCJleHAiOjE3NTY5NzA5ODB9.1unaMom_BGXfxkvFB95XUMFLw7FOoVzMDBwzrJI8mOs"
+  userId="linkedinpostgenerator@gmail.com"
+  password="mDEccH86!zmGr:_"
   
 
   useEffect(()=>{

@@ -1,3 +1,4 @@
+import math
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl
 from typing import List, Dict, Any
@@ -11,6 +12,7 @@ import tempfile
 import os
 
 # Import your existing modules
+from main.progress_dict import apply_progress
 from agents.tailor import process_batch
 from agents.apply_agent import main as applier_main  # Your async main function from index.py
 
@@ -68,10 +70,14 @@ async def apply_jobs_route(request: ApplyJobRequest):
         batch_size = 15
         total_applied = 0
         total_failed = 0
+
+        apply_progress[request.user_id] = 0
+
         
         for i in range(0, len(jobs_data), batch_size):
             batch_jobs = jobs_data[i:i+batch_size]
             batch_number = i//batch_size + 1
+            batches = math.ceil(len(jobs_data)/batch_size)
             
             logging.info(f"Processing batch {batch_number}: jobs {i+1}-{min(i+batch_size, len(jobs_data))}")
             
@@ -103,10 +109,15 @@ async def apply_jobs_route(request: ApplyJobRequest):
                 total_failed += len(tailored_batch) - applied_count
                 logging.info(f"Batch {batch_number} results: {applied_count} applied")
             
+            #update the progress dictionary
+            apply_progress[request.user_id] += 100 / batches
+            logging.info(f"progress: {apply_progress[request.user_id]}%")
+            
             # Sleep between batches (except for last batch)
             if i + batch_size < len(jobs_data):
                 logging.info("Pause 30s before next batch")
-                time.sleep(30)
+                await asyncio.sleep(30)
+
         
         success_rate = round((total_applied / len(jobs_data)) * 100, 2) if jobs_data else 0
         

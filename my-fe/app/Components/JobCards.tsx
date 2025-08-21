@@ -1,4 +1,6 @@
 "use client"
+
+import { useRouter } from 'next/navigation';
 import React, { useState } from 'react'
 
 interface JobcardProps{
@@ -46,7 +48,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
     //     ];
 
 
-
+    const router = useRouter()
     const [selectedIds, setSelectedIds] = useState<{job_id: string, job_url: string, job_description: string}[]>([])
 
     const selectAllHandler = ()=>{
@@ -70,7 +72,11 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
             console.log("please select jobs to proceed");
             return
         }
-        console.log("data sending to apply agent...", selectedIds);
+        else{
+            console.log("data sending to apply agent...", selectedIds);
+            // const encodedData = encodeURIComponent(JSON.stringify(selectedIds));
+            // router.push(`/apply?jobs=${encodedData}`);
+        }
         
     }
     
