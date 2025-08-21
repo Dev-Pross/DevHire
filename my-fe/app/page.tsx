@@ -6,6 +6,7 @@ import Register from "./Components/Register";
 import { supabase } from "./utiles/supabaseClient";
 import Jobs from "./Components/Jobs";
 import {HeroTalent} from "./Components/Landing-Page/hero-section";
+import Apply from "./Components/Apply";
 // import HeroTalent from "./Components/Landing-Page/HeroTalent";
 export default function Home() {
   const data = {
@@ -55,7 +56,7 @@ export default function Home() {
         < Register /> */}
         {/* <Jobs url={ url } userId={ userid} password={password} />
         <> */}
-        <HeroTalent/>
+        <Apply/>
       </div>
     </div>
   );
