@@ -35,12 +35,12 @@ export const HeroTalent = () => {
   }, []);
   return (
     <section className="h-screen w-full flex items-center px-30  ">
-      <div className="flex-1 max-w-xl">
-        <h1 className="text-6xl font-bold text-white  leading-tight mb-6">
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}  >
+        <div className="flex-1 max-w-xl">
+          <h1 className="text-6xl font-bold text-white  leading-tight mb-6">
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}  >
           Build Amazing Products withsome amazing Developers <br />
 
           </motion.div>
