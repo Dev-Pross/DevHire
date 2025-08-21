@@ -47,7 +47,11 @@ export const HeroTalent = () => {
         </h1>
 
         {/* <p className="text-xl text-stone-200 mb-8 leading-relaxed"> */}
-        <div>
+        <div> 
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}  >
 
           {user ? (
            <button className=" cursor-pointer border  bg-transparent  border-border-green-700 hover:bg-blue-600  text-white px-8 py-4 rounded-lg transition-colors">
@@ -65,22 +69,29 @@ export const HeroTalent = () => {
               </button>
             </div>
           )}
+          </motion.div>
           </div>
 
         {/* <div className="space-x-4">
        
        
         </div> */}
+        
       </div>
 
       <div className="flex-1 flex justify-end opacity-80">
         <div className="relative">
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}  >
           <img
             src="/ne.jpg"
             alt="Product showcase"
             className="w-96 h-150 object-cover rounded-2xl shadow-2xl "
           />
           <div className="absolute -top-4 -right-4 w-24 h-24 bg-blue-500 rounded-full opacity-20"></div>
+          </motion.div>
         </div>
       </div>
     </section>
