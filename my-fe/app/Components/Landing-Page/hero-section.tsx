@@ -9,7 +9,7 @@ export const HeroTalent = () => {
   const [user, setUser] = useState<{ email: string; user: string } | null>(
     null
   );
-const router = useRouter();
+// const router = useRouter();
   useEffect(() => {
     async function fetchSession() {
       const { data, error } = await supabase.auth.getSession();

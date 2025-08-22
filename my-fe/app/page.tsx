@@ -59,7 +59,8 @@ export default function Home() {
         <> */}
         {/* <Apply/>
          */}
-         <UploadButton/>
+         {/* <UploadButton/> */}
+          <HeroTalent/>
       </div>
     </div>
   );

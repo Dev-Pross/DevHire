@@ -132,10 +132,11 @@ export default function UploadButtonPage() {
           )}
         </div>
       )}
+      <br />
       {url && (
         <div className="mt-4">
           <p className="font-semibold">Uploaded File Path:</p>
-          <p className="break-all">{url}</p>  
+          <p className="break-all text-white">{url}</p>  
         </div>
       )}
     </div>
