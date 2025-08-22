@@ -4,11 +4,12 @@ import { useState } from "react";
 import getLoginUser from "@/app/utiles/getUserData";
 import Link from "next/link";
 import { motion  } from "framer-motion";
+import { useRouter } from "next/router";
 export const HeroTalent = () => {
   const [user, setUser] = useState<{ email: string; user: string } | null>(
     null
   );
-
+const router = useRouter();
   useEffect(() => {
     async function fetchSession() {
       const { data, error } = await supabase.auth.getSession();
@@ -54,9 +55,13 @@ export const HeroTalent = () => {
             transition={{ duration: 0.6 }}  >
 
           {user ? (
+            <Link
+            href={ "/UploadButton"}> 
            <button className=" cursor-pointer border  bg-transparent  border-border-green-700 hover:bg-blue-600  text-white px-8 py-4 rounded-lg transition-colors">
                 Upload Resume
+                
               </button>
+               </Link>
           ) : (
             <div className="flex space-x-4">
               <Link href="/login">

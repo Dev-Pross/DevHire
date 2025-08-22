@@ -12,6 +12,7 @@
     "@reduxjs/toolkit": "^2.8.2",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.55.0",
+    "@types/axios": "^0.14.4",
     "axios": "^1.11.0",
     "framer-motion": "^12.23.12",
     "next": "15.4.6",
