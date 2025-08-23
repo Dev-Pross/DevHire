@@ -2,7 +2,8 @@
 import { useState } from "react";
 // import { useRouter } from "next/router";
 import React from "react";
-import { hash } from "bcrypt";
+// import { hash } from "bcrypt";
+import crypto from "crypto-js";
 import { useRouter } from "next/navigation";
 
 export default function LinkedinUserDetailsPage() {
@@ -16,8 +17,11 @@ export default function LinkedinUserDetailsPage() {
         return (e) => {
             e.preventDefault();
             console.log("Logging in with:", data);
-            const  Username = hash(data.username, 10);
-            const Password =hash(data.Password, 10);
+            // const  Username = hash(data.username, 10);
+            // const Password =hash(data.Password, 10);
+            const  Username = crypto.SHA256(data.username).toString();
+            const Password = crypto .SHA256(data.Password).toString();
+            
             // sessionStorage.setItem("linkedinUser", JSON.stringify(data.username));
             // sessionStorage.setItem("linkedinPassword", JSON.stringify(data.Password));
             sessionStorage.setItem("hashedLinkedinUser", JSON.stringify(Username));
