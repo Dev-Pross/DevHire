@@ -146,11 +146,16 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
                     </div>
                 </div>
                 <div className='flex justify-between p-4 bottom-0 absolute w-full'>
-                    <div className='inline-flex  items-center'>
+                    <div className='flex flex-col flex-1  items-center'>
                         <p className='px-1 text-white hover:text-gray-100 font-light text-md '>Recommended : </p>
                         <p className='px-1 text-white hover:text-gray-100 font-bold text-lg '>{job.relevance_score}</p>
                     </div>
-                    <p className='text-white hover:text-gray-100 font-light text-md '>{job.experience && <p>exp: {job.experience}</p>}</p>
+                    {job.experience && 
+                    <div className='flex flex-col flex-1 items-center'>
+                    <p className='text-white hover:text-gray-100 font-light text-md '>experience:</p>
+                    <p className='text-white hover:text-gray-100 font-light text-md '>{job.experience}</p>
+                    </div>
+                    }
                 </div>
             </label>
         ))}

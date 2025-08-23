@@ -191,9 +191,9 @@ console.log("jwt:",jwt);
                 `}
               >
                 {index < currentStep ? (
-                  <svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#fff" /></svg>
+                  <svg width="10" height="10"><circle cx="5.5" cy="5" r="5" fill="#fff" /></svg>
                 ) : index === currentStep ? (
-                  <div className="w-3 h-3 rounded-full bg-blue-400" />
+                  <div className="w-3 h-3 rounded-full bg-blue-400 animate-spin" />
                 ) : null}
               </div>
               {/* Vertical Line */}

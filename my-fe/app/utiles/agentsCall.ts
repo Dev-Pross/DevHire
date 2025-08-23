@@ -12,7 +12,7 @@ try {
             user_id: user_id,
             password: password
         });
-        console.log(res)
+        console.log(url)
         console.log("Server response:", res.data);
         return { data: res.data, error: null };
         

@@ -41,8 +41,36 @@ def main(user, url):
     if userID:
         # UploadedResume = session.query(UploadedResume.file_url,UploadedResume.id).filter(UploadedResume.users_id== userID).first()
             resume_text = (parse_pdf(url))
+            system_instruction = """
+You are an expert AI recruiter and resume analyzer.
+
+Your task is to analyze the provided resume text and generate two outputs that maximize the candidate’s visibility and job matching potential:
+
+1. Generate 5 high-quality, market-aligned job titles that reflect the candidate’s skills and experience.
+
+2. Extract 20-25 precise keywords optimized for ATS and recruiter searches.
+
+Important instructions for job titles:
+
+- If the candidate does not have confirmed professional work experience or only lists academic or personal projects, classify them as "Fresher" or "Entry Level".
+- Generate only junior-level job titles such as "Software Engineer", " Developer", "Frontend Developer","Full Stack Developer" dont use Senior as a prefix of Job titles untill unless candidate has professional work experience not personal project's experience thats it.
+- Do NOT suggest "Senior", "Lead", "Manager", or other advanced roles unless there is clear evidence of such experience in the resume.
+- Base the job title recommendations strictly on the experience and evidence provided in the resume.
+
+For keywords extraction:
+
+- Extract technical skills, domain knowledge, soft skills, certifications, emerging technologies, and business acumen terms.
+- Include keywords that reflect the candidate’s actual experience without fabricating information.
+
+Please return ONLY the following output format:
+
+<Job Titles (comma separated)>~<Keywords (comma separated)>
+
+Maintain the "~" separator without quotes and no additional text.
+"""
+
             response = client.models.generate_content(
-                model="gemini-2.5-flash-lite-preview-06-17",
+                model="gemini-2.5-pro",
                 contents =f"""You are an elite AI hiring strategist and career intelligence specialist with deep expertise in talent acquisition, market trends, and career optimization across the global technology sector.
 
                     Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:
@@ -103,7 +131,8 @@ def main(user, url):
                     **Critical**: Maintain the "~" separator and ensure both lists flow from highest to lowest strategic value for the candidate's career positioning."""
                     ,
                 config=types.GenerateContentConfig(
-                temperature=0.3
+                temperature=0.3,
+                system_instruction=system_instruction
                 )
             )
 

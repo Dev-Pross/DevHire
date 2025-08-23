@@ -11,7 +11,8 @@ if sys.platform == "win32":
 from playwright.async_api import async_playwright
 from concurrent.futures import ThreadPoolExecutor
 import json
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from urllib.parse import urlparse
 from config import GOOGLE_API, LINKEDIN_ID, LINKEDIN_PASSWORD
 
@@ -52,7 +53,7 @@ FILTERING_KEYWORDS = [
 
 PROCESSED_JOB_URLS = set()
 LOGGED_IN_CONTEXT = None
-
+MODEL_NAME="gemini-2.5-pro"
 # ---------------------------------------------------------------------------
 # 1. ENHANCED LOGIN FUNCTIONALITY
 # ---------------------------------------------------------------------------
@@ -849,50 +850,53 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
 # 5. GEMINI API PROCESSING FUNCTIONS (OPTIMIZED)
 # ---------------------------------------------------------------------------
 
-genai.configure(api_key=GOOGLE_API)
-model = genai.GenerativeModel("gemini-2.5-pro")
+client = genai.Client(api_key=GOOGLE_API)
 
 def create_bulk_prompt(jobs_dict: dict) -> str:
-    SYSTEM_PROMPT = """
-    You are a professional job-data extraction specialist. Extract structured information for ALL jobs and return a JSON array.
-    
-    EXTRACTION RULES:
-    - Extract Job ID from URL (number after /jobs/view/)
-    - Extract proper titles.
-    - Dont make any syntax errors for JSON file.
-    - For location: Default to "India" since search was India-filtered  
-    - For Experience: Look for years, "freshers", "entry level"
-    - For Salary: Include currency (₹, INR, $, USD)
-    - Extract key technical skills/technologies mentioned
-    - Company name from job description
-    - Make sure I need 100% accurate data, dont make up anything and dont leave any field blank, all info is avaliable in description and url it self so, dont say anything is not avaliable or not specified be careful and take your time to get best results   
-    
-    RETURN FORMAT:
-    [
-      {
-        "title": "job title",
-        "job_id": "extracted from URL", 
-        "company_name": "company name",
-        "location": "location",
-        "experience": "experience requirement",
-        "salary": "salary if mentioned",
-        "key_skills": ["skill1", "skill2", "skill3"],
-        "job_url": "full URL",
-        "posted_at": "when posted",
-        "job_description": "full description",
-        "source": "linkedin",
-        "relevance_score": "high/medium/low based on technical content"
-      },
-    ]
-    
-    Return ONLY the JSON array.
-    """
-    
-    prompt = f"{SYSTEM_PROMPT}\n\nProcess {len(jobs_dict)} jobs:\n"
-    for idx, (url, jd) in enumerate(jobs_dict.items(), 1):
-        prompt += f"\n--- JOB {idx} ---\nURL: {url}\nDESCRIPTION:\n{jd[:1500]}...\n"
-    
+    system_instruction = """
+You are a professional job data extractor.
+
+For each job entry provided:
+
+- Extract and output all the following fields exactly as named: "title", "job_id", "company_name", "location", "experience", "salary", 
+  "key_skills", "job_url", "posted_at", "job_description", "source", and "relevance_score".
+
+- Extract the job_id from the URL after '/jobs/view/'.
+
+- Use the job description text to find all other fields.
+
+- Provide the output only as a pure JSON array, no explanations or extra text.
+
+If any field is not present, use "Not Available" or empty list [] accordingly.
+
+Example:
+[
+  {
+    "title": "Software Engineer",
+    "job_id": "123456",
+    "company_name": "ABC Corp",
+    "location": "India",
+    "experience": "2 years",
+    "salary": "₹4,00,000 - ₹6,00,000",
+    "key_skills": ["JavaScript", "React", "Node.js"],
+    "job_url": "https://linkedin.com/jobs/view/123456",
+    "posted_at": "2 days ago",
+    "job_description": "...",
+    "source": "linkedin",
+    "relevance_score": "high"
+  },
+  ...
+]
+
+"""
+
+    prompt = system_instruction + f"\nProcess {len(jobs_dict)} jobs:\n"
+    for idx, (url, desc) in enumerate(jobs_dict.items(), 1):
+        safe_desc = desc.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+        prompt += f'\n--- JOB {idx} ---\njob_url: "{url}"\njob_description: "{safe_desc[:1500]}"\n'
     return prompt
+
+
 
 def create_fallback_data_from_dict(url: str, job_description: str) -> dict:
     return {
@@ -944,8 +948,36 @@ def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
 
 async def extract_single_batch(batch_dict: dict) -> list:
     prompt = create_bulk_prompt(batch_dict)
-    response = model.generate_content(prompt)
-    return parse_bulk_response(response.text, batch_dict)
+    max_tries=3
+    delay=1
+    for attempt in range(max_tries):
+        try:
+
+            system_instruction = """
+                You are a professional job-data extraction specialist. Extract precisely the requested job titles and keywords, ensuring accuracy and consistency. Follow these rules strictly:
+                - Do not invent data not present.
+                - Use formal, clear, structured format.
+                - Prioritize ATS keywords and recruiter-friendly titles.
+                - Avoid company names or sensitive project code names.
+                - Following the prompt as it is and make sure data should align properly.
+                """
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.3,
+                )
+            )
+            return parse_bulk_response(response.text, batch_dict)
+        except Exception as e:
+            print(f"❌ Attempt {attempt +1} failed with error: {e}")
+            if attempt < max_tries - 1:
+                await asyncio.sleep(delay)
+                delay *= 2  # exponential backoff
+            else:
+                print("Max retries reached, exiting batch.")
+
 
 async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25) -> list:  # Increased batch size
     all_extracted = []
