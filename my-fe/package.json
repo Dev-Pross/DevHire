@@ -13,9 +13,13 @@
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.55.0",
     "@types/axios": "^0.14.4",
+    "@types/bcrypt": "^6.0.0",
     "axios": "^1.11.0",
+    "bcrypt": "^6.0.0",
     "framer-motion": "^12.23.12",
+    "isntall": "^0.0.1-security",
     "next": "15.4.6",
+    "npm": "^11.5.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-redux": "^9.2.0"

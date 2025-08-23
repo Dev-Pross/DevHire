@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 // import { useRouter } from "next/router";
+import React from "react";
+import { hash } from "bcrypt";
 import { useRouter } from "next/navigation";
 
 export default function LinkedinUserDetailsPage() {
@@ -14,8 +16,12 @@ export default function LinkedinUserDetailsPage() {
         return (e) => {
             e.preventDefault();
             console.log("Logging in with:", data);
-            sessionStorage.setItem("linkedinUser", JSON.stringify(data.username));
-            sessionStorage.setItem("linkedinPassword", JSON.stringify(data.Password));
+            const  Username = hash(data.username, 10);
+            const Password =hash(data.Password, 10);
+            // sessionStorage.setItem("linkedinUser", JSON.stringify(data.username));
+            // sessionStorage.setItem("linkedinPassword", JSON.stringify(data.Password));
+            sessionStorage.setItem("hashedLinkedinUser", JSON.stringify(Username));
+            sessionStorage.setItem("hashedLinkedinPassword", JSON.stringify(Password));
             router.push("/");
             // alert("Linkedin details saved in session storage.");
         };
