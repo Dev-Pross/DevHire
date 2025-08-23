@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
+// import Link from "next/link";
+import { useRouter } from "next/navigation";
 // import Button from "../components/Button";
 // import Button from "../../components/Button";
 import Button from "../Components/Button";
@@ -10,65 +12,68 @@ import { supabase } from "../utiles/supabaseClient";
 const s3Endpoint = process.env.NEXT_PUBLIC_S3_ENDPOINT as string;
 const s3Region = process.env.NEXT_PUBLIC_AWS_REGION as string;
 const s3AccessKeyId = process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID as string;
-const s3SecretAccessKey = process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY as string;
-const s3Bucket = process.env.NEXT_PUBLIC_S3_BUCKET as string || "user-name";
+const s3SecretAccessKey = process.env
+  .NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY as string;
+const s3Bucket = (process.env.NEXT_PUBLIC_S3_BUCKET as string) || "user-name";
 
 export default function UploadButtonPage() {
-  const [url , setUrl] = useState("");
+const roouter = useRouter();
+
+  const [url, setUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
-//   const [user, setUser] = useState<User | null>(null);
-//   useEffect(() => {
-//   supabase.auth.getUser().then(({ data }) => {
-//     setUser(data.user);
-//   });
-// }, []);
-// console.log("user:", user);
+  //   const [user, setUser] = useState<User | null>(null);
+  //   useEffect(() => {
+  //   supabase.auth.getUser().then(({ data }) => {
+  //     setUser(data.user);
+  //   });
+  // }, []);
+  // console.log("user:", user);
   const handleFileButtonClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setUploadError(null);
     setUploadSuccess(null);
     setUploadedUrl(null);
     const file = event.target.files?.[0];
-    
+
     if (!file) return;
 
     setUploading(true);
 
     try {
       const filePath = `${Date.now()}_${file.name}`;
-  
+
       const fileBuffer = await file.arrayBuffer();
 
- 
       const { data, error } = await supabase.storage
-        .from("user-resume")            // your bucket name
+        .from("user-resume") // your bucket name
         .upload(filePath, file, {
           cacheControl: "3600",
           upsert: false,
           contentType: file.type,
         });
 
-        if (error) throw error;
+      if (error) throw error;
 
       const { data: urlData, error: urlError } = await supabase.storage
         .from("user-resume")
         .createSignedUrl(filePath, 3600);
 
-        if (urlError) throw urlError;
+      if (urlError) throw urlError;
 
       setUploadSuccess(`File uploaded successfully: ${file.name}`);
       setUploadedUrl(urlData?.signedUrl || null);
-      setUrl(urlData?.signedUrl || ""  );
+      setUrl(urlData?.signedUrl || "");
       console.log("File available at:", urlData?.signedUrl);
       await sendUrl(urlData?.signedUrl || "");
-
     } catch (error: any) {
       setUploadError(`Upload failed: ${error.message || error.toString()}`);
     } finally {
@@ -83,23 +88,21 @@ export default function UploadButtonPage() {
       const res = await axios.post("http://127.0.0.1:8000/get-jobs", {
         file_url: url,
         user_id: "tejabudumuru3@gmail.com",
-        password: "S@IS@r@N3"
+        password: "S@IS@r@N3",
       });
-      console.log(res)
+      console.log(res);
       console.log("Server response:", res.data);
     } catch (err) {
       console.error("Error sending URL to server:", err);
     }
   }
-  
+
   return (
     <div className="p-40 flex justify-center">
       <Button
-        
         disabled={uploading}
         size="lg"
         variant="primary"
-        
         onClick={handleFileButtonClick}
       >
         <span>{uploading ? "Uploading..." : "Upload Resume"}</span>
@@ -112,9 +115,7 @@ export default function UploadButtonPage() {
         style={{ display: "none" }}
         onChange={handleFileChange}
       />
-      {uploadError && (
-        <div className="text-red-500 mt-2">{uploadError}</div>
-      )}
+      {uploadError && <div className="text-red-500 mt-2">{uploadError}</div>}
       {uploadSuccess && (
         <div className="text-green-500 mt-2">
           {uploadSuccess}
@@ -136,9 +137,24 @@ export default function UploadButtonPage() {
       {url && (
         <div className="mt-4">
           <p className="font-semibold">Uploaded File Path:</p>
-          <p className="break-all text-white">{url}</p>  
+          <p className="break-all text-white">{url}</p>
         </div>
       )}
+      <div>
+        {/* <Link href="/joblist"> */}
+          <Button
+            disabled={uploading}
+            size="lg"
+            variant="primary"
+            onClick={() => {
+              roouter.push("/LinkedinUserDetails");
+            }}
+          >
+            {/* <span>{uploading ? "Uploading..." : "Upload Resume"}</span> */}
+            Linkdedin User Details 
+          </Button>
+        {/* </Link> */}
+      </div>
     </div>
   );
 }
