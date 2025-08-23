@@ -54,7 +54,7 @@ def main(user, url):
                     📊 **ADVANCED ANALYSIS FRAMEWORK:**
 
                     **For JOB TITLES - Apply Multi-Dimensional Matching:**
-                    • **Experience Calibration**: Analyze years of experience, project complexity, and leadership indicators to determine accurate seniority levels (Freshers/Entry/Junior/Mid/Senior/Staff/Principal/Architect/VP) make sure to find the best match for the candidate's experience
+                    • **Experience Calibration**: Analyze years of experience, project complexity, and leadership indicators to determine accurate seniority levels (Freshers/Entry/Junior/Mid/Senior/Staff/Principal/Architect/VP) make sure to find the best match for the candidate's experience. If the candidate has only projects not having any work experinece he mentioned as fresher or entry level whatever the projects he done he has to mention his professional working experience like company name and duration all stiff orelse he mention only his personal projects he done consider him as fresher or entry level
                     • **Skill Intersection Analysis**: Identify overlapping competencies to suggest hybrid roles (e.g., "Full Stack Engineer", "DevSecOps Specialist", "AI/ML Engineer") dont give the general titles unless the candidate has not worked on any specific domain or technology that may be a personal project or an organization project
                     • **Market Positioning**: Include both traditional titles recruiters search for AND emerging/trendy titles gaining market traction
                     • **Industry Verticals**: Consider domain expertise (FinTech, HealthTech, EdTech, E-commerce, Gaming, etc.) for specialized titles

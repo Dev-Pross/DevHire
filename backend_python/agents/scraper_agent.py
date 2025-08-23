@@ -235,6 +235,10 @@ async def linkedin_login(browser):
 
         if "challenge" in current_url:
             print(f"{Colors.RED}❌ Login challenge detected! Please resolve manually.{Colors.END}")
+
+        if "feed" not in current_url:
+             print(f"{Colors.RED}❌ Login Failed!{Colors.END}")
+             return
         
         await debug_capture_page(page, "03_after_login_click")
 
@@ -846,7 +850,7 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
 # ---------------------------------------------------------------------------
 
 genai.configure(api_key=GOOGLE_API)
-model = genai.GenerativeModel("gemini-2.5-flash-lite")
+model = genai.GenerativeModel("gemini-2.5-pro")
 
 def create_bulk_prompt(jobs_dict: dict) -> str:
     SYSTEM_PROMPT = """
@@ -861,6 +865,7 @@ def create_bulk_prompt(jobs_dict: dict) -> str:
     - For Salary: Include currency (₹, INR, $, USD)
     - Extract key technical skills/technologies mentioned
     - Company name from job description
+    - Make sure I need 100% accurate data, dont make up anything and dont leave any field blank, all info is avaliable in description and url it self so, dont say anything is not avaliable or not specified be careful and take your time to get best results   
     
     RETURN FORMAT:
     [

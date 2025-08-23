@@ -81,6 +81,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
                 job_description,
                 }));
             localStorage.setItem("jobs",JSON.stringify(refinedJobs))
+            router.push("/apply")
         }
         
     }
@@ -118,7 +119,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
         {jobs.map(job => (
             <label
                 key={job.job_id}
-                className={`m-5 ml-8 mr-8 ml-4 rounded-xl h-100 cursor-pointer max-w-sm bg-[#052718] shadow-lg shadow-[#052718]-500 relative 
+                className={`m-5 ml-8 mr-8 ml-4 rounded-xl h-100 cursor-pointer min-w-sm max-w-sm bg-[#052718] shadow-lg shadow-[#052718]-500 relative 
                             ${selectedIds.some(selectedJob => selectedJob.job_id === job.job_id) ? 'border border-white shadow-white/50' : 'border border-transparent'} `}
                 onClick={(e) => cardHandler(e, { job_id: job.job_id, job_url: job.job_id, job_description: job.job_description })}
             >

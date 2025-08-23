@@ -1,37 +1,38 @@
 "use client";
-import { useState } from "react";
-// import { useRouter } from "next/router";
-import React from "react";
-// import { hash } from "bcrypt";
-import crypto from "crypto-js";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LinkedinUserDetailsPage() {
-    const router = useRouter();
-    const [ data , setData] = useState({
-        username :"",
-        Password : ""
-    })
+  const router = useRouter();
+  const [data, setData] = useState({ username: "", password: "" });
 
-    function HandleLogin(): React.MouseEventHandler<HTMLButtonElement> {
-        return (e) => {
-            e.preventDefault();
-            console.log("Logging in with:", data);
-            // const  Username = hash(data.username, 10);
-            // const Password =hash(data.Password, 10);
-            const  Username = crypto.SHA256(data.username).toString();
-            const Password = crypto .SHA256(data.Password).toString();
-            
-            // sessionStorage.setItem("linkedinUser", JSON.stringify(data.username));
-            // sessionStorage.setItem("linkedinPassword", JSON.stringify(data.Password));
-            sessionStorage.setItem("hashedLinkedinUser", JSON.stringify(Username));
-            sessionStorage.setItem("hashedLinkedinPassword", JSON.stringify(Password));
-            router.push("/");
-            // alert("Linkedin details saved in session storage.");
-        };
-        
+  async function sendCredentials(data: { username: string; password: string }) {
+    try {
+      const res = await fetch("http://localhost:3000/api/store", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (res.ok) {
+        console.log("credentials stored successfully");
+      } else {
+        console.log("error storing credentials", json);
+      }
+    } catch (error) {
+      console.log("network error:", error);
     }
+  }
 
+  async function handleLogin(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    console.log("Logging in with:", data);
+
+    await sendCredentials(data);
+
+    router.push("/");
+  }
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
       <h1 className="text-3xl font-bold mb-6">LinkedIn User Details</h1>
@@ -56,10 +57,10 @@ export default function LinkedinUserDetailsPage() {
             type="password"
             className="w-full p-2 border border-gray-300 rounded mb-4"
             placeholder="Enter your LinkedIn password"
-            value={data.Password}
-            onChange={(e) => setData({...data, Password : e.target.value})}
+            value={data.password}
+            onChange={(e) => setData({...data, password : e.target.value})}
             />
-            <button  onClick={HandleLogin()}  className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 ">
+            <button  onClick={handleLogin}  className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 ">
             Submit
             </button>
         </div>

@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import JobCards from './JobCards';
 import {sendUrl} from '../utiles/agentsCall';
+import CryptoJS from 'crypto-js';
 
   const steps = [
     {
@@ -31,17 +32,70 @@ import {sendUrl} from '../utiles/agentsCall';
     }
   ];
 
-const Jobs = ({ url="", userId="",password="" }) => {
+const Jobs = () => {
 
   const intervalRef = useRef<number | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [jobs, setJobs] = useState<any>();
+  const [url, setUrl] = useState<string>("");
+  const [userId, setUserId]  =useState<string>("")
+  const [password, setPassword] = useState<string>("")
 
-  url="https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/SRINIVAS_SAI_SARAN_TEJA%20(1).pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS9TUklOSVZBU19TQUlfU0FSQU5fVEVKQSAoMSkucGRmIiwiaWF0IjoxNzU0Mzc4OTgwLCJleHAiOjE3NTY5NzA5ODB9.1unaMom_BGXfxkvFB95XUMFLw7FOoVzMDBwzrJI8mOs"
-  userId="tejabudumuru3@gmail.com"
-  password="S@IS@r@N3"
+
+  let jwt=""
+
+  const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456" // ensure 32 bytes for AES-256
+  const IV = "741852963qwerty0"
+
+  function decryptData(ciphertextBase64: string, keyStr: string, ivStr: string) {
+    const key = CryptoJS.enc.Utf8.parse(keyStr);
+    const iv = CryptoJS.enc.Utf8.parse(ivStr);
+
+    const decrypted = CryptoJS.AES.decrypt(ciphertextBase64, key, {
+      iv: iv,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    });
+  return decrypted.toString(CryptoJS.enc.Utf8);
+}
+
+
+   useEffect(() => {
+    const pdf = sessionStorage.getItem("resume")
+    if(pdf)
+      setUrl(pdf)
+      
+
+    async function fetchEncryptedCredentials() {
+      try {
+        const res = await fetch("http://localhost:3000/api/get-data", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+
+        const json = await res.json();
+        jwt=json.encryptedData as string
+
+        if (json.encryptedData) {
+          const decrypted = decryptData(json.encryptedData, ENC_KEY, IV);
+          const credentials = JSON.parse(decrypted);
+          setUserId(credentials.username);
+          setPassword(credentials.password);
+          console.log("Decrypted user credentials:", userId," ",password);
+        } else {
+          console.error("No encryptedData in response");
+        }
+      } catch (error) {
+        console.error("Error fetching or decrypting credentials:", error);
+      }
+    }
+
+    fetchEncryptedCredentials();
+  }, []);
+
+  console.log("encrypted data: ", jwt)
   
-
   useEffect(()=>{
     const fetchJobs = async()=>{
       if(url==="" &&  userId==="" && password===""){
@@ -107,12 +161,14 @@ const Jobs = ({ url="", userId="",password="" }) => {
       console.log("user id not provided");
       
     }
-  },[])
 
+  },[userId,password])
 
  
 
-console.log("current step: ",currentStep);  
+console.log("current step: ",currentStep); 
+console.log("jwt:",jwt);
+ 
 
   return (
     <div className='flex'>

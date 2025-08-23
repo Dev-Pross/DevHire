@@ -65,7 +65,7 @@ const roouter = useRouter();
 
       const { data: urlData, error: urlError } = await supabase.storage
         .from("user-resume")
-        .createSignedUrl(filePath, 3600);
+        .createSignedUrl(filePath, 86400);
 
       if (urlError) throw urlError;
 
@@ -73,7 +73,9 @@ const roouter = useRouter();
       setUploadedUrl(urlData?.signedUrl || null);
       setUrl(urlData?.signedUrl || "");
       console.log("File available at:", urlData?.signedUrl);
-      await sendUrl(urlData?.signedUrl || "");
+      sessionStorage.setItem("resume",urlData?.signedUrl || "")
+      // await sendUrl(urlData?.signedUrl || "");
+
     } catch (error: any) {
       setUploadError(`Upload failed: ${error.message || error.toString()}`);
     } finally {
@@ -81,21 +83,6 @@ const roouter = useRouter();
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
-
-  async function sendUrl(url: string) {
-    if (!url) return;
-    try {
-      const res = await axios.post("http://127.0.0.1:8000/get-jobs", {
-        file_url: url,
-        user_id: "tejabudumuru3@gmail.com",
-        password: "S@IS@r@N3",
-      });
-      console.log(res);
-      console.log("Server response:", res.data);
-    } catch (err) {
-      console.error("Error sending URL to server:", err);
-    }
-  }
 
   return (
     <div className="p-40 flex justify-center">
