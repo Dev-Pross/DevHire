@@ -6,7 +6,6 @@ interface ButtonProps {
   variant?: "primary" | "secondary";
   size?: "sm" | "md" | "lg";
   disabled: boolean;
-
 }
 
 const Button = ({
