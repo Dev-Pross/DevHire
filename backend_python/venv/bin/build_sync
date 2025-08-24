@@ -1,0 +1,10 @@
+#!/bin/sh
+'''exec' "/home/vamsi/Projects/WEB DEV/DevHire/backend_python/venv/bin/python3" "$0" "$@"
+' '''
+# -*- coding: utf-8 -*-
+import re
+import sys
+from cli_scripts import build_sync
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(build_sync())
