@@ -969,6 +969,12 @@ async def extract_single_batch(batch_dict: dict) -> list:
                     temperature=0.3,
                 )
             )
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = f"gemini_scraper{timestamp}.txt"
+            
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(response.text)
             return parse_bulk_response(response.text, batch_dict)
         except Exception as e:
             print(f"❌ Attempt {attempt +1} failed with error: {e}")
