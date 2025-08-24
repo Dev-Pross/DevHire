@@ -948,7 +948,7 @@ def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
 
 async def extract_single_batch(batch_dict: dict) -> list:
     prompt = create_bulk_prompt(batch_dict)
-    max_tries=3
+    max_tries=5
     delay=1
     for attempt in range(max_tries):
         try:

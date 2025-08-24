@@ -9,6 +9,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_API")
 DB_URL = os.getenv("DATABASE_URL")
 GOOGLE_API = os.getenv("GOOGLE_API")
 
+
 LINKEDIN_ID = os.getenv("LINKEDIN_ID")
 LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 
