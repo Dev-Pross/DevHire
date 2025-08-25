@@ -22,30 +22,7 @@ interface JobCardsProps{
     jobs:JobcardProps[];
 }
 
-const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {    
-    
-    // const jobs = [
-    //     {
-    //         "title": "Dot Net Developer - Asp.net MVC",
-    //         "job_id": "4256545499",
-    //         "company_name": null,
-    //         "location": "India",
-    //         "experience": null,
-    //         "salary": null,
-    //         "key_skills": [
-    //         ".Net MVC",
-    //         ".Net Core",
-    //         "MS SQL Server",
-    //         "JavaScript",
-    //         "JQuery"
-    //         ],
-    //         "job_url": "https://in.linkedin.com/jobs/view/4256545499/",
-    //         "posted_at": null,
-    //         "job_description": "About the job\n\nJob Description\n\nExperience with .Net MVC, .Net core, MS SQL Server.\n\nGood to have Experience in agile development\n\nGood to have Experience in java script ,JQuery\n\nExperience to handle activities such as release coordination, interaction with various teams\n\nStrong understanding and Experience with .Net Framework\n\nSkills Required\n\nRoleDot Net Developer - Asp.net MVC\n\nIndustry TypeIT/ Computers - Software\n\nFunctional AreaIT-Software\n\nRequired EducationB Tech, B. COM, BBA\n\nEmployment TypeFull Time, Permanent\n\nKey Skills\n\n\n.NET DEVELOPER\nJAVASCRIPT\n\n\nOther Information\n\nJob CodeGO/JC/480/2025\n\nRecruiter NameMithra Dayalan\n\n\n\nDesired Skills and Experience\n\nNET DEVELOPER, JAVASCRIPT",
-    //         "source": "linkedin",
-    //         "relevance_score": "high"
-    //     },
-    //     ];
+const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
 
 
     const router = useRouter()
@@ -74,13 +51,12 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
         }
         else{
             console.log("data sending to apply agent...", selectedIds);
-            // const encodedData = encodeURIComponent(JSON.stringify(selectedIds));
-            // router.push(`/apply?jobs=${encodedData}`);
             const refinedJobs = selectedIds.map(({ job_url, job_description }) => ({
                 job_url,
                 job_description,
                 }));
-            localStorage.setItem("jobs",JSON.stringify(refinedJobs))
+
+            sessionStorage.setItem("jobs",JSON.stringify(refinedJobs))
             router.push("/apply")
         }
         
@@ -98,7 +74,10 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
             return prev.filter(selectedJob => selectedJob.job_id !== job.job_id);
             } else {
             // Add job to selection
-            return [...prev, job];
+            console.log("previos ",prev);
+            // const previous = prev.map(j=>j.job_id,job.job_url,job.job_description)
+            
+            return [...prev, {job_url: job.job_url, job_id: job.job_id, job_description:job.job_description}];
             }
         });
     console.log(selectedIds.length);
@@ -121,7 +100,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
                 key={job.job_id}
                 className={`m-5 ml-8 mr-8 ml-4 rounded-xl h-100 cursor-pointer min-w-sm max-w-sm bg-[#052718] shadow-lg shadow-[#052718]-500 relative 
                             ${selectedIds.some(selectedJob => selectedJob.job_id === job.job_id) ? 'border border-white shadow-white/50' : 'border border-transparent'} `}
-                onClick={(e) => cardHandler(e, { job_id: job.job_id, job_url: job.job_id, job_description: job.job_description })}
+                onClick={(e) => cardHandler(e, { job_id: job.job_id, job_url: job.job_url, job_description: job.job_description })}
             >
                 <input
                 type='checkbox'

@@ -104,7 +104,7 @@ const Apply: React.FC<ApplyProps> = () => {
     }, []);
 
   useEffect(() => {
-    const job_data = localStorage.getItem("jobs");
+    const job_data = sessionStorage.getItem("jobs");
     if (job_data) {
       setJobs(JSON.parse(job_data));
     }
