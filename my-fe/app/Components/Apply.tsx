@@ -51,57 +51,58 @@ const Apply: React.FC<ApplyProps> = () => {
   >([]);
 
   const [url, setUrl] = useState<string>("");
-  const [userId, setUserId]  =useState<string>("")
-  const [password, setPassword] = useState<string>("")
+  const [userId, setUserId] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
 
-    const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456" // ensure 32 bytes for AES-256
-    const IV = "741852963qwerty0"
-  
-    function decryptData(ciphertextBase64: string, keyStr: string, ivStr: string) {
-      const key = CryptoJS.enc.Utf8.parse(keyStr);
-      const iv = CryptoJS.enc.Utf8.parse(ivStr);
-  
-      const decrypted = CryptoJS.AES.decrypt(ciphertextBase64, key, {
-        iv: iv,
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7,
-      });
+  const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456"; // ensure 32 bytes for AES-256
+  const IV = "741852963qwerty0";
+
+  function decryptData(
+    ciphertextBase64: string,
+    keyStr: string,
+    ivStr: string
+  ) {
+    const key = CryptoJS.enc.Utf8.parse(keyStr);
+    const iv = CryptoJS.enc.Utf8.parse(ivStr);
+
+    const decrypted = CryptoJS.AES.decrypt(ciphertextBase64, key, {
+      iv: iv,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    });
     return decrypted.toString(CryptoJS.enc.Utf8);
   }
-  
-  
-     useEffect(() => {
-      const pdf = sessionStorage.getItem("resume")
-      if(pdf)
-        setUrl(pdf)
-        
-  
-      async function fetchEncryptedCredentials() {
-        try {
-          const res = await fetch("http://localhost:3000/api/get-data", {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-          });
-  
-          const json = await res.json();
-  
-          if (json.encryptedData) {
-            const decrypted = decryptData(json.encryptedData, ENC_KEY, IV);
-            const credentials = JSON.parse(decrypted);
-            setUserId(credentials.username);
-            setPassword(credentials.password);
-            console.log("Decrypted user credentials:", userId," ",password);
-          } else {
-            console.error("No encryptedData in response");
-          }
-        } catch (error) {
-          console.error("Error fetching or decrypting credentials:", error);
+
+  useEffect(() => {
+    const pdf = sessionStorage.getItem("resume");
+    if (pdf) setUrl(pdf);
+
+    async function fetchEncryptedCredentials() {
+      try {
+        const res = await fetch("http://localhost:3000/api/get-data", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+
+        const json = await res.json();
+
+        if (json.encryptedData) {
+          const decrypted = decryptData(json.encryptedData, ENC_KEY, IV);
+          const credentials = JSON.parse(decrypted);
+          setUserId(credentials.username);
+          setPassword(credentials.password);
+          console.log("Decrypted user credentials:", userId, " ", password);
+        } else {
+          console.error("No encryptedData in response");
         }
+      } catch (error) {
+        console.error("Error fetching or decrypting credentials:", error);
       }
-  
-      fetchEncryptedCredentials();
-    }, []);
+    }
+
+    fetchEncryptedCredentials();
+  }, []);
 
   useEffect(() => {
     const job_data = sessionStorage.getItem("jobs");
