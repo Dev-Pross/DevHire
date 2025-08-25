@@ -12,3 +12,11 @@ node_modules/
 /frontend
 my-fe/package.json
 my-fe/package-lock.json
+backend_python/data_dump/playwright.config.ts
+backend_python/data_dump/template.html
+backend_python/venv
+
+.DS_Store
+.vscode
+.idea
+*.log

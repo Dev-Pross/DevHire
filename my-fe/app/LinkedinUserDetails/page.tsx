@@ -39,31 +39,34 @@ export default function LinkedinUserDetailsPage() {
       <p className="text-lg text-gray-700">
         This is a placeholder for LinkedIn user details.
       </p>
-        <div className="mt-6 p-4 bg-white rounded shadow-md w-96">
-            <label className="block mb-2 text-sm font-medium text-gray-700">
-            Username:
-            </label>
-            <input
-            type="text"
-            className="w-full p-2 border border-gray-300 rounded mb-4"
-            placeholder="Enter your LinkedIn username"
-            value={data.username}
-            onChange={(e) => setData({...data, username : e.target.value})}
-            />
-            <label className="block mb-2 text-sm font-medium text-gray-700">
-            Password:
-            </label>
-            <input
-            type="password"
-            className="w-full p-2 border border-gray-300 rounded mb-4"
-            placeholder="Enter your LinkedIn password"
-            value={data.password}
-            onChange={(e) => setData({...data, password : e.target.value})}
-            />
-            <button  onClick={handleLogin}  className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 ">
-            Submit
-            </button>
-        </div>
+      <div className="mt-6 p-4 bg-white rounded shadow-md w-96">
+        <label className="block mb-2 text-sm font-medium text-gray-700">
+          Username:
+        </label>
+        <input
+          type="text"
+          className="w-full p-2 border border-gray-300 rounded mb-4"
+          placeholder="Enter your LinkedIn username"
+          value={data.username}
+          onChange={(e) => setData({ ...data, username: e.target.value })}
+        />
+        <label className="block mb-2 text-sm font-medium text-gray-700">
+          Password:
+        </label>
+        <input
+          type="password"
+          className="w-full p-2 border border-gray-300 rounded mb-4"
+          placeholder="Enter your LinkedIn password"
+          value={data.password}
+          onChange={(e) => setData({ ...data, password: e.target.value })}
+        />
+        <button
+          onClick={handleLogin}
+          className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 "
+        >
+          Submit
+        </button>
+      </div>
     </div>
   );
 }
