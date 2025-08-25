@@ -140,16 +140,18 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
                 </div>
                 <div className='max-w-lg'>
                     <div className='flex p-2 flex-wrap'>
-                        {job.key_skills.slice(0,10).map((skill,idx)=>(
+                        {job.key_skills.slice(0,6).map((skill,idx)=>(
                         <p className='px-4  rounded-full m-1 bg-gray-600 text-white font-thin' key={skill+idx}> {skill}</p>
                         ))}
                     </div>
                 </div>
                 <div className='flex justify-between p-4 bottom-0 absolute w-full'>
+                    {job.relevance_score &&
                     <div className='flex flex-col flex-1  items-center'>
                         <p className='px-1 text-white hover:text-gray-100 font-light text-md '>Recommended : </p>
                         <p className='px-1 text-white hover:text-gray-100 font-bold text-lg '>{job.relevance_score}</p>
                     </div>
+}
                     {job.experience && 
                     <div className='flex flex-col flex-1 items-center'>
                     <p className='text-white hover:text-gray-100 font-light text-md '>experience:</p>

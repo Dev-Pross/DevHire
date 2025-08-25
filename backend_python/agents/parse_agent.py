@@ -70,7 +70,7 @@ Maintain the "~" separator without quotes and no additional text.
 """
 
             response = client.models.generate_content(
-                model="gemini-2.5-pro",
+                model="gemini-2.5-flash-lite",
                 contents =f"""You are an elite AI hiring strategist and career intelligence specialist with deep expertise in talent acquisition, market trends, and career optimization across the global technology sector.
 
                     Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:

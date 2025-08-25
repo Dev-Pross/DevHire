@@ -32,7 +32,7 @@ class Colors:
 # Configuration
 PLATFORMS = {
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r3600&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
+        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
         "base_url": "https://in.linkedin.com",
         "login_url": "https://www.linkedin.com/login"
     },
@@ -53,7 +53,7 @@ FILTERING_KEYWORDS = [
 
 PROCESSED_JOB_URLS = set()
 LOGGED_IN_CONTEXT = None
-MODEL_NAME="gemini-2.5-pro"
+MODEL_NAME="gemini-2.5-flash"
 # ---------------------------------------------------------------------------
 # 1. ENHANCED LOGIN FUNCTIONALITY
 # ---------------------------------------------------------------------------
@@ -749,11 +749,11 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
                 has_tech_keywords = any(keyword.lower() in text_lower for keyword in FILTERING_KEYWORDS)
                 
                 # Check for common job-related words (very broad)
-                common_job_words = ['developer', 'engineer', 'software', 'programming', 'coding', 'technical', 'technology', 'web', 'application', 'system']
-                has_job_words = any(word in text_lower for word in common_job_words)
+                # common_job_words = ['developer', 'engineer', 'software', 'programming', 'coding', 'technical', 'technology', 'web', 'application', 'system']
+                # has_job_words = any(word in text_lower for word in common_job_words)
                 
                 # MUCH MORE LENIENT: Accept if ANY of these conditions are met
-                if has_title_keywords or has_tech_keywords or has_job_words:
+                if has_title_keywords or has_tech_keywords:
                     print(f"   ✅ Card {i+1}: Passed keyword filter")
                 else:
                     keyword_filtered += 1
@@ -766,8 +766,6 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
                     # Try multiple methods to find link
                     link_selectors = [
                         'a[href*="/jobs/view"]',
-                        'a[href*="/jobs/"]',
-                        'a',
                         '[href*="/jobs/view"]'
                     ]
                     
@@ -782,7 +780,7 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
                         except:
                             continue
                 
-                if href and '/jobs/' in href:  # More lenient - not just '/jobs/view/'
+                if href and '/jobs/view' in href:  # More lenient - not just '/jobs/view/'
                     full_url = href if href.startswith('http') else config["base_url"] + href
                     clean_url = full_url.split('?')[0]
                     
@@ -867,7 +865,10 @@ For each job entry provided:
 
 - Provide the output only as a pure JSON array, no explanations or extra text.
 
-If any field is not present, use "Not Available" or empty list [] accordingly.
+- Give full 200% attention and efforts to extract all fields properly. 
+
+If any field is not present, use null object or empty list [] accordingly only for "salary", "location", "experience", "posted_date", "source" and "relevance_score" remaining "job_id", "job_description" (use provided description directly here), title exatract mandatory no option for not avaliable or null values here these 3 are mandatory things.
+Make sure all fields should extracted properly don't give null or empty list without extrating data in rare cases use that null or empty list untill unless all fields are mandatory
 
 Example:
 [

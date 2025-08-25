@@ -27,6 +27,7 @@ const Login = () => {
 
         if (supabaseError) {
           console.log("Supabase sign-in failed:", supabaseError.message);
+          setError(supabaseError.message)
         } else {
           console.log("Login successful");
           router.push("/");
@@ -35,8 +36,10 @@ const Login = () => {
     } catch (err: any) {
       if (err && err.response && err.response.status === 401) {
         console.log("Invalid email or password.");
+        setError("Invalid email or password.")
       } else {
         console.log("An error occurred during signin.");
+        setError("An error occurred during signin. Please try again. ")
       }
       console.log(err);
     }
