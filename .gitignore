@@ -15,7 +15,7 @@ my-fe/package-lock.json
 backend_python/data_dump/playwright.config.ts
 backend_python/data_dump/template.html
 backend_python/venv
-
+backend_python/gem
 .DS_Store
 .vscode
 .idea
