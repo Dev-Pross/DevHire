@@ -57,7 +57,7 @@ export const HeroTalent = () => {
             {user ? (
               <Link href={"/LinkedinUserDetails"}>
                 <button className=" cursor-pointer border  bg-transparent  border-border-green-700 hover:bg-blue-600  text-white px-8 py-4 rounded-lg transition-colors">
-                  Upload Resumedsdgsd
+                  Upload Resume
                 </button>
               </Link>
             ) : (
