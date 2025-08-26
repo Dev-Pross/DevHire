@@ -1087,8 +1087,7 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
             raise Exception("failed to parse resume")
         # gemini to gett the user detils
         prompt = gemini_prompt_builder(org_resume)
-        print("prompt:",prompt)
-        print("="*60)
+
 
         response = client.models.generate_content(
             model="gemini-2.5-flash",
@@ -1105,8 +1104,8 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
 
         parsed = json.loads(clean)
 
-        with open("data_from_gemini.json","w") as f:
-            json.dump(parsed, f, indent=4)
+        # with open("data_from_gemini.json","w") as f:
+        #     json.dump(parsed, f, indent=4)
         print(clean)
 
         if parsed.get("candidate_name"):
