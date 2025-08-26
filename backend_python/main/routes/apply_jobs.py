@@ -35,13 +35,13 @@ class ApplyJobResponse(BaseModel):
 
 router = APIRouter()
 
-def run_applier_in_new_loop(applications, user_id=None, password=None):
+def run_applier_in_new_loop(applications, user_id=None, password=None,resum_url=None):
     """Run applier in a new event loop - same pattern as your list_jobs.py"""
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(applier_main(applications,user_id,password))
+            result = loop.run_until_complete(applier_main(applications,user_id,password,resum_url))
             return result
         finally:
             loop.close()
@@ -94,7 +94,8 @@ async def apply_jobs_route(request: ApplyJobRequest):
                     run_applier_in_new_loop,
                     tailored_batch,
                     request.user_id,
-                    request.password
+                    request.password,
+                    str(request.resume_url)
                 )
             
             # Accumulate results

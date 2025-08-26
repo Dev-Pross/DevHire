@@ -8,19 +8,30 @@ LinkedIn Easy-Apply AUTO-APPLIER - ENHANCED VERSION
 • Improved Easy Apply button detection
 """
 
+import io
 import asyncio, json, logging, base64, mimetypes, re
 from pathlib import Path
+import fitz
 from playwright.async_api import (
     async_playwright,
     Page,
     TimeoutError as PlaywrightTimeoutError,
 )
+from pdf2image import convert_from_bytes
+import pytesseract
 from playwright_stealth.stealth import Stealth
+from google.genai import types
+from google import genai
+from config import GOOGLE_API
+import requests
 from config import LINKEDIN_ID, LINKEDIN_PASSWORD
 
 # ────────────────────────── CONSTANTS ──────────────────────────
+
+client = genai.Client(api_key=GOOGLE_API)
+
 LINKEDIN_LOGIN_URL = "https://www.linkedin.com/login"
-RESUME_FILENAME = "SRINIVAS_SAI_SARAN_TEJA.pdf"
+RESUME_FILENAME = "RESUME.pdf"
 RESUME_MIMETYPE = mimetypes.guess_type(RESUME_FILENAME)[0] or "application/pdf"
 SHORT_TO = 8_000
 
@@ -31,6 +42,10 @@ MY_UNKNOWN_TECH_EXPERIENCE = "0"
 MY_CURRENT_CTC = "0"
 MY_EXPECTED_CTC = "600000"  # 6 LPA for better opportunities
 MY_NOTICE_PERIOD = "0"
+FIRST_NAME = ""
+LAST_NAME = ""
+EMAIL = ""
+PHONE = ""
 
 # Personal location details - UPDATE THESE WITH YOUR INFO
 MY_CURRENT_CITY = "Visakhapatnam, Andhra Pradesh"
@@ -39,12 +54,12 @@ MY_CURRENT_COUNTRY = "India"
 MY_FULL_LOCATION = f"{MY_CURRENT_CITY}, {MY_CURRENT_COUNTRY}"
 
 # Known technologies database
-KNOWN_TECHNOLOGIES = {
+KNOWN_TECHNOLOGIES = [
     # Programming Languages
-    "java", "python", "javascript", "js", "c",
+    "java", "python", "javascript", "js", "typescript"
     # Web Technologies (MERN Stack)
     "mongodb", "mongo", "express", "expressjs", "react", "reactjs",
-    "node", "nodejs", "html", "css", "bootstrap", "json", "xml",
+    "node", "nodejs", "html", "css", "bootstrap", "json", "xml", "next.js", "next"
     # Frameworks & Libraries
     "spring", "spring boot", "ajax",
     "rest", "restful", "api",
@@ -57,7 +72,8 @@ KNOWN_TECHNOLOGIES = {
     "linux", "ubuntu",
     # Add more technologies you know
     "json", "xml", "http", "https", "tcp", "ip"
-}
+]
+
 
 # ─────────────────────────── LOGGING ───────────────────────────
 logging.basicConfig(
@@ -692,6 +708,22 @@ class EasyApplyAgent:
 
                     log.info(f"🔽 Processing dropdown: '{question[:50]}...' - Answer: '{smart_answer}'")
 
+                    # Evaluate if the smart_answer matches any option value/text
+                    options = await root.locator("option").all()
+                    match_found = False
+                    for i, option in enumerate(options):
+                        txt = (await option.text_content() or "").strip().lower()
+                        if smart_answer.lower() == txt:
+                            await root.select_option(index=i)
+                            log.info(f"✅ Selected matching option '{txt}'")
+                            match_found = True
+                            break
+                    
+                    # If no match found, select first or second option as fallback
+                    if not match_found and len(options) >= 1:
+                        await root.select_option(index=1)  #  index=1 to pick second option in list
+                        log.info(f"⚠️ No matching option found; selected default first option")
+
                     # ENHANCED country/residence detection
                     is_country_dropdown = any(keyword in question.lower() for keyword in [
                         "country", "live", "reside", "where do you currently", "current location", 
@@ -845,6 +877,17 @@ class EasyApplyAgent:
                 except Exception as e:
                     log.debug(f"Text input error: {e}")
 
+                if any(word in question.lower() for word in ["experience", "years", "how many years"]):
+                    try:
+                        int_answer = str(int(float(answer)))
+                        await inp.fill(int_answer)
+                        log.info(f"⚠️ Retried with integer experience answer: {int_answer}")
+                    except Exception as e2:
+                        log.debug(f"Fallback integer fill error: {e2}")
+                        raise
+                else:
+                    raise
+
             # Handle radio buttons
             radios = await self.page.locator(".jobs-easy-apply-modal input[type='radio']").all()
             seen_groups = set()
@@ -964,9 +1007,165 @@ async def safe_goto(page: Page, url: str, retries: int = 3) -> bool:
     log.error(f"❌ Failed to navigate to {url}")
     return False
 
+def extract_text_with_ocr_fallback(pdf_bytes: bytes):
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    text = ""
+    for page_num in range(len(doc)):
+        page = doc.load_page(page_num)
+        page_text = page.get_text()
+        if not page_text.strip():
+            # Fallback to OCR if no text found
+            images = convert_from_bytes(pdf_bytes, first_page=page_num+1, last_page=page_num+1)
+            ocr_text = pytesseract.image_to_string(images[0])
+            text += ocr_text + "\n\n"
+        else:
+            text += page_text + "\n\n"
+    return text
+
+def parse_pdf(url : str):
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch: {response.status_code}")
+    pdf_bytes = response.content
+    extracted_text = extract_text_with_ocr_fallback(pdf_bytes)
+    if not extracted_text.strip():
+        print("Warning: no text extracted from PDF")
+    else:
+        print(f"Extracted text (preview):\n{extracted_text[:1000]}")
+    return extracted_text
+
+def gemini_prompt_builder(resume_text):
+    return (
+        "You are a professional resume parser. Extract the following information from the resume text below, returning valid JSON only:\n\n"
+        "{\n"
+        '  "candidate_name": "string with all spaces replaced by underscores",\n'
+        '  "location": {\n'
+        '    "city": "string or null",\n'
+        '    "state": "string or null",\n'
+        '    "country": "string or null",\n'
+        '    "full_location": "string or null"\n'
+        '  },\n'
+        '  "user": {\n'
+        '    "first": "string first name of the user from resume",\n'
+        '    "last": "string last name of the user from the resume",\n'
+        '    "email": "string email of the user from the resume",\n'
+        '    "phone": "string phone number of the user from the resume"\n'
+        '  },\n'
+        '  "general_experience_years": "float number representing total professional experience years",\n'
+        '  "known_tech_experience_years": "float number representing years of experience on explicitly known technologies in the provided list like personal projects experience",\n'
+        '  "unknown_tech_experience_years": "float number representing years on any other tech or unclear mentions or else null",\n'
+        '  "current_ctc": "string representing current salary or \\"0\\" if missing",\n'
+        '  "expected_ctc": "string representing expected salary or \\"0\\" if missing",\n'
+        '  "notice_period": "string representing notice period or \\"0\\" if not present",\n'
+        '  "tech_stacks": ["string"],\n'
+        '  "tools": ["string"],\n'
+        '  "sure_skills": ["string"],\n'
+        '  "additional_skills": ["string"]\n'
+        "}\n\n"
+        "Notes:\n"
+        "- Use null for missing strings, [] for empty lists.\n"
+        "- Do NOT invent any skills or tools not implied by or found in the resume text.\n"
+        "- Focus only on real, clearly stated technical skills. Strictly follow the provided resume text only.\n"
+        "- Additional skills must be limited to max 5, relevant to the domain/context suggested by the resume.\n"
+        "- Output must be strict JSON only, no explanation or extra text.\n\n"
+        "Resume text:\n\"\"\"\n"
+        + resume_text +
+        "\n\"\"\"\n"
+    )
+
+
 # ─────────────────────────── MAIN ──────────────────────────
-async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, password: str | None = None):
+async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, password: str | None = None, resume_url: str | None = None):
     status=dict()
+
+    global RESUME_FILENAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, MY_GENERAL_EXPERIENCE, MY_KNOWN_TECH_EXPERIENCE, MY_UNKNOWN_TECH_EXPERIENCE, MY_CURRENT_CTC, MY_EXPECTED_CTC, MY_NOTICE_PERIOD, MY_CURRENT_CITY, MY_CURRENT_STATE, MY_CURRENT_COUNTRY, MY_FULL_LOCATION ,KNOWN_TECHNOLOGIES
+    try:    
+        print(resume_url)
+
+        org_resume = (parse_pdf(resume_url))
+        if org_resume is None:
+            raise Exception("failed to parse resume")
+        # gemini to gett the user detils
+        prompt = gemini_prompt_builder(org_resume)
+        print("prompt:",prompt)
+        print("="*60)
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.2)
+        )
+        clean = response.text.strip()
+        if clean.startswith("```json"):
+            clean = clean[7:].lstrip()
+        elif clean.startswith("```"):
+            clean = clean[3:].lstrip()
+        if clean.endswith("```"):
+            clean = clean[:-3].rstrip()
+
+        parsed = json.loads(clean)
+
+        with open("data_from_gemini.json","w") as f:
+            json.dump(parsed, f, indent=4)
+        print(clean)
+
+        if parsed.get("candidate_name"):
+            RESUME_FILENAME = parsed["candidate_name"]
+
+        location = parsed.get("location", {})
+        if location.get("city"):
+            MY_CURRENT_CITY = location["city"]
+        if location.get("state"):
+            MY_CURRENT_STATE = location["state"]
+        if location.get("country"):
+            MY_CURRENT_COUNTRY = location["country"]
+        if location.get("full_location"):
+            MY_FULL_LOCATION = location["full_location"]
+
+        user = parsed.get("user", {})
+        if user.get("first"):
+            FIRST_NAME = user["first"]
+        if user.get("last"):
+            LAST_NAME = user["last"]
+        if user.get("email"):
+            EMAIL = user["email"]
+        if user.get("phone"):
+            PHONE = user["phone"]
+
+        if parsed.get("general_experience_years") is not None and parsed.get("general_experience_years") >= 0:
+            MY_GENERAL_EXPERIENCE = parsed["general_experience_years"]
+        else:
+            MY_GENERAL_EXPERIENCE = 0.6  # default or fallback
+
+        if parsed.get("known_tech_experience_years") is not None and parsed.get("known_tech_experience_years") >= 0:
+            MY_KNOWN_TECH_EXPERIENCE = parsed["known_tech_experience_years"]
+        else:
+            MY_KNOWN_TECH_EXPERIENCE = 0.6  # default or fallback
+
+        if parsed.get("unknown_tech_experience_years") is not None:
+            MY_UNKNOWN_TECH_EXPERIENCE = parsed["unknown_tech_experience_years"]
+
+        if parsed.get("current_ctc") is not None and float(parsed.get("current_ctc")) >= 0:
+            MY_CURRENT_CTC = float(parsed["current_ctc"])
+
+        if parsed.get("expected_ctc") is not None and float(parsed.get("expected_ctc")) >= 0:
+            MY_EXPECTED_CTC = float(parsed["expected_ctc"])
+
+        if parsed.get("notice_period") is not None:
+            MY_NOTICE_PERIOD = float(parsed["notice_period"])
+
+        if parsed.get("tech_stacks") or parsed.get("tools") or parsed.get("sure_skills") or parsed.get("additional_skills"):
+            KNOWN_TECHNOLOGIES = (
+                parsed.get("tech_stacks", []) + 
+                parsed.get("tools", []) + 
+                parsed.get("sure_skills", []) + 
+                parsed.get("additional_skills", [])
+            )
+    
+    except Exception as e:
+        print(f"fetching details from resume failed in applier agent: {e}")
+    
+
     if not jobs_data:
         with open("tailored_resumes_batch_kv.json", encoding="utf-8") as f:
             raw = json.load(f)
@@ -1015,8 +1214,10 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
                 failed += 1
                 continue
 
+            
             payload = make_resume_payload(b64)
             agent.reset_for_new_job()
+
 
             if not await agent.find_and_click_easy_apply():
                 log.warning("❌ No Easy Apply button found - skipping")
@@ -1025,10 +1226,10 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
 
             success = await agent.fill_and_submit_modal(
                 user={
-                    "first": "SRINIVAS",
-                    "last": "SAI SARAN TEJA",
-                    "email": "example@example.com",
-                    "phone": "7993027519",
+                    "first": FIRST_NAME,
+                    "last": LAST_NAME,
+                    "email": EMAIL,
+                    "phone": PHONE,
                 },
                 resume_payload=payload,
             )
@@ -1074,4 +1275,4 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
         await pw.stop()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(resume_url="https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1756181362034_Sai%20%20Balaji%20.Net%20AWS.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzU2MTgxMzYyMDM0X1NhaSAgQmFsYWppIC5OZXQgQVdTLnBkZiIsImlhdCI6MTc1NjE4MTM2MywiZXhwIjoxNzU2MjY3NzYzfQ.t1ovmlXr_dpQJSVJFe-6cFsiysReflatBIv3UjlBBUw"))

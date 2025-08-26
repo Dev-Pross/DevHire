@@ -125,6 +125,8 @@ const Apply: React.FC<ApplyProps> = () => {
     apply();
 
     if (userId) {
+      console.log("all set to start apply");
+      
       intervalRef.current = window.setInterval(() => {
         fetch(`http://127.0.0.1:8000/apply/${userId}/progress`)
           .then((res) => res.json())
@@ -156,7 +158,7 @@ const Apply: React.FC<ApplyProps> = () => {
     } else {
       console.log("user id not provided");
     }
-  }, [jobs, url, userId, password]);
+  }, [userId]);
 
   console.log("apply server output ", response);
 
