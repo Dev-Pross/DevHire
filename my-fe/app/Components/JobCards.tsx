@@ -102,6 +102,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
                             ${selectedIds.some(selectedJob => selectedJob.job_id === job.job_id) ? 'border border-white shadow-white/50' : 'border border-transparent'} `}
                 onClick={(e) => cardHandler(e, { job_id: job.job_id, job_url: job.job_url, job_description: job.job_description })}
             >
+                 
                 <input
                 type='checkbox'
                 name="job_selector"
@@ -109,14 +110,25 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
                 checked={selectedIds.includes({job_id:job.job_id,job_url:job.job_url,job_description:job.job_description})}
                 onChange={()=>{}}
                 />
+                { job.title ? (
                 <div className='flex flex-col px-10 py-5 justify-around'>
                     <div className='inline-flex justify-between'>
                         <p className='text-white hover:text-gray-100 font-light text-sm '>{job.company_name}</p>
                         <p className='text-white hover:text-gray-100 font-thin text-xs content-center'>{job.posted_at}</p>
                     </div>
+                    
                         <a className='text-white hover:text-gray-100 font-bold text-xl' href={job.job_url} onClick={e => e.stopPropagation()}>{job.title}</a>
                         <p className='text-white hover:text-gray-100 font-thin text-sm'>{job.location}</p>
                 </div>
+                ) :  (<div className='flex flex-col px-10 py-5 justify-around'>
+                    <div className='inline-flex justify-between'>
+                        <p className='text-white hover:text-gray-100 font-light text-sm '>{job.company_name}</p>
+                        <p className='text-white hover:text-gray-100 font-thin text-xs content-center'>{job.posted_at}</p>
+                    </div>
+                    
+                        <a className='text-white hover:text-gray-100 font-bold text-xl' href={job.job_url} onClick={e => e.stopPropagation()}>Network error</a>
+                        <p className='text-white hover:text-gray-100 font-thin text-sm'>{job.location}</p>
+                </div>)}
                 <div className='max-w-lg'>
                     <div className='flex p-2 flex-wrap'>
                         {job.key_skills.slice(0,6).map((skill,idx)=>(

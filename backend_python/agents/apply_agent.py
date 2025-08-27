@@ -884,9 +884,7 @@ class EasyApplyAgent:
                         log.info(f"⚠️ Retried with integer experience answer: {int_answer}")
                     except Exception as e2:
                         log.debug(f"Fallback integer fill error: {e2}")
-                        raise
-                else:
-                    raise
+
 
             # Handle radio buttons
             radios = await self.page.locator(".jobs-easy-apply-modal input[type='radio']").all()
@@ -1054,9 +1052,9 @@ def gemini_prompt_builder(resume_text):
         '  "general_experience_years": "float number representing total professional experience years",\n'
         '  "known_tech_experience_years": "float number representing years of experience on explicitly known technologies in the provided list like personal projects experience",\n'
         '  "unknown_tech_experience_years": "float number representing years on any other tech or unclear mentions or else null",\n'
-        '  "current_ctc": "string representing current salary or \\"0\\" if missing",\n'
-        '  "expected_ctc": "string representing expected salary or \\"0\\" if missing",\n'
-        '  "notice_period": "string representing notice period or \\"0\\" if not present",\n'
+        '  "current_ctc": "string representing current salary or null if missing",\n'
+        '  "expected_ctc": "string representing expected salary or null if missing",\n'
+        '  "notice_period": "string representing notice period or null if not present",\n'
         '  "tech_stacks": ["string"],\n'
         '  "tools": ["string"],\n'
         '  "sure_skills": ["string"],\n'
