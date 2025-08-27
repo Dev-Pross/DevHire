@@ -25,6 +25,8 @@ export const HeroTalent = () => {
         );
         setUser({
           email: data.session?.user.user_metadata.email,
+
+          
           user: data.session?.user.user_metadata.username,
         });
       } else {
@@ -98,5 +100,5 @@ export const HeroTalent = () => {
         </div>
       </div>
     </section>
-  );
+  );  
 };
