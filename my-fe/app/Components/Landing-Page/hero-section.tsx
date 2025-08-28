@@ -4,7 +4,6 @@ import { useState } from "react";
 import getLoginUser from "@/app/utiles/getUserData";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useRouter } from "next/router";
 export const HeroTalent = () => {
   const [user, setUser] = useState<{ email: string; user: string } | null>(
     null
@@ -12,20 +11,20 @@ export const HeroTalent = () => {
   // const router = useRouter();
   useEffect(() => {
     async function fetchSession() {
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } = await getLoginUser();
       console.log("session ", data);
       if (error) {
         console.error("Error fetching user:", error);
-      } else if (data.session?.user) {
+      } else if (data?.user) {
         console.log(
           "User is logged in:",
-          data.session?.user.user_metadata.email,
+          data?.user.user_metadata.email,
           " ",
-          data.session?.user.user_metadata.username
+          data?.user.user_metadata.username
         );
         setUser({
-          email: data.session?.user.user_metadata.email,
-          user: data.session?.user.user_metadata.username,
+          email: data?.user.user_metadata.email,
+          user: data?.user.user_metadata.username,
         });
       } else {
         console.log("No user is logged in.");
