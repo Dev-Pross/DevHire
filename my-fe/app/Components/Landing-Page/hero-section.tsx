@@ -23,8 +23,8 @@ export const HeroTalent = () => {
           data?.user.user_metadata.username
         );
         setUser({
-          email: data?.user.user_metadata.email,
-          user: data?.user.user_metadata.username,
+          email: data.session?.user.user_metadata.email,
+          user: data.session?.user.user_metadata.username,
         });
       } else {
         console.log("No user is logged in.");
