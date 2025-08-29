@@ -39,6 +39,9 @@ export default function LinkedinUserDetailsPage() {
 
     await sendCredentials(data);
 
+
+    
+
     router.push("/");
   }
 
@@ -81,7 +84,6 @@ export default function LinkedinUserDetailsPage() {
       setUploadSuccess(`File uploaded successfully: ${file.name}`);
       setUploadedUrl(urlData?.signedUrl || null);
       sessionStorage.setItem("resume", urlData?.signedUrl || "");
-      
     } catch (error: any) {
       setUploadError(`Upload failed: ${error.message || error.toString()}`);
     } finally {
