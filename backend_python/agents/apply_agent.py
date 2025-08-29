@@ -1193,8 +1193,8 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
             return
 
         agent = EasyApplyAgent(page)
-        applied = 0
-        failed = 0
+        applied = []
+        failed = []
 
         for idx, job in enumerate(jobs, 1):
             url, b64 = job.get("job_url"), job.get("resume_binary")
@@ -1208,7 +1208,7 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
             log.info(f"{'='*60}")
 
             if not await safe_goto(page, url):
-                failed += 1
+                failed.append(url)
                 continue
 
             
@@ -1218,7 +1218,7 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
 
             if not await agent.find_and_click_easy_apply():
                 log.warning("❌ No Easy Apply button found - skipping")
-                failed += 1
+                failed.append(url)
                 continue
 
             success = await agent.fill_and_submit_modal(
@@ -1232,10 +1232,10 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
             )
 
             if success:
-                applied += 1
+                applied.append(url)
                 log.info(f"✅ Job {idx} applied successfully! Total: {applied}")
             else:
-                failed += 1
+                failed.append(url)
                 log.warning(f"❌ Job {idx} application failed")
 
             # Show questions captured
@@ -1248,20 +1248,16 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
 
         log.info(f"\n{'='*60}")
         log.info(f"🎯 FINAL RESULTS:")
-        log.info(f"✅ Successfully applied: {applied}")
-        log.info(f"❌ Failed applications: {failed}")
-        log.info(f"📊 Success rate: {(applied/(applied+failed)*100):.1f}%")
+        log.info(f"✅ Successfully applied: {len(applied)}")
+        log.info(f"❌ Failed applications: {len(failed)}")
+        log.info(f"📊 Success rate: {(len(applied)/(len(applied)+len(failed))*100):.1f}%")
         log.info(f"{'='*60}")
-        # status.append({
-        #     "applied": applied,
-        #     "failed": failed,
-        #     "success_rate": (applied / (applied + failed) * 100) if (applied + failed) > 0 else 0
-        # })
+
 
         status = {
             "applied": applied,
             "failed": failed,
-            "success_rate": (applied / (applied + failed) * 100) if (applied + failed) > 0 else 0
+            "success_rate": (len(applied) / (len(applied) + len(failed)) * 100) if (len(applied) + len(failed)) > 0 else 0
         }
 
         return status

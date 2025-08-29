@@ -29,8 +29,8 @@ class ApplyJobRequest(BaseModel):
 class ApplyJobResponse(BaseModel):
     success: bool
     total_jobs: int
-    successful_applications: int
-    failed_applications: int
+    successful_applications: List
+    failed_applications: List
     message: str
 
 router = APIRouter()
@@ -68,8 +68,8 @@ async def apply_jobs_route(request: ApplyJobRequest):
         
         # Step 2: Process batches and apply sequentially (like your original approach)
         batch_size = 15
-        total_applied = 0
-        total_failed = 0
+        total_applied = []
+        total_failed = []
 
         apply_progress[request.user_id] = 0
 
@@ -100,15 +100,15 @@ async def apply_jobs_route(request: ApplyJobRequest):
             
             # Accumulate results
             if isinstance(batch_results, dict):
-                total_applied += batch_results.get('applied', 0)
-                total_failed += batch_results.get('failed', 0)
-                logging.info(f"Batch {batch_number} results: {batch_results.get('applied', 0)} applied, {batch_results.get('failed', 0)} failed")
+                total_applied.append(batch_results.get('applied', 0))
+                total_failed.append(batch_results.get('failed', 0))
+                logging.info(f"Batch {batch_number} results: {len(batch_results.get('applied', 0))} applied, {len(batch_results.get('failed', 0))} failed")
             else:
                 # If applier returns just a count
                 applied_count = batch_results if batch_results else 0
-                total_applied += applied_count
-                total_failed += len(tailored_batch) - applied_count
-                logging.info(f"Batch {batch_number} results: {applied_count} applied")
+                total_applied.append(applied_count)
+                total_failed.append(len(tailored_batch) - len(applied_count))
+                logging.info(f"Batch {batch_number} results: {len(applied_count)} applied")
             
             #update the progress dictionary
             apply_progress[request.user_id] += 100 / batches
@@ -120,7 +120,7 @@ async def apply_jobs_route(request: ApplyJobRequest):
                 await asyncio.sleep(30)
 
         
-        success_rate = round((total_applied / len(jobs_data)) * 100, 2) if jobs_data else 0
+        success_rate = round((len(total_applied) / len(jobs_data)) * 100, 2) if jobs_data else 0
         
         return ApplyJobResponse(
             success=True,

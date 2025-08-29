@@ -1,15 +1,10 @@
 from config import GOOGLE_API
-from database.SchemaModel import User, UploadedResume, ParsedTitle
-from database.db_engine import Session
 import requests
 import fitz
 import io
 from google import genai
 from google.genai import types
-import uuid
-import datetime
 
-session = Session()
 client  = genai.Client(api_key= GOOGLE_API)
 
 def parse_pdf(url : str):

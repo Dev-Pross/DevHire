@@ -252,13 +252,13 @@ const Apply: React.FC<ApplyProps> = () => {
               <div className="flex ">
                 <p className="text-white font-bold text-3xl">Success:</p>
                 <p className="text-white font-lg px-2 text-3xl">
-                  {response.successful_applications}{" "}
+                  {(response.successful_applications[0]).length}{" "}
                 </p>
               </div>
               <div className="flex ">
                 <p className="text-white font-bold text-3xl">Failed: </p>
                 <p className="text-white font-lg px-2 text-3xl">
-                  {response.failed_applications}{" "}
+                  {(response.failed_applications[0]).length}{" "}
                 </p>
               </div>
             </div>
