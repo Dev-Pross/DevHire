@@ -124,6 +124,7 @@ const Apply: React.FC<ApplyProps> = () => {
           await primsa.user.create({
             data: {
               email : "",
+              name : userId,
               applied_jobs: data.successful_applications[0].length,
               // applied_jobs: data.successful_applications[0],
 
