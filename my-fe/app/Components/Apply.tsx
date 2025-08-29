@@ -2,7 +2,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Apply_Jobs } from "../utiles/agentsCall";
 import CryptoJS from "crypto-js";
-
+import { PrismaClient } from "@prisma/client";
+const primsa = new PrismaClient();
 interface jobsData {
   job_url: string;
   job_description: string;
@@ -118,15 +119,29 @@ const Apply: React.FC<ApplyProps> = () => {
     if (!jobs || jobs.length === 0) return;
     async function apply() {
       const { data, error } = await Apply_Jobs(jobs, url, userId, password);
-      if (data) setResponse(data);
-      else console.log("error from fetching jobs ", error);
-    }
+      try {
+        if (data) {
+          await primsa.user.create({
+            data: {
+              email : "",
+              applied_jobs: data.successful_applications[0].length,
+              // applied_jobs: data.successful_applications[0],
 
+              // failed_jobs: data.failed_applications[0].length,
+              // total_jobs: data.total_jobs,
+            },
+          });
+          setResponse(data);
+        } else console.log("error from fetching jobs ", error);
+      } catch (error) {
+        console.log("error in applying jobs ", error);
+      }
+    }
     apply();
 
     if (userId) {
       console.log("all set to start apply");
-      
+
       intervalRef.current = window.setInterval(() => {
         fetch(`http://127.0.0.1:8000/apply/${userId}/progress`)
           .then((res) => res.json())
@@ -252,13 +267,13 @@ const Apply: React.FC<ApplyProps> = () => {
               <div className="flex ">
                 <p className="text-white font-bold text-3xl">Success:</p>
                 <p className="text-white font-lg px-2 text-3xl">
-                  {(response.successful_applications[0]).length}{" "}
+                  {response.successful_applications[0].length}{" "}
                 </p>
               </div>
               <div className="flex ">
                 <p className="text-white font-bold text-3xl">Failed: </p>
                 <p className="text-white font-lg px-2 text-3xl">
-                  {(response.failed_applications[0]).length}{" "}
+                  {response.failed_applications[0].length}{" "}
                 </p>
               </div>
             </div>

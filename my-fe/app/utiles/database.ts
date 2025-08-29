@@ -1,20 +1,24 @@
-import { PrismaClient, Prisma } from "@prisma/client"
+import { PrismaClient } from "@prisma/client";
 
-export const prisma = new PrismaClient()
+export const prisma = new PrismaClient();
 
 // Async function to fetch and log users
 async function logUsers() {
-  const users = await prisma.user.findMany()
-  console.log(users)
+  const users = await prisma.user.findMany();
+  console.log(users);
 }
 
 // Call the async function
-logUsers()
+logUsers();
 
-export async function UserOperations(userData: any) {
-  return prisma.user.upsert({
-    where: { id: userData.id },
-    update: userData,
-    create: userData,
-  })
+export async function UserOperations() {
+  // Create a new user
+  
+  const newUser = await prisma.user.create({
+    data: {
+      email: " HelloWOrld@gmail.com"
+    }
+  });
+  console.log("Created new user:", newUser);
+ 
 }

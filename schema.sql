@@ -1,6 +1,4 @@
--- Final PostgreSQL Schema for DevHire with UUID and Industrial Standards
 
--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE users (

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint"
   },
-  "dependencies": {
+  "type": "module",
+"dependencies": {
     "@prisma/client": "^6.15.0",
     "@reduxjs/toolkit": "^2.8.2",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
@@ -41,5 +42,13 @@
     "prisma": "^6.15.0",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "commands": [
+    {
+      "type": "command",
+      "details": {
+        "key": "typescript.reloadProjects"
+      }
+    }
+  ]
 }
