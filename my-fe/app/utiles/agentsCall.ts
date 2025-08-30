@@ -16,7 +16,7 @@ try {
         console.log("Server response:", res.data);
         return { data: res.data, error: null };
         
-    } catch (err) {
+    } catch (err: any) {
     console.error("Error sending URL to server:", err);
     return { data: null, error: err };
     }
@@ -34,7 +34,7 @@ try {
         console.log("apply server response:", res.data);
         return { data: res.data, error: null };
         
-    } catch (err) {
+    } catch (err : any) {
     console.error("Error sending URL to apply server:", err);
     return { data: null, error: err };
     }

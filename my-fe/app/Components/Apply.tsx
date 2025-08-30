@@ -55,12 +55,7 @@ const Apply: React.FC<ApplyProps> = () => {
   const [url, setUrl] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  // const [ user, setUser] = useState<
-  // {
-  //   id: string,
-  //   email: string,
-  //   name:string
-  // }>()
+
   const [user, setUser] = useState<string | null>(null)
   const [dbData, setDbData] = useState<any>()
 
@@ -82,12 +77,31 @@ const Apply: React.FC<ApplyProps> = () => {
     });
     return decrypted.toString(CryptoJS.enc.Utf8);
   }
-//  fetching resume, li_c 
+//  fetching resume, li_c, jobs, id, applied jobs
   useEffect(() => {
+    // fecthing resume
     const pdf = sessionStorage.getItem("resume");
     if (pdf) setUrl(pdf);
     else throw new Error("no resume found")
 
+    // fecthing jobs, user id 
+    const job_data = sessionStorage.getItem("jobs");
+    const id = sessionStorage.getItem("id")
+    if (job_data != null) {
+      setJobs(JSON.parse(job_data));
+    }
+    else{
+      throw new Error("no jobs found")
+    }
+    if (id != null) {
+      setUser(id);
+    }
+    else{
+      throw new Error("no id found")
+    }
+    console.log("jobs from ls: ", job_data);
+
+    // fetching li_c
     async function fetchEncryptedCredentials() {
       try {
         const res = await fetch("http://localhost:3000/api/get-data", {
@@ -103,7 +117,6 @@ const Apply: React.FC<ApplyProps> = () => {
           const credentials = JSON.parse(decrypted);
           setUserId(credentials.username);
           setPassword(credentials.password);
-          console.log("Decrypted user credentials:", userId, " ", password);
         } else {
           console.error("No encryptedData in response");
         }
@@ -113,12 +126,9 @@ const Apply: React.FC<ApplyProps> = () => {
     }
 
     fetchEncryptedCredentials();
-  }, []);
 
-  // fetching applied links from db
-  useEffect(()=>{
-    if(!user) return
-    async function getUserID() {
+    // fecthing applied jobs from database
+    async function getAppliedJobs() {
       const res = await fetch(`/api/User?id=${user}`,
       {
         method:"GET",
@@ -131,29 +141,12 @@ const Apply: React.FC<ApplyProps> = () => {
         setDbData(my_data.user.applied_jobs)
       }
     }
+  if(user) getAppliedJobs()
 
-    getUserID()
-    
-  },[user])
-//  fetching jobs,id from ss
-  useEffect(() => {
-    const job_data = sessionStorage.getItem("jobs");
-    const id = sessionStorage.getItem("id")
-    if (job_data != null) {
-      setJobs(JSON.parse(job_data));
-    }
-    else{
-      throw new Error("no jobs found")
-    }
 
-    if (id != null) {
-      setUser(id);
-    }
-    else{
-      throw new Error("no id found")
-    }
-    console.log("jobs from ls: ", job_data);
-  }, []);
+
+  }, [user]);
+
 
 // Applying jobs
   useEffect(() => {
@@ -189,7 +182,13 @@ const Apply: React.FC<ApplyProps> = () => {
             
           }
           setResponse(data);
-        } else console.log("error from fetching jobs ", error);
+        } else {
+          console.log("error from fetching jobs ", error?.status);
+          if( error.status === 500){
+            console.log("cant reach server, please try again");
+            
+          }
+        }
       } catch (error) {
         console.log("error in applying jobs ", error);
       }
@@ -234,8 +233,6 @@ const Apply: React.FC<ApplyProps> = () => {
     }
   }, [user, jobs, dbData]);
 
-  console.log("apply server output ", response);
-  console.log("user data: ",user);
   
 
   return (
@@ -247,15 +244,15 @@ const Apply: React.FC<ApplyProps> = () => {
               <div className="flex  items-center mr-1 h-fit">
                 <div
                   className={`
-                                    w-15 h-15 rounded-full border-2 flex items-center justify-center transition-all duration-900 
-                                    ${
-                                      index < currentStep
-                                        ? "bg-blue-600 border-blue-600"
-                                        : index === currentStep
-                                        ? "border-blue-500  shadow-white-500 bg-white "
-                                        : "border-gray-600 bg-[#13182c] animate-pulse"
-                                    }
-                                    `}
+                              w-15 h-15 rounded-full border-2 flex items-center justify-center transition-all duration-900 
+                              ${
+                                index < currentStep
+                                  ? "bg-blue-600 border-blue-600"
+                                  : index === currentStep
+                                  ? "border-blue-500  shadow-white-500 bg-white "
+                                  : "border-gray-600 bg-[#13182c] animate-pulse"
+                              }
+                              `}
                 >
                   {index < currentStep ? (
                     <svg width="30" height="30">
@@ -273,15 +270,15 @@ const Apply: React.FC<ApplyProps> = () => {
                 {index < steps.length - 1 && (
                   <div
                     className={`
-                                    w-60 h-2 transition-all duration-900
-                                    ${
-                                      index < currentStep - 1
-                                        ? "bg-blue-600"
-                                        : index === currentStep - 1
-                                        ? "bg-blue-600 animate-pulse"
-                                        : "bg-gray-700 animate-pulse"
-                                    }
-                                `}
+                              w-60 h-2 transition-all duration-900
+                              ${
+                                index < currentStep - 1
+                                  ? "bg-blue-600"
+                                  : index === currentStep - 1
+                                  ? "bg-blue-600 animate-pulse"
+                                  : "bg-gray-700 animate-pulse"
+                              }
+                          `}
                   />
                 )}
               </div>
@@ -289,13 +286,13 @@ const Apply: React.FC<ApplyProps> = () => {
               <div className="">
                 <div
                   className={`font-bold text-left pt-5 text-lg transition-colors duration-900
-                                    ${
-                                      index === currentStep
-                                        ? "text-blue-400"
-                                        : index < currentStep
-                                        ? "text-white"
-                                        : "text-gray-500 animate-pulse"
-                                    }`}
+                              ${
+                                index === currentStep
+                                  ? "text-blue-400"
+                                  : index < currentStep
+                                  ? "text-white"
+                                  : "text-gray-500 animate-pulse"
+                              }`}
                 >
                   {step.label}
                 </div>
@@ -303,13 +300,13 @@ const Apply: React.FC<ApplyProps> = () => {
 
               <div
                 className={`text-md transition-colors duration-900
-                                ${
-                                  index === currentStep
-                                    ? "text-blue-300"
-                                    : index < currentStep
-                                    ? "text-gray-300"
-                                    : "text-gray-600 animate-pulse hidden"
-                                }`}
+                            ${
+                              index === currentStep
+                                ? "text-blue-300"
+                                : index < currentStep
+                                ? "text-gray-300"
+                                : "text-gray-600 animate-pulse hidden"
+                            }`}
               >
                 {step.description}
               </div>
