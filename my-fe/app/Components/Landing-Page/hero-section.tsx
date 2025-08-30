@@ -5,34 +5,28 @@ import getLoginUser from "@/app/utiles/getUserData";
 import Link from "next/link";
 import { motion } from "framer-motion";
 export const HeroTalent = () => {
-  const [user, setUser] = useState<{ email: string; user: string } | null>(
-    null
-  );
+  const [id, setId] = useState<string | null>(null);
+  const [resume, setResume] = useState<string | null>(null);
   // const router = useRouter();
   useEffect(() => {
-    async function fetchSession() {
-      const { data, error } = await getLoginUser();
-      console.log("session ", data);
-      if (error) {
-        console.error("Error fetching user:", error);
-      } else if (data?.user) {
-        console.log(
-          "User is logged in:",
-          data?.user.user_metadata.email,
-          " ",
-          data?.user.user_metadata.username
-        );
-        setUser({
-          email: data?.user.user_metadata.email,
-          user: data?.user.user_metadata.username,
-        });
-      } else {
-        console.log("No user is logged in.");
-        setUser(null);
-      }
+    const id = sessionStorage.getItem("id")
+    const resume_url = sessionStorage.getItem("resume")
+    setId(id)
+    if(!id) return
+    async function getResume(){
+      const res = await fetch(`/api/User?id=${id}`,
+      {
+        method:"GET",
+        headers: { 'Content-Type': 'application/json' },
+        credentials: "include",
+      });
+      const data = await res.json()
+      console.log("mydata",data.user.resume_url)
+      if(!resume_url) sessionStorage.setItem("resume", data.user.resume_url)
+      setResume(data.user.resume_url)
     }
-    fetchSession();
-  }, []);
+    getResume()
+  }, [id]);
   return (
     <section className="h-screen w-full flex items-center px-30  ">
       <div className="flex-1 max-w-xl">
@@ -53,12 +47,22 @@ export const HeroTalent = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            {user ? (
-              <Link href={"/LinkedinUserDetails"}>
-                <button className=" cursor-pointer border  bg-transparent  border-border-green-700 hover:bg-blue-600  text-white px-8 py-4 rounded-lg transition-colors">
-                  Upload Resume
+            {id ? (
+              <div className="flex space-x-4">
+                <Link href={"/LinkedinUserDetails"}>
+                  <button className=" cursor-pointer border  bg-transparent  border-border-green-700 hover:bg-blue-600  text-white px-8 py-4 rounded-lg transition-colors">
+                    Upload Resume
+                  </button>
+                </Link>
+                {resume && 
+                <Link href={"/Jobs"}>
+                  <button className="cursor-pointer border hover:bg-blue-600 hover:border-gray-300 text-white-700  py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
+                  Proceed
                 </button>
-              </Link>
+                </Link>
+                }
+              </div>
+              
             ) : (
               <div className="flex space-x-4">
                 <Link href="/login">

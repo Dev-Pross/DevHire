@@ -163,7 +163,7 @@ const Apply: React.FC<ApplyProps> = () => {
         const { data, error } = await Apply_Jobs(jobs, url, userId, password);
         if (data) {
 
-          const payload = [...new Set([...dbData, ...data.failed_applications[0]])]
+          const payload = [...new Set([...dbData, ...data.successful_applications.flat(Infinity)])]
           const res = await fetch('/api/User?action=update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -325,13 +325,13 @@ const Apply: React.FC<ApplyProps> = () => {
               <div className="flex ">
                 <p className="text-white font-bold text-3xl">Success:</p>
                 <p className="text-white font-lg px-2 text-3xl">
-                  {response.successful_applications[0].length}{" "}
+                  {response.successful_applications.flat(Infinity).length}{" "}
                 </p>
               </div>
               <div className="flex ">
                 <p className="text-white font-bold text-3xl">Failed: </p>
                 <p className="text-white font-lg px-2 text-3xl">
-                  {response.failed_applications[0].length}{" "}
+                  {response.failed_applications.flat(Infinity).length}{" "}
                 </p>
               </div>
             </div>

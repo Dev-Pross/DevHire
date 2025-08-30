@@ -64,6 +64,8 @@ const Jobs = () => {
     const pdf = sessionStorage.getItem("resume")
     if(pdf)
       setUrl(pdf)
+    else
+      throw new Error("resume not uploaded")
       
 
     async function fetchEncryptedCredentials() {
