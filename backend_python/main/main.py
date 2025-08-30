@@ -7,6 +7,7 @@ from main.routes.list_jobs import router as list_jobs
 from main.routes.apply_jobs import router as apply_jobs
 from main.routes.debug_routes import router as debug_router
 from fastapi.middleware.cors import CORSMiddleware
+from main.routes.get_resume import router as tailor
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -34,6 +35,7 @@ app.include_router(list_jobs)
 app.include_router(apply_jobs)
 app.include_router(progress_router)
 app.include_router(debug_router)
+app.include_router(tailor)
 
 @app.get("/")
 def root():

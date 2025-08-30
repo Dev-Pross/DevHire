@@ -72,52 +72,104 @@ async def apply_jobs_route(request: ApplyJobRequest):
         total_failed = []
 
         apply_progress[request.user_id] = 0
+        batches = math.ceil(len(request.jobs) / batch_size)
+        queue = asyncio.Queue()
 
-        
-        for i in range(0, len(jobs_data), batch_size):
-            batch_jobs = jobs_data[i:i+batch_size]
-            batch_number = i//batch_size + 1
-            batches = math.ceil(len(jobs_data)/batch_size)
-            
-            logging.info(f"Processing batch {batch_number}: jobs {i+1}-{min(i+batch_size, len(jobs_data))}")
-            
-            # Tailor resumes for this batch
-            tailored_batch = process_batch(str(request.resume_url), batch_jobs)
-            logging.info(f"Batch {batch_number} tailored: {len(tailored_batch)} jobs")
-            
-            # Apply to jobs using ThreadPoolExecutor (same pattern as list_jobs.py)
-            logging.info(f"Applying to {len(tailored_batch)} jobs from batch {batch_number}")
-            
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                batch_results = await asyncio.get_event_loop().run_in_executor(
-                    executor,
-                    run_applier_in_new_loop,
-                    tailored_batch,
-                    request.user_id,
-                    request.password,
-                    str(request.resume_url)
+        async def tailor_producer():
+            loop = asyncio.get_running_loop()
+            for i in range(0, len(request.jobs), batch_size):
+                batch_jobs = jobs_data[i : i + batch_size]
+                logging.info(f"Tailoring batch: jobs {i + 1}-{min(i + batch_size, len(request.jobs))}")
+
+                # Run synchronous 'process_batch' in thread pool to avoid blocking event loop
+                tailored_batch = await loop.run_in_executor(
+                    None, process_batch, str(request.resume_url), batch_jobs
                 )
+
+                await queue.put((i, tailored_batch))  # enqueue batch index and data
+            await queue.put(None)  # Sentinel to indicate no more batches
+
+        # Consumer: Apply tailored batches
+        async def applier_consumer():
+            while True:
+                batch = await queue.get()
+                if batch is None:
+                    queue.task_done()
+                    break
+                batch_idx, tailored_batch = batch
+                logging.info(f"Applying batch {batch_idx // batch_size +1} with {len(tailored_batch)} jobs")
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    batch_results = await asyncio.get_event_loop().run_in_executor(
+                        executor,
+                        run_applier_in_new_loop,
+                        tailored_batch,
+                        request.user_id,
+                        request.password,
+                        str(request.resume_url),
+                    )
+                if isinstance(batch_results, dict):
+                    total_applied.extend(batch_results.get('applied', []))
+                    total_failed.extend(batch_results.get('failed', []))
+                    logging.info(f"Batch {batch_idx // batch_size +1} results: "
+                                 f"{len(batch_results.get('applied', []))} applied, "
+                                 f"{len(batch_results.get('failed', []))} failed")
+                else:
+                    applied_count = batch_results or 0
+                    total_applied.extend([None]*applied_count)  # or capture details if possible
+                    total_failed.extend([None]*(len(tailored_batch) - applied_count))
+                    logging.info(f"Batch {batch_idx // batch_size +1} results: {applied_count} applied")
+                
+                apply_progress[request.user_id] += (100 / batches)
+                logging.info(f"Progress: {apply_progress[request.user_id]:.2f}%")
+                queue.task_done()
+
+        # Run producer and consumer concurrently
+        await asyncio.gather(tailor_producer(), applier_consumer())
+
+        # for i in range(0, len(jobs_data), batch_size):
+        #     batch_jobs = jobs_data[i:i+batch_size]
+        #     batch_number = i//batch_size + 1
+        #     batches = math.ceil(len(jobs_data)/batch_size)
             
-            # Accumulate results
-            if isinstance(batch_results, dict):
-                total_applied.append(batch_results.get('applied', 0))
-                total_failed.append(batch_results.get('failed', 0))
-                logging.info(f"Batch {batch_number} results: {len(batch_results.get('applied', 0))} applied, {len(batch_results.get('failed', 0))} failed")
-            else:
-                # If applier returns just a count
-                applied_count = batch_results if batch_results else 0
-                total_applied.append(applied_count)
-                total_failed.append(len(tailored_batch) - len(applied_count))
-                logging.info(f"Batch {batch_number} results: {len(applied_count)} applied")
+        #     logging.info(f"Processing batch {batch_number}: jobs {i+1}-{min(i+batch_size, len(jobs_data))}")
             
-            #update the progress dictionary
-            apply_progress[request.user_id] += 100 / batches
-            logging.info(f"progress: {apply_progress[request.user_id]}%")
+        #     # Tailor resumes for this batch
+        #     tailored_batch = process_batch(str(request.resume_url), batch_jobs)
+        #     logging.info(f"Batch {batch_number} tailored: {len(tailored_batch)} jobs")
             
-            # Sleep between batches (except for last batch)
-            if i + batch_size < len(jobs_data):
-                logging.info("Pause 30s before next batch")
-                await asyncio.sleep(30)
+        #     # Apply to jobs using ThreadPoolExecutor (same pattern as list_jobs.py)
+        #     logging.info(f"Applying to {len(tailored_batch)} jobs from batch {batch_number}")
+            
+        #     with ThreadPoolExecutor(max_workers=1) as executor:
+        #         batch_results = await asyncio.get_event_loop().run_in_executor(
+        #             executor,
+        #             run_applier_in_new_loop,
+        #             tailored_batch,
+        #             request.user_id,
+        #             request.password,
+        #             str(request.resume_url)
+        #         )
+            
+        #     # Accumulate results
+        #     if isinstance(batch_results, dict):
+        #         total_applied.append(batch_results.get('applied', 0))
+        #         total_failed.append(batch_results.get('failed', 0))
+        #         logging.info(f"Batch {batch_number} results: {len(batch_results.get('applied', 0))} applied, {len(batch_results.get('failed', 0))} failed")
+        #     else:
+        #         # If applier returns just a count
+        #         applied_count = batch_results if batch_results else 0
+        #         total_applied.append(applied_count)
+        #         total_failed.append(len(tailored_batch) - len(applied_count))
+        #         logging.info(f"Batch {batch_number} results: {len(applied_count)} applied")
+            
+        #     #update the progress dictionary
+        #     apply_progress[request.user_id] += 100 / batches
+        #     logging.info(f"progress: {apply_progress[request.user_id]}%")
+            
+        #     # Sleep between batches (except for last batch)
+        #     if i + batch_size < len(jobs_data):
+        #         logging.info("Pause 30s before next batch")
+        #         await asyncio.sleep(30)
 
         
         success_rate = round((len(total_applied) / len(jobs_data)) * 100, 2) if jobs_data else 0
