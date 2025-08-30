@@ -1,3 +1,4 @@
+"use client";
 import { useEffect } from "react";
 import { supabase } from "../../utiles/supabaseClient";
 import { useState } from "react";
@@ -26,7 +27,7 @@ export const HeroTalent = () => {
       setResume(data.user.resume_url)
     }
     getResume()
-  }, [id]);
+  }, [resume]);
   return (
     <section className="h-screen w-full flex items-center px-30  ">
       <div className="flex-1 max-w-xl">
