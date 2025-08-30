@@ -169,25 +169,17 @@ const Apply: React.FC<ApplyProps> = () => {
         
         const { data, error } = await Apply_Jobs(jobs, url, userId, password);
         if (data) {
+          await primsa.user.create({
+            data: {
+              email : "",
+              name : userId,
+              applied_jobs: data.successful_applications[0].length,
+              // applied_jobs: data.successful_applications[0],
 
-          const payload = [...new Set([...dbData, ...data.failed_applications[0]])]
-          const res = await fetch('/api/User?action=update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: user,
-              data: { column: "applied_jobs", value: payload }
-            }),
+              // failed_jobs: data.failed_applications[0].length,
+              // total_jobs: data.total_jobs,
+            },
           });
-          // console.log(user);
-
-          if(res.ok){
-            console.log("data pushed");
-          }
-          else{
-            console.log("data pushed failed");
-            
-          }
           setResponse(data);
         } else console.log("error from fetching jobs ", error);
       } catch (error) {
