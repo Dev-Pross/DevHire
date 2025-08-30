@@ -4,7 +4,6 @@ import { Apply_Jobs } from "../utiles/agentsCall";
 import CryptoJS from "crypto-js";
 import getLoginUser from "../utiles/getUserData";
 
-
 interface jobsData {
   job_url: string;
   job_description: string;
@@ -56,8 +55,8 @@ const Apply: React.FC<ApplyProps> = () => {
   const [userId, setUserId] = useState<string>("");
   const [password, setPassword] = useState<string>("");
 
-  const [user, setUser] = useState<string | null>(null)
-  const [dbData, setDbData] = useState<any>()
+  const [user, setUser] = useState<string | null>(null);
+  const [dbData, setDbData] = useState<any>();
 
   const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456"; // ensure 32 bytes for AES-256
   const IV = "741852963qwerty0";
@@ -77,27 +76,25 @@ const Apply: React.FC<ApplyProps> = () => {
     });
     return decrypted.toString(CryptoJS.enc.Utf8);
   }
-//  fetching resume, li_c, jobs, id, applied jobs
+  //  fetching resume, li_c, jobs, id, applied jobs
   useEffect(() => {
     // fecthing resume
     const pdf = sessionStorage.getItem("resume");
     if (pdf) setUrl(pdf);
-    else throw new Error("no resume found")
+    else throw new Error("no resume found");
 
-    // fecthing jobs, user id 
+    // fecthing jobs, user id
     const job_data = sessionStorage.getItem("jobs");
-    const id = sessionStorage.getItem("id")
+    const id = sessionStorage.getItem("id");
     if (job_data != null) {
       setJobs(JSON.parse(job_data));
-    }
-    else{
-      throw new Error("no jobs found")
+    } else {
+      throw new Error("no jobs found");
     }
     if (id != null) {
       setUser(id);
-    }
-    else{
-      throw new Error("no id found")
+    } else {
+      throw new Error("no id found");
     }
     console.log("jobs from ls: ", job_data);
 
@@ -129,64 +126,59 @@ const Apply: React.FC<ApplyProps> = () => {
 
     // fecthing applied jobs from database
     async function getAppliedJobs() {
-      const res = await fetch(`/api/User?id=${user}`,
-      {
-        method:"GET",
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(`/api/User?id=${user}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
-      const my_data = await res.json()
-      if( res){
-        console.log("mydata",my_data.user.applied_jobs)
-        setDbData(my_data.user.applied_jobs)
+      const my_data = await res.json();
+      if (res) {
+        console.log("mydata", my_data.user.applied_jobs);
+        setDbData(my_data.user.applied_jobs);
       }
     }
-  if(user) getAppliedJobs()
-
-
-
+    if (user) getAppliedJobs();
   }, [user]);
 
-
-// Applying jobs
+  // Applying jobs
   useEffect(() => {
     console.log("apply called");
     console.log("Ready to apply: ", { jobs, userId, dbData });
     if (!jobs || jobs.length === 0) return;
-    if(!user)return
-    if (!dbData) return
-    if (!userId)return
-    
+    if (!user) return;
+    if (!dbData) return;
+    if (!userId) return;
+
     async function apply() {
       try {
-        
         const { data, error } = await Apply_Jobs(jobs, url, userId, password);
         if (data) {
-
-          const payload = [...new Set([...dbData, ...data.successful_applications.flat(Infinity)])]
-          const res = await fetch('/api/User?action=update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const payload = [
+            ...new Set([
+              ...dbData,
+              ...data.successful_applications.flat(Infinity),
+            ]),
+          ];
+          const res = await fetch("/api/User?action=update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               id: user,
-              data: { column: "applied_jobs", value: payload }
+              data: { column: "applied_jobs", value: payload },
             }),
           });
           // console.log(user);
 
-          if(res.ok){
+          if (res.ok) {
             console.log("data pushed");
-          }
-          else{
+          } else {
             console.log("data pushed failed");
-            
           }
           setResponse(data);
         } else {
           console.log("error from fetching jobs ", error?.status);
-          if( error.status === 500){
+          if (error.status === 500) {
             console.log("cant reach server, please try again");
-            
           }
         }
       } catch (error) {
@@ -194,7 +186,6 @@ const Apply: React.FC<ApplyProps> = () => {
       }
     }
 
-    
     apply();
 
     if (userId) {
@@ -232,8 +223,6 @@ const Apply: React.FC<ApplyProps> = () => {
       console.log("user id not provided");
     }
   }, [user, jobs, dbData]);
-
-  
 
   return (
     <>
