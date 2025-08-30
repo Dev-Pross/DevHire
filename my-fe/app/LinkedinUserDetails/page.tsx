@@ -1,12 +1,12 @@
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../utiles/supabaseClient"; // adjust path as needed
 
 export default function LinkedinUserDetailsPage() {
   const router = useRouter();
   const [data, setData] = useState({ username: "", password: "" });
-
+  const [ userId, setUserId]  = useState<string>("")
   // File upload states
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -28,9 +28,39 @@ export default function LinkedinUserDetailsPage() {
       } else {
         console.log("error storing credentials", json);
       }
+      
     } catch (error) {
       console.log("network error:", error);
     }
+  }
+
+  useEffect(()=>{
+    const id = sessionStorage.getItem("id")
+    if(id)
+      setUserId(id)
+    else
+      throw new Error("user not logged in")
+  },[])
+
+  async function resumePush(userid: any | null,link:string) {
+    console.log(userid);
+    
+    // if(!user) return
+    try{
+        const res = await fetch("/api/User?action=update",
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              id: userid,
+              data: {column: "resume_url", value: link}
+            }),
+          }
+        )
+      }catch(err){
+        console.log(err);
+        
+      }
   }
 
   async function handleLogin(e: React.MouseEvent<HTMLButtonElement>) {
@@ -83,7 +113,10 @@ export default function LinkedinUserDetailsPage() {
 
       setUploadSuccess(`File uploaded successfully: ${file.name}`);
       setUploadedUrl(urlData?.signedUrl || null);
-      sessionStorage.setItem("resume", urlData?.signedUrl || "");
+      if(urlData?.signedUrl){
+        await resumePush(userId,urlData?.signedUrl)
+        sessionStorage.setItem("resume", urlData?.signedUrl || "");
+      }
     } catch (error: any) {
       setUploadError(`Upload failed: ${error.message || error.toString()}`);
     } finally {

@@ -12,7 +12,10 @@ const Navbar = () => {
     
     async function fetchUser() {
       const {data, error }= await getLoginUser();
-      if (data) setUser(data?.user.user_metadata);
+      if (data) {
+        setUser(data?.user.user_metadata);
+      }
+ 
     }
     fetchUser();
 
@@ -20,8 +23,6 @@ const Navbar = () => {
 
 
   }, []);
-
-  console.log("navbar user", user);
   return (
     <div className="sticky top-0 w-full backdrop-blur-xl z-50 navbar h-15">
       <nav className="flex justify-between items-center text-white gap-4 p-4 h-full">

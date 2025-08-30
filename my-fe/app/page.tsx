@@ -8,6 +8,7 @@ import Jobs from "./Components/Jobs";
 import { HeroTalent } from "./Components/Landing-Page/hero-section";
 import Apply from "./Components/Apply";
 import UploadButton from "./UploadButton/page";
+import getLoginUser from "./utiles/getUserData";
 // import HeroTalent from "./Components/Landing-Page/HeroTalent";
 export default function Home() {
   const data = {
@@ -16,28 +17,27 @@ export default function Home() {
   };
   const [user, setUser] = useState(data);
 
-  const userid = "linkedinpostgenerator@gmail.com";
-  const password = "mDEccH86!zmGr:_";
-  const url =
-    "https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/SRINIVAS_SAI_SARAN_TEJA%20(1).pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS9TUklOSVZBU19TQUlfU0FSQU5fVEVKQSAoMSkucGRmIiwiaWF0IjoxNzU0Mzc4OTgwLCJleHAiOjE3NTY5NzA5ODB9.1unaMom_BGXfxkvFB95XUMFLw7FOoVzMDBwzrJI8mOs";
-
   useEffect(() => {
     async function fetchSession() {
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } = await getLoginUser();
       console.log("session ", data);
       if (error) {
         console.error("Error fetching user:", error);
-      } else if (data.session?.user) {
+      } else if (data?.user) {
         console.log(
           "User is logged in:",
-          data.session?.user.user_metadata.email,
+          data?.user.user_metadata.email,
           " ",
-          data.session?.user.user_metadata.username
+          data?.user.user_metadata.username
         );
         setUser({
-          email: data.session?.user.user_metadata.email,
-          user: data.session?.user.user_metadata.username,
+          email: data?.user.user_metadata.email,
+          user: data?.user.user_metadata.username,
         });
+        sessionStorage.setItem("id",data?.user.user_metadata.sub)
+        sessionStorage.setItem("name",data?.user.user_metadata.username)
+        sessionStorage.setItem("email",data?.user.user_metadata.email)
+
       } else {
         console.log("No user is logged in.");
       }

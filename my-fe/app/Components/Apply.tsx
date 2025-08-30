@@ -2,8 +2,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Apply_Jobs } from "../utiles/agentsCall";
 import CryptoJS from "crypto-js";
-import { PrismaClient } from "@prisma/client";
-const primsa = new PrismaClient();
+import getLoginUser from "../utiles/getUserData";
+
+
 interface jobsData {
   job_url: string;
   job_description: string;
@@ -54,6 +55,14 @@ const Apply: React.FC<ApplyProps> = () => {
   const [url, setUrl] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  // const [ user, setUser] = useState<
+  // {
+  //   id: string,
+  //   email: string,
+  //   name:string
+  // }>()
+  const [user, setUser] = useState<string | null>(null)
+  const [dbData, setDbData] = useState<any>()
 
   const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456"; // ensure 32 bytes for AES-256
   const IV = "741852963qwerty0";
@@ -73,10 +82,11 @@ const Apply: React.FC<ApplyProps> = () => {
     });
     return decrypted.toString(CryptoJS.enc.Utf8);
   }
-
+//  fetching resume, li_c 
   useEffect(() => {
     const pdf = sessionStorage.getItem("resume");
     if (pdf) setUrl(pdf);
+    else throw new Error("no resume found")
 
     async function fetchEncryptedCredentials() {
       try {
@@ -105,39 +115,87 @@ const Apply: React.FC<ApplyProps> = () => {
     fetchEncryptedCredentials();
   }, []);
 
+  // fetching applied links from db
+  useEffect(()=>{
+    if(!user) return
+    async function getUserID() {
+      const res = await fetch(`/api/User?id=${user}`,
+      {
+        method:"GET",
+        headers: { 'Content-Type': 'application/json' },
+        credentials: "include",
+      });
+      const my_data = await res.json()
+      if( res){
+        console.log("mydata",my_data.user.applied_jobs)
+        setDbData(my_data.user.applied_jobs)
+      }
+    }
+
+    getUserID()
+    
+  },[user])
+//  fetching jobs,id from ss
   useEffect(() => {
     const job_data = sessionStorage.getItem("jobs");
-    if (job_data) {
+    const id = sessionStorage.getItem("id")
+    if (job_data != null) {
       setJobs(JSON.parse(job_data));
+    }
+    else{
+      throw new Error("no jobs found")
+    }
+
+    if (id != null) {
+      setUser(id);
+    }
+    else{
+      throw new Error("no id found")
     }
     console.log("jobs from ls: ", job_data);
   }, []);
 
-  console.log("jobs state", jobs);
-
+// Applying jobs
   useEffect(() => {
+    console.log("apply called");
+    console.log("Ready to apply: ", { jobs, userId, dbData });
     if (!jobs || jobs.length === 0) return;
+    if(!user)return
+    if (!dbData) return
+    if (!userId)return
+    
     async function apply() {
-      const { data, error } = await Apply_Jobs(jobs, url, userId, password);
       try {
+        
+        const { data, error } = await Apply_Jobs(jobs, url, userId, password);
         if (data) {
-          await primsa.user.create({
-            data: {
-              email : "",
-              name : userId,
-              applied_jobs: data.successful_applications[0].length,
-              // applied_jobs: data.successful_applications[0],
 
-              // failed_jobs: data.failed_applications[0].length,
-              // total_jobs: data.total_jobs,
-            },
+          const payload = [...new Set([...dbData, ...data.failed_applications[0]])]
+          const res = await fetch('/api/User?action=update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: user,
+              data: { column: "applied_jobs", value: payload }
+            }),
           });
+          // console.log(user);
+
+          if(res.ok){
+            console.log("data pushed");
+          }
+          else{
+            console.log("data pushed failed");
+            
+          }
           setResponse(data);
         } else console.log("error from fetching jobs ", error);
       } catch (error) {
         console.log("error in applying jobs ", error);
       }
     }
+
+    
     apply();
 
     if (userId) {
@@ -174,9 +232,11 @@ const Apply: React.FC<ApplyProps> = () => {
     } else {
       console.log("user id not provided");
     }
-  }, [userId]);
+  }, [user, jobs, dbData]);
 
   console.log("apply server output ", response);
+  console.log("user data: ",user);
+  
 
   return (
     <>
