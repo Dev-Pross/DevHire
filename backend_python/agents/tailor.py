@@ -47,7 +47,7 @@ log = logging.getLogger("tailor")
 if not GOOGLE_API:
     raise ValueError("Set GOOGLE_API env var")
 genai.configure(api_key=GOOGLE_API)
-model = genai.GenerativeModel("gemini-2.5-flash-lite")
+model = genai.GenerativeModel("gemini-2.5-flash") # gemini-2.5-flash-lite
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Resume-text helpers ────────────────────────────────────────╮
@@ -90,7 +90,6 @@ _SAMPLE = r"""
 
 \usepackage[empty]{fullpage}
 \usepackage{titlesec}
-\usepackage{marvosym}
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
 \usepackage{fancyhdr}
@@ -101,42 +100,46 @@ _SAMPLE = r"""
 \renewcommand{\headrulewidth}{0pt}
 \renewcommand{\footrulewidth}{0pt}
 
-% Adjust margins
-\addtolength{\oddsidemargin}{-0.5in}
-\addtolength{\evensidemargin}{-0.5in}
-\addtolength{\textwidth}{1in}
-\addtolength{\topmargin}{-0.6in}
-\addtolength{\textheight}{1.5in}
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
 
 % Formatting for section titles
 \titleformat{\section}{%
   \scshape\raggedright\large
 }{}{0em}{}[\titlerule]
 
-\newcommand{\resumeItem}[1]{\item\small{{#1 \vspace{-2pt}}}}
-\newcommand{\resumeSubheading}[4]{\vspace{-2pt}\item
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
     \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
       {\bfseries #1} & #2 \\
       \textit{\small#3} & \textit{\small #4} \\
-    \end{tabular*}\vspace{-5pt}
+    \end{tabular*}\vspace{2pt}
 }
+
+% Project heading (2 args)
 \newcommand{\resumeProjectHeading}[2]{\item
   \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
     {\bfseries #1} & \textit{#2} \\
-  \end{tabular*}\vspace{-6pt}
+  \end{tabular*}\vspace{2pt}
 }
-\newcommand{\resumeItemListStart}{\begin{itemize}}
-\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-10pt}}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
-\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{-15pt}}
-% New command for Languages section to reduce downward shift
-\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{-5pt}}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
 
 \begin{document}
 
 %----------HEADING----------
 \begin{center}
-    {\Huge \bfseries Budumuru Srinivas Sai Saran Teja} \\ \vspace{1pt}
+    {\Huge \bfseries Budumuru Srinivas Sai Saran Teja} \\ \vspace{3pt}
     Visakhapatnam, India $|$ +91 7993027519 $|$ \href{mailto:tejabudumuru3@gmail.com}{tejabudumuru3@gmail.com} \\
     \href{https://linkedin.com/in/teja-budumuru-15123a292}{LinkedIn} $|$ 
     \href{https://github.com/TejaBudumuru3}{GitHub}
@@ -146,9 +149,10 @@ _SAMPLE = r"""
 \section{Professional Summary}
 \resumeSubHeadingListStart
 \resumeItem{
-Enthusiastic and detail-oriented \textbf{Software Developer (Fresher)} with strong foundations in \textbf{OOPs, data structures, DBMS}, and hands-on experience building fullstack applications using \textbf{JavaScript, React.js, Node.js, Express.js, and MongoDB}. Adept at writing clean, efficient code, collaborating with cross-functional teams, and quickly learning new technologies in fast-paced, remote-first environments.
+Enthusiastic Software Developer with proven experience in designing and implementing \textbf{end-to-end applications} across web and desktop platforms. Proficient in \textbf{React.js, Node.js, Express.js, MongoDB, Python, and Java}, with expertise in RESTful API design, authentication, and scalable architectures. Strong understanding of \textbf{OOP, algorithms, database management, and MVC frameworks}. Recognized for building projects that combine innovation and practicality, from AI-driven content generators to automation platforms for recruitment and faculty performance tracking.
 }
 \resumeSubHeadingListEnd
+
 
 %-----------TECHNICAL SKILLS-----------
 \section{Technical Skills}
@@ -156,7 +160,7 @@ Enthusiastic and detail-oriented \textbf{Software Developer (Fresher)} with stro
   \resumeItem{\textbf{Programming Languages:} JavaScript (ES6+), Python, Java, SQL}
   \resumeItem{\textbf{Frontend:} React.js, Redux, HTML5, CSS3}
   \resumeItem{\textbf{Backend:} Node.js, Express.js, REST APIs}
-  \resumeItem{\textbf{Databases:} MongoDB, MySQL}
+  \resumeItem{\textbf{Databases and Automation tools:} MongoDB, MySQL, Supabase and Playwright}
   \resumeItem{\textbf{Version Control:} Git, GitHub}
   \resumeItem{\textbf{Concepts:} OOP, Data Structures, DBMS, MVC architecture, Agile, Clean Code Practices}
   \resumeItem{\textbf{Soft Skills:} Problem Solving, Quick Learning, Effective Communication, Team Collaboration}
@@ -178,27 +182,40 @@ Enthusiastic and detail-oriented \textbf{Software Developer (Fresher)} with stro
 \resumeSubHeadingListStart
 
 \resumeProjectHeading
-    {Ainfity – AI-Powered Post Generator for Content Creators}{{\href{https://post-generator-iota.vercel.app/}{https://post-generator-iota.vercel.app/}}}
+    {HireHawk – Fullstack Job Automation}{Ongoing}
     \resumeItemListStart
-      \resumeItem{Built a MERN stack application enabling AI-driven content generation, supporting both text and image creation for social media posts.}
-      \resumeItem{Developed scalable RESTful APIs using Express.js and MongoDB with clean, modular backend architecture.}
-      \resumeItem{Designed a responsive frontend interface with React.js, enhancing user experience across devices.}
-      \resumeItem{Implemented secure authentication via JWT and optimized performance for smooth content creation workflows.}
+      \resumeItem{Conceptualized and developing an \textbf{AI-powered recruitment automation platform} aimed at reducing manual effort in job applications.}
+      \resumeItem{Designed workflows for \textbf{resume parsing, intelligent job matching, and auto-apply mechanisms}, allowing candidates to apply across multiple portals with minimal effort.}
+      \resumeItem{Building backend services with \textbf{Python, Next.js, Supabase} to manage job applying, tailoring resumes, and finding relavent jobs.}
+      \resumeItem{Building agents to maintain proper flow from finding titles to applying jobs using automation tool called \textbf{Playwright} in Python to create 4 agents called \textbf{Titles extraction, Scraping relavent jobs, Tailoring resume, Apply agent}}
     \resumeItemListEnd
 
+\resumeProjectHeading
+    {Ainfity – AI-Powered Post Generator}{{\href{https://post-generator-iota.vercel.app/}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed a \textbf{MERN stack application} that generates AI-driven text and image content for social media posts, helping creators save time.}
+      \resumeItem{Implemented \textbf{RESTful APIs} using Express.js and MongoDB with nested JSON schemas for structured data handling.}
+      \resumeItem{Integrated \textbf{JWT-based authentication} for secure user sessions and scalable user management.}
+      \resumeItem{Designed a responsive \textbf{React.js frontend}, ensuring smooth experience across mobile and desktop devices.}
+      \resumeItem{Optimized performance by modularizing backend architecture and adopting Agile practices for rapid iteration.}
+    \resumeItemListEnd
 
 \resumeProjectHeading
     {Faculty Performance Monitor}{}
     \resumeItemListStart
-      \resumeItem{Developed a Java-based web portal using JSP and MySQL for role-based workload tracking and reporting.}
-      \resumeItem{Optimized SQL queries for performance and applied MVC architecture for clean design.}
+      \resumeItem{Developed a \textbf{Java-based web portal} using JSP and MySQL for tracking faculty workload and performance scores.}
+      \resumeItem{Implemented role-based access controls, enabling administrators to assign credits and generate evaluation reports.}
+      \resumeItem{Applied \textbf{MVC architecture} to ensure clean separation of logic, improving maintainability and scalability.}
+      \resumeItem{Optimized SQL queries to improve reporting efficiency and ensure quick data retrieval for administrators.}
     \resumeItemListEnd
 
 \resumeProjectHeading
     {Employee Management System}{}
     \resumeItemListStart
-      \resumeItem{Built a payroll automation tool in Python with Tkinter GUI and MySQL, reducing manual processing time.}
-      \resumeItem{Ensured data integrity with robust validation and exception handling.}
+      \resumeItem{Created a \textbf{Python desktop application} with Tkinter GUI and MySQL backend for automating employee payroll processes.}
+      \resumeItem{Developed modules for \textbf{salary computation, tax deduction, and employee record management}.}
+      \resumeItem{Implemented validation and exception handling to ensure reliable data storage and reduce errors in payroll.}
+      \resumeItem{Minimized manual intervention, thereby reducing processing time and improving organizational efficiency.}
     \resumeItemListEnd
 
 \resumeSubHeadingListEnd
@@ -215,8 +232,9 @@ Enthusiastic and detail-oriented \textbf{Software Developer (Fresher)} with stro
 %-----------ACHIEVEMENTS-----------
 \section{Achievements}
 \resumeItemListStart
-  \resumeItem{Participated in Pega Systems Hackathon demonstrating problem-solving and collaboration.}
-  \resumeItem{Recognized for artistic talent in Drawing Competition (early academic years).}
+  \resumeItem{Participated in Pega Systems Hackathon, demonstrating innovation, problem-solving, and teamwork skills.}
+
+  \resumeItem{Recognized for artistic achievements in drawing competitions (early academic years).}
 \resumeItemListEnd
 
 %-----------LANGUAGES-----------
@@ -228,15 +246,43 @@ Enthusiastic and detail-oriented \textbf{Software Developer (Fresher)} with stro
 
 \end{document}
 
+
 """
 
 RULES = r"""
 For each job description:
-- If the current résumé already matches the job, respond with ONLY the text NO_CHANGES_NEEDED.
-- Otherwise respond with a COMPLETE LaTeX résumé that starts with \documentclass and ends with \end{document}.
-- Do not include any explanation or markdown – ONLY the LaTeX code.
-- Do not make any syntax errors in the LaTeX code (this is mandatory).
-- Make sure every resume code is starts with job numbering like this '=== JOB 1 ==='.
+
+- For every provided job description:
+
+    - If the current résumé fully matches the job requirements, respond with only the text: NO_CHANGES_NEEDED.
+
+    - Explain projects and all stuff in detail, if it matches the job description and resume more professional align and professional format.
+
+    - Otherwise, respond with a COMPLETE LaTeX résumé, starting with \documentclass and ending with \end{document}. Do not include any explanation or markdown, only the valid LaTeX code.
+
+    - The code must never contain any LaTeX syntax errors (this is mandatory).
+
+- Layout and Spacing Rules:
+
+    - Ensure all sections (Professional Summary, Skills, Education, Projects, Certifications, Achievements, Languages, etc.) have clear and consistent vertical spacing above and below each heading and item for readability.
+
+    - DO NOT squeeze sections too tightly together or eliminate vertical spacing between sections to force all content onto a single page.
+
+    - Maintain a minimum of 0.5cm space (or a similar appropriate value) between major sections. Use LaTeX vertical spacing commands like \vspace{8pt} or appropriate list spacing parameters.
+
+    - The bottom of every page must have visible white space: ensure there is consistent buffer space between the last line of content and the bottom page edge (the bottom margin) so the résumé does not appear congested at the bottom.
+
+    - Use a minimum bottom margin of 2.5 cm, either by setting document margins (e.g., using the geometry package) or ensuring \textheight is not maximized (mandatory).
+
+    - Do NOT artificially fill the page with empty space to get a full page—let pages break naturally. If there is little content for the second page, allow it to remain mostly blank on purpose for professional appearance.
+
+    - Do NOT force content onto the next page by adding excessive manual spacing or blank lines.
+
+    - All LaTeX code must ensure balanced visuals: if a page has little content, allow the natural blank space, but never place a section header near the absolute bottom of a page by itself (avoid 'widow' or 'orphan' lines).
+
+- Job Numbering:
+
+    -Every résumé code must start with the job number, e.g., '=== JOB 1 ===' (plain text, not commented or styled).
 """
 
 def build_prompt(original: str, jobs: List[str]) -> str:

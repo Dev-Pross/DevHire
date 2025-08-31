@@ -10,24 +10,45 @@ export const HeroTalent = () => {
   const [resume, setResume] = useState<string | null>(null);
   // const router = useRouter();
   useEffect(() => {
-    const id = sessionStorage.getItem("id")
+    
+    // const id = sessionStorage.getItem("id")
     const resume_url = sessionStorage.getItem("resume")
-    setId(id)
-    if(!id) return
+    // setId(id)
+    // if(!id) return
     async function getResume(){
-      const res = await fetch(`/api/User?id=${id}`,
+
+      const {data , error } = await getLoginUser()
+      console.log("session ",data)
+      if(error){
+        console.error("Error fetching user:",error)
+      }else if(data?.user){
+
+        console.log("User is logged in:",data?.user.user_metadata.email," ",data?.user.user_metadata.username)
+        }else{
+    console.log("No user is logged in.")
+    }
+      // setUser(data.user.user_metadata);
+      sessionStorage.setItem("id",data?.user.user_metadata.sub)
+      setId(data?.user.user_metadata.sub)
+      sessionStorage.setItem("name",data?.user.user_metadata.username)
+      sessionStorage.setItem("email",data?.user.user_metadata.email)
+
+      if(id)
       {
-        method:"GET",
-        headers: { 'Content-Type': 'application/json' },
-        credentials: "include",
-      });
-      const data = await res.json()
-      console.log("mydata",data.user.resume_url)
-      if(!resume_url) sessionStorage.setItem("resume", data.user.resume_url)
-      setResume(data.user.resume_url)
+        const res = await fetch(`/api/User?id=${id}`,
+        {
+          method:"GET",
+          headers: { 'Content-Type': 'application/json' },
+          credentials: "include",
+        });
+        const resume_data = await res.json()
+        console.log("mydata",resume_data.user.resume_url)
+        if(!resume_url) sessionStorage.setItem("resume", resume_data.user.resume_url)
+        setResume(resume_data.user.resume_url)
+    }
     }
     getResume()
-  }, [resume]);
+  }, [id]);
   return (
     <section className="h-screen w-full flex items-center px-30  ">
       <div className="flex-1 max-w-xl">

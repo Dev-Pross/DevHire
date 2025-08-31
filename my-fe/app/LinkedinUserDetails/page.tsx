@@ -107,7 +107,7 @@ export default function LinkedinUserDetailsPage() {
 
       const { data: urlData, error: urlError } = await supabase.storage
         .from("user-resume")
-        .createSignedUrl(filePath, 86400);
+        .createSignedUrl(filePath, 8640000);
 
       if (urlError) throw urlError;
 

@@ -52,9 +52,7 @@ async def getJobs(request: JobRequest):
         
         titles = [title.strip() for title in titles_string.split(",")]
         keywords = [keyword.strip() for keyword in keywords_string.split(",")]
-        keywords.append('web developer')
-        keywords.append("software Developer")
-        keywords.append("full stack")
+
 
 
         print(titles,"\n", keywords)

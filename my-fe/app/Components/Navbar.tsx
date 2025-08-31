@@ -14,11 +14,14 @@ const Navbar = () => {
       const {data, error }= await getLoginUser();
       if (data) {
         setUser(data?.user.user_metadata);
+        console.log(data?.user.user_metadata);
+        
       }
  
     }
     fetchUser();
-
+    console.log(user);
+    
     
 
 

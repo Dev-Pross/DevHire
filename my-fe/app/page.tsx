@@ -12,17 +12,13 @@ export default async  function Home() {
   if(error){
     console.error("Error fetching user:",error)
   }else if(data?.user){
-    console.log("User is logged in:",data?.user.user_metadata.email," ",data?.user.user_metadata.username)
-    // setUser(data.user.user_metadata);
-    sessionStorage.setItem("id",data?.user.user_metadata.sub)
-    sessionStorage.setItem("name",data?.user.user_metadata.username)
-    sessionStorage.setItem("email",data?.user.user_metadata.email)
+
 
   }else{
     console.log("No user is logged in.")
   }
 
-  // useEffect(() => {
+  // useEffect(() => {s
   //   async function fetchSession() {
   //     const { data, error } = await getLoginUser();
   //     console.log("session ", data);
