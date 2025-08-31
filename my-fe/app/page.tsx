@@ -2,21 +2,21 @@
 // import { useEffect, useState } from "react";
 import Navbar from "./Components/Navbar";
 import { HeroTalent } from "./Components/Landing-Page/hero-section";
-import getLoginUser from "./utiles/getUserData";
+// import getLoginUser from "./utiles/getUserData";
 
 export default async  function Home() {
 
-  // const [user, setUser] = useState<any>();
-  const {data , error } = await getLoginUser()
-  console.log("session ",data)
-  if(error){
-    console.error("Error fetching user:",error)
-  }else if(data?.user){
+  // // const [user, setUser] = useState<any>();
+  // const {data , error } = await getLoginUser()
+  // console.log("session ",data)
+  // if(error){
+  //   console.error("Error fetching user:",error)
+  // }else if(data?.user){
 
 
-  }else{
-    console.log("No user is logged in.")
-  }
+  // }else{
+  //   console.log("No user is logged in.")
+  // }
 
   // useEffect(() => {s
   //   async function fetchSession() {
