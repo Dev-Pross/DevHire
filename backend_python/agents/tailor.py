@@ -53,16 +53,30 @@ model = genai.GenerativeModel("gemini-2.5-flash") # gemini-2.5-flash-lite
 
 # ╭── Resume-text helpers ────────────────────────────────────────╮
 def _pdf_to_txt(r):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as t:
-        t.write(r.content)
-        p = t.name
-    try:
-        doc = fitz.open(p)
-        txt = "".join(pg.get_text() for pg in doc)
-        doc.close()
-        return txt
-    finally:
-        os.remove(p)
+    pdf_bytes = r.content  # bytes of PDF from requests response
+
+    # Open PDF document from bytes in memory
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    text = ""
+    num_pages = len(doc)
+
+    for page_num in range(num_pages):
+        page = doc.load_page(page_num)
+        page_text = page.get_text().strip()
+        if page_text:
+            text += page_text + "\n\n"
+        else:
+            # Fallback to OCR using pdf2image + pytesseract on page bytes
+            # Convert only the page to image
+            images = convert_from_bytes(pdf_bytes, first_page=page_num + 1, last_page=page_num + 1)
+            if images:
+                ocr_text = pytesseract.image_to_string(images[0])
+                text += ocr_text + "\n\n"
+            else:
+                log.warning(f"No image generated for PDF page {page_num + 1}")
+
+    doc.close()
+    return text
 
 def _docx_to_txt(r):
     pdf_bytes = requests.get(r, timeout=60).content
@@ -86,8 +100,6 @@ def extract_resume_text(url: str) -> str:
     ct = r.headers.get("Content-Type", "").lower()
     if "pdf" in ct or url.lower().endswith(".pdf"):
         return _pdf_to_txt(r)
-    if "word" in ct or url.lower().endswith(".docx"):
-        return _docx_to_txt(r)
     raise ValueError("Unsupported resume format")
 # ╰───────────────────────────────────────────────────────────────╯
 
