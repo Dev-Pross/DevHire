@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import List, Dict, Any
 import fitz
 import requests                       # PyMuPDF / HTTP
-from docx import Document
+from pdf2image import convert_from_bytes
+import pytesseract
 import google.generativeai as genai
 from google.api_core import exceptions as g_exc
 from config import GOOGLE_API
@@ -64,14 +65,20 @@ def _pdf_to_txt(r):
         os.remove(p)
 
 def _docx_to_txt(r):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as t:
-        t.write(r.content)
-        p = t.name
-    try:
-        d = Document(p)
-        return "\n".join(par.text for par in d.paragraphs)
-    finally:
-        os.remove(p)
+    pdf_bytes = requests.get(r, timeout=60).content
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    text = ""
+    for page_num in range(len(doc)):
+        page = doc.load_page(page_num)
+        page_text = page.get_text()
+        if not page_text.strip():
+            # Fallback to OCR if no text found
+            images = convert_from_bytes(pdf_bytes, first_page=page_num+1, last_page=page_num+1)
+            ocr_text = pytesseract.image_to_string(images[0])
+            text += ocr_text + "\n\n"
+        else:
+            text += page_text + "\n\n"
+    return text
 
 def extract_resume_text(url: str) -> str:
     r = requests.get(url, timeout=60)
@@ -257,6 +264,8 @@ For each job description:
     - If the current résumé fully matches the job requirements, respond with only the text: NO_CHANGES_NEEDED.
 
     - Explain projects and all stuff in detail, if it matches the job description and resume more professional align and professional format.
+
+    - Use only Original resume data like name, phone, email all stuff take only from original resume, from sample resume take only layout, margins, spacing stuff
 
     - Otherwise, respond with a COMPLETE LaTeX résumé, starting with \documentclass and ending with \end{document}. Do not include any explanation or markdown, only the valid LaTeX code.
 
