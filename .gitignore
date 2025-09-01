@@ -16,6 +16,7 @@ backend_python/data_dump/playwright.config.ts
 backend_python/data_dump/template.html
 backend_python/venv
 backend_python/gem
+backend_python/lib/poppler-25.07.0
 .DS_Store
 .vscode
 .idea
