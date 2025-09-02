@@ -13,6 +13,7 @@ export const Pricing = () => {
             <li>✔️ Access to basic features</li>
             <li>✔️ Email support</li>
             <li>✔️ Community access</li>
+            <li> ✔️ Weeklu Webinars</li>
           </ul>
           <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded hover:scale-105 transition-transform duration-300 cursor-pointer">
             Choose Basic
