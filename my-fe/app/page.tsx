@@ -3,6 +3,7 @@
 import Navbar from "./Components/Navbar";
 import { HeroTalent } from "./Components/Landing-Page/hero-section";
 import { Pricing } from "./Components/Pricing/Pricing";
+import Features from "./Components/Features";
 // import getLoginUser from "./utiles/getUserData";
 
 export default async  function Home() {
@@ -61,6 +62,7 @@ export default async  function Home() {
         {/* <UploadButton/> */}
         <HeroTalent />
       </div>
+      <Features/>
       <Pricing />
     </div>
   );
