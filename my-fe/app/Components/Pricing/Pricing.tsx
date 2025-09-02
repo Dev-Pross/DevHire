@@ -1,11 +1,11 @@
 import React from "react";
 export const Pricing = () => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen  text-white">
-      <h1 className="text-4xl font-bold mb-8">Pricing Plans</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl px-4">
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-semibold mb-4">Basic</h2>
+    <div className="flex bg-white flex-col items-start  min-h-screen p-30">
+      <h1 className="text-4xl font-bold mb-8 ">Choose the perfect plan to<br/> streamline your hiring process</h1>
+      <div className="flex   w-full">
+        <div className="bg-black size-[70%] p-6 min-h-9/10 shadow-lg text-white">
+          <h2 className="text-2xl font-semibold mb-4 ">Basic</h2>
           <p className="text-4xl font-bold mb-4">
             FREE<span className="text-base font-normal"></span>
           </p>
@@ -13,29 +13,17 @@ export const Pricing = () => {
             <li>✔️ Access to basic features</li>
             <li>✔️ Email support</li>
             <li>✔️ Community access</li>
+            <li>✔️ Community access</li>
+            <li>✔️ Email support</li>
           </ul>
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded hover:scale-105 transition-transform duration-300 cursor-pointer">
-            Choose Basic
+          <button className="border border-white hover:bg-[#159950] w-full text-white font-bold py-2 px-4 rounded-4xl focus:outline-none focus:shadow-outline hover:scale-105 transition-transform duration-300 cursor-pointer">
+
+            Get started
           </button>
         </div>
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg border-2 border-blue-500">
+
+        <div className="price-card size-[70%] shadow-[-11px_0px_20px_1px_#ffffff30] p-6 text-white ">
           <h2 className="text-2xl font-semibold mb-4">Pro</h2>
-          <p className="text-4xl font-bold mb-4">
-            $30<span className="text-base font-normal">/month</span>
-          </p>
-          <ul className="mb-6 space-y-2">
-            <li>✔️ All Basic features</li>
-            <li>✔️ Priority email support</li>
-            <li>✔️ Access to beta features</li>
-            <li>✔️ Monthly webinars</li>
-            <li>✔️ Discord access</li>
-          </ul>
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded hover:scale-105 transition-transform duration-300 cursor-pointer">
-            Choose Pro
-          </button>
-        </div>
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-semibold mb-4">Enterprise</h2>
           <p className="text-4xl font-bold mb-4">
             $100<span className="text-base font-normal">/month</span>
           </p>
@@ -46,8 +34,8 @@ export const Pricing = () => {
             <li>✔️ Custom integrations</li>
             <li>✔️ Discord access</li>
           </ul>
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded hover:scale-105 transition-transform duration-300 cursor-pointer">
-            Choose Enterprise
+          <button className="bg-[#27db78] border hover:bg-[#159950] w-full text-black font-bold py-2 px-4 rounded-4xl focus:outline-none focus:shadow-outline hover:scale-105 transition-transform duration-300 cursor-pointer">
+            Choose plan
           </button>
         </div>
       </div>

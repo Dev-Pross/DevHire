@@ -51,18 +51,34 @@ export const HeroTalent = () => {
   }, [id]);
   return (
     <section className="h-screen w-full flex items-center px-30  ">
-      <div className="flex-1 max-w-xl">
-        <h1 className="text-6xl font-bold text-white  leading-tight mb-6">
+      <div className="flex-1.5 w-[50%] z-10 absolute">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            Build Amazing Products withsome amazing Developers <br />
-          </motion.div>
+        <h1 className="text-6xl font-bold bg-gradient-to-r from-white to-white/50 bg-clip-text text-transparent leading-tight mb-6">
+            Unleash Your Potential. <br/>Land Your Perfect Job with HireHawk.
         </h1>
+          </motion.div>
 
         {/* <p className="text-xl text-stone-200 mb-8 leading-relaxed"> */}
+        <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+        <p className="text-2xl font-extralight text-white/80 leading-tight mb-6">
+          Harness the power of intelligent matching and effortless resume tailoring with HireHawk. 
+          Our platform connects your unique skills to the right opportunities, making every application stand out—whether you’re starting your career or seeking your next big move. 
+          Automate applications, personalize your approach, and discover jobs that truly fit you. 
+          Your journey to a better career starts here.
+        </p>
+        <p className="text-2xl font-extralight text-white leading-tight mb-6">
+          Try Smart Applier Now
+        </p>
+        </motion.div>
+
         <div>
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -106,8 +122,8 @@ export const HeroTalent = () => {
         </div> */}
       </div>
 
-      <div className="flex-1 flex justify-end opacity-80">
-        <div className="relative">
+      <div className="w-[30%] ml-[45%] relative flex justify-center opacity-75">
+        <div className="left-0 relative">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -122,6 +138,27 @@ export const HeroTalent = () => {
           </motion.div>
         </div>
       </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+      <div className=" w-full text-center">
+          <h1 className="text-4xl font-bold text-white leading-tight mb-6">
+            Need a Custom Resume?
+          
+        </h1>
+         <p className="text-2xl font-extralight text-white/80 leading-tight mb-6">
+          Try our Resume Tailor for personalized results.
+        </p>
+        <Link href={"/LinkedinUserDetails"}>
+          <button className=" cursor-pointer border content-center bg-white  border-border-green-700 hover:bg-blue-400  text-bg-clip px-8 py-4 rounded-lg transition-colors">
+            Checkout our Resume Tailor
+          </button>
+        </Link>
+      </div>
+      </motion.div>
     </section>
   );
 };

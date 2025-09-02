@@ -29,3 +29,6 @@ body {
   /* height: "64px"; */
   /* background: var(--background); */
 }
+.price-card{
+  background: var(--background);
+}

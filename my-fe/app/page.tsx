@@ -52,7 +52,7 @@ export default async  function Home() {
       }}
     >
       <Navbar />
-      <div style={{ flex: 1 }}>
+      <div style={{ }}>
         {/* <Login />
         < Register /> */}
         {/* <Jobs url={ url } userId={ userid} password={password} />
