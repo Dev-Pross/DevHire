@@ -77,7 +77,7 @@ export const HeroTalent = () => {
             applications, personalize your approach, and discover jobs that
             truly fit you. Your journey to a better career starts here.
           </p> */}
-          <p className="text-2xl font-extralight text-white leading-tight mb-6">
+          <p className="text-2xl font-extralight text-white/80 leading-tight mb-6">
             Try Smart Applier Now
           </p>
         </motion.div>
@@ -124,7 +124,7 @@ export const HeroTalent = () => {
         </div> */}
       </div>
 
-      <div className="w-[30%] ml-[45%] relative flex justify-center opacity-75">
+      <div className="w-[40%] ml-[45%] relative flex justify-center opacity-75">
         <div className="left-0 relative">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
