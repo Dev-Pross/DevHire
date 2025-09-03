@@ -60,7 +60,8 @@ export const HeroTalent = () => {
         >
           <h1 className="text-6xl font-bold bg-gradient-to-r from-white to-white/50 bg-clip-text text-transparent leading-tight mb-6">
             Unleash Your Potential. <br />
-            Land Your Perfect Job with HireHawk.
+            Land Your Perfect Job  <br />with HireHawk. <br />
+            Automate Job <br /> Applications <br />
           </h1>
         </motion.div>
 
@@ -70,14 +71,13 @@ export const HeroTalent = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <p className="text-2xl font-extralight text-white/80 leading-tight mb-6">
+          {/* <p className="text-2xl font-extralight text-white/80 leading-tight mb-6">
             Harness the power of intelligent matching and effortless resume
             tailoring with HireHawk. Our platform connects your unique skills to
-            the right opportunities, making every application stand out—whether
-            you’re starting your career or seeking your next big move. Automate
+            the right opportunities.Automate
             applications, personalize your approach, and discover jobs that
             truly fit you. Your journey to a better career starts here.
-          </p>
+          </p> */}
           <p className="text-2xl font-extralight text-white leading-tight mb-6">
             Try Smart Applier Now
           </p>
