@@ -68,7 +68,7 @@ export const HeroTalent = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-        <p className="text-2xl font-extralight text-white/80 leading-tight mb-6">
+        <p className="text-lg/6  font-extralight text-white/80 leading-tight mb-6">
           Harness the power of intelligent matching and effortless resume tailoring with HireHawk. 
           Our platform connects your unique skills to the right opportunities, making every application stand out—whether you’re starting your career or seeking your next big move. 
           Automate applications, personalize your approach, and discover jobs that truly fit you. 
@@ -146,7 +146,7 @@ export const HeroTalent = () => {
       >
       <div className=" w-full text-center">
           <h1 className="text-4xl font-bold text-white leading-tight mb-6">
-            Need a Custom Resume?
+            Need a Perfect Resume?
           
         </h1>
          <p className="text-2xl font-extralight text-white/80 leading-tight mb-6">
