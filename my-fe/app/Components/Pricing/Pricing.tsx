@@ -1,7 +1,7 @@
 import React from "react";
 export const Pricing = () => {
   return (
-    <div className="flex bg-white flex-col items-start  min-h-screen p-30" id="pricing-section">
+    <div className="flex bg-white/90 flex-col items-start  min-h-screen p-30" id="pricing-section">
       <h1 className="text-4xl font-bold mb-8 ">Choose the perfect plan to<br/> streamline your hiring process</h1>
       <div className="flex   w-full">
         <div className="bg-black size-[70%] p-6 min-h-9/10 shadow-lg text-white">
