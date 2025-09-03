@@ -59,8 +59,7 @@ export const HeroTalent = () => {
           transition={{ duration: 0.6 }}
         >
           <h1 className="text-8xl font-bold bg-gradient-to-r from-white to-white/50 bg-clip-text text-transparent leading-tight mb-6">
-            Unleash Your Potential. 
-            Land Your  Job  
+            Unleash Your Potential. Land Your Job
           </h1>
         </motion.div>
 
