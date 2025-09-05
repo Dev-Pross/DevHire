@@ -117,7 +117,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = []}) => {
                         <p className='text-white hover:text-gray-100 font-thin text-xs content-center'>{job.posted_at}</p>
                     </div>
                     
-                        <a className='text-white hover:text-gray-100 font-bold text-xl' href={job.job_url} onClick={e => e.stopPropagation()}>{job.title}</a>
+                        <a className='text-white hover:text-gray-100 font-bold text-xl' href={job.job_url} onClick={e => e.stopPropagation()} target='_blank'>{job.title}</a>
                         <p className='text-white hover:text-gray-100 font-thin text-sm'>{job.location}</p>
                 </div>
                 ) :  (<div className='flex flex-col px-10 py-5 justify-around'>
