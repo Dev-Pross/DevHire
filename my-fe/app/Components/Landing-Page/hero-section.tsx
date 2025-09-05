@@ -58,7 +58,12 @@ export const HeroTalent = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-8xl font-bold bg-gradient-to-r from-white to-white/50 bg-clip-text text-transparent leading-tight mb-6">
+          <h1
+            className="text-8xl font-bold text-transparent leading-tight mb-6"
+            style={{
+              WebkitTextStroke: "2px white", // 2px blue stroke
+            }}
+          >
             Unleash Your Potential. Land Your Job
           </h1>
         </motion.div>
