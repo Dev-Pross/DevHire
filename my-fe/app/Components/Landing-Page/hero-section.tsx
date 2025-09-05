@@ -61,7 +61,7 @@ export const HeroTalent = () => {
           <h1
             className="text-8xl font-bold text-transparent leading-tight mb-6"
             style={{
-              WebkitTextStroke: "2px white", // 2px blue stroke
+              WebkitTextStroke: "4px white", // 2px blue stroke
             }}
           >
             Unleash Your Potential. Land Your Job
