@@ -93,8 +93,12 @@ const Navbar = () => {
             href="#"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
-            onMouseEnter={(e) => (e.target as HTMLAnchorElement).style.color = hoverStyle.color}
-            onMouseLeave={(e) => (e.target as HTMLAnchorElement).style.color = color}
+            onMouseEnter={(e) =>
+              ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
+            }
+            onMouseLeave={(e) =>
+              ((e.target as HTMLAnchorElement).style.color = color)
+            }
           >
             Home
           </Link>
@@ -102,8 +106,12 @@ const Navbar = () => {
             href="#"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
-            onMouseEnter={(e) => (e.target as HTMLAnchorElement).style.color = hoverStyle.color}
-            onMouseLeave={(e) => (e.target as HTMLAnchorElement).style.color = color}
+            onMouseEnter={(e) =>
+              ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
+            }
+            onMouseLeave={(e) =>
+              ((e.target as HTMLAnchorElement).style.color = color)
+            }
           >
             Pricing
           </Link>
@@ -111,8 +119,12 @@ const Navbar = () => {
             href="#"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
-            onMouseEnter={(e) => (e.target as HTMLAnchorElement).style.color = hoverStyle.color}
-            onMouseLeave={(e) => (e.target as HTMLAnchorElement).style.color = color}
+            onMouseEnter={(e) =>
+              ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
+            }
+            onMouseLeave={(e) =>
+              ((e.target as HTMLAnchorElement).style.color = color)
+            }
           >
             Tailor Resume
           </Link>
@@ -120,8 +132,12 @@ const Navbar = () => {
             href="#"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
-            onMouseEnter={(e) => (e.target as HTMLAnchorElement).style.color = hoverStyle.color}
-            onMouseLeave={(e) => (e.target as HTMLAnchorElement).style.color = color}
+            onMouseEnter={(e) =>
+              ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
+            }
+            onMouseLeave={(e) =>
+              ((e.target as HTMLAnchorElement).style.color = color)
+            }
           >
             About us
           </Link>

@@ -1,7 +1,11 @@
 @import "tailwindcss";
 
 :root {
+<<<<<<< HEAD
   --background: linear-gradient(135deg, #1A237E, orange, #3F51B5);
+=======
+  --background: linear-gradient(135deg, #1A237E 10%, #80d377ad 32%, #001ed5 50%);
+>>>>>>> 7c4c522 (Hero Hero)
   --foreground: #fff8f8;
 }
 
