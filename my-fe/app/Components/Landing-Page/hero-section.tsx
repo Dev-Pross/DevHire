@@ -110,7 +110,7 @@ export const HeroTalent = () => {
             ) : (
               <div className="flex space-x-4">
                 <Link href="/login">
-                  <button className="cursor-pointer border hover:bg-[#eaca4a] hover:border-gray-300 text-white-700  py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
+                  <button className="cursor-pointer border hover:bg-yellow-400 hover:border-gray-300 text-white-700  py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
                     Get Started
                   </button>
                 </Link>
