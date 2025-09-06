@@ -72,9 +72,8 @@ const Navbar = () => {
     width: "100%",
     backdropFilter: "blur(10px)",
     zIndex: 50,
-    transition: "color 0.3s ease",
+    transition: " 0.3s ease",
     height: "60px", // Increased height for better visibility
-    color: color,
   };
 
   const navLinkStyle = {
@@ -117,7 +116,7 @@ const Navbar = () => {
         </div>
         <div className="flex gap-6">
           <Link
-            href="#"
+            href="/"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
             onMouseEnter={(e) =>
@@ -130,7 +129,7 @@ const Navbar = () => {
             Home
           </Link>
           <Link
-            href="#"
+            href="/"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
             onMouseEnter={(e) =>
@@ -143,7 +142,7 @@ const Navbar = () => {
             Pricing
           </Link>
           <Link
-            href="#"
+            href="/"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
             onMouseEnter={(e) =>
@@ -156,7 +155,7 @@ const Navbar = () => {
             Tailor Resume
           </Link>
           <Link
-            href="#"
+            href="/"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
             onMouseEnter={(e) =>
@@ -178,7 +177,7 @@ const Navbar = () => {
             Get Started
           </Link>
         ) : (
-          <div className={`bg-white w-20 rounded-4xl }`}
+          <div className={`bg-white w-20 rounded-4xl relative`}
           ref={dropdownRef}>
           <div className="rounded-full flex items-center pr-3 justify-between overflow-hidden relative" 
           onClick={()=>setOpen(!open)}
@@ -196,15 +195,15 @@ const Navbar = () => {
             ⏷
             </p>          
           </div>
-          <div className={`absolute top-15 p-3 w-50 h-24 bg-gray-600 rounded-lg shadow-lg transition-opacity duration-200 ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+          <div className={`absolute top-16 left-1/2 transform -translate-x-1/2 p-3 w-50 bg-white/50 backdrop-blur rounded-lg shadow-lg z-50 transition-opacity duration-200 ${
+      open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
           onMouseEnter={() => setOpen(true)}
           onMouseLeave={() => setOpen(false)}>
             <ul className="">
               <Link href={"/profile"}>
-              <li className="bg-gray-600 hover:bg-gray-700 cursor-pointer rounded-lg text-center p-1 mb-2">profile</li>
+              <li className="bg-transparent backdrop-blur hover:bg-gray-100 cursor-pointer rounded-lg text-center p-1 mb-2">Profile</li>
               </Link>
-              <li className="bg-gray-600 hover:bg-gray-700 cursor-pointer rounded-lg text-center p-1" onClick={logoutHandler}>Logout</li>
+              <li className="bg-transparent backdrop-blur hover:bg-gray-100 cursor-pointer rounded-lg text-center p-1" onClick={logoutHandler}>Logout</li>
             </ul>
           </div>
           </div>

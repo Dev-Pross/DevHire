@@ -4,10 +4,10 @@ import Navbar from '../Components/Navbar'
 
 const page = () => {
   return (
-    <>
+    <div className='page-section'>
     <Navbar/>
     <Jobs/>
-    </>
+    </div>
   )
 }
 

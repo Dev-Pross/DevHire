@@ -20,7 +20,8 @@
   }
 } */
 
-/* linear-gradient(135deg, #1E3A8A 0%, #10B981 100%); */
+/* linear-gradient(135deg, #1E3A8A 0%, #10B981 100%); 
+linear-gradient(135deg, #1A237E 10%, #80d377ad 32%, #001ed5 50%);*/
 
 
 
@@ -31,42 +32,27 @@ body {
 }
 .profile
 {
-background: linear-gradient(135deg, #0D47A1 0%, #1A237E 50%, #283593 100%);
 /* background: linear-gradient(135deg, #1A237E 0%, #283593 30%, #1565C0 100%); */
 background: #354a85;
-background: linear-gradient(135deg, #1E3A8A 0%, #10B981 100%);
-
+background: var(--background)
+}
+.page-section{
+  background: linear-gradient(135deg, #1e3a8a 0%, #0f766e 100%);
 }
 .navbar{
   min-width: "100vw";
   /* height: "64px"; */
   /* background: var(--background); */
+  background: none;
 }
 .features{
 background: #354a85;
 color: #ffffff;
 }
 .price-card{
-background: linear-gradient(135deg, #1E3A8A 0%, #10B981 100%);
 background: #fccb06;
 color: black;
 }
-.checkmark-icon {
-  color: #FFFF00; /* Bright yellow */
-}
-
-.checkmark {
-  color: #00FF00 ; /* Bright yellow */
-  font-weight: bold;
-  margin-right: 8px;
-}
-
-/* Alternative colors */
-.checkmark-green {
-  color: #00FF00; /* Bright green */
-}
-
-.checkmark-white {
-  color: #FFFFFF; /* White */
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3); /* Subtle shadow */
-}
+/* .hero{
+background: linear-gradient(135deg, #1A237E 10%, #80d377ad 32%, #001ed5 50%);
+} */

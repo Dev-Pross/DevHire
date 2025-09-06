@@ -173,8 +173,8 @@ console.log("jwt:",jwt);
  
 
   return (
-    <div className='flex'>
-      <div className='flex flex-col gap-0 bg-[#052718] p-8 py-20 shadow-lg shadow-[#052718]-500 w-full max-w-xs size-max sticky top-15 left-0 h-screen rounded-r-lg cursor-default'>
+    <div className='flex jobs-section'>
+      <div className='flex flex-col gap-0 bg-gradient-to-b from-[#244283] to-[#0e3661] p-8 py-20 shadow-lg shadow-[#052718]-500 w-full max-w-xs size-max sticky top-15 left-0 h-screen rounded-r-lg cursor-default'>
         {steps.map((step, index) => (
           <div className="flex items-start" key={step.label}>
             {/* Connector Line & Circle Col */}
@@ -185,17 +185,17 @@ console.log("jwt:",jwt);
                   w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-900 
                   ${
                     index < currentStep
-                      ? "bg-blue-600 border-blue-600"
+                      ? "bg-[#1ab5a9] border-[#1ab5a9]"
                       : index === currentStep
-                      ? "border-blue-500 bg-white animate-bounce"
+                      ? "border-[#1ab5a9] bg-white animate-bounce"
                       : "border-gray-600 bg-[#13182c] animate-pulse"
                   }
                 `}
               >
                 {index < currentStep ? (
-                  <svg width="10" height="10"><circle cx="5.5" cy="5" r="5" fill="#fff" /></svg>
+                  <svg width="11" height="11"><circle cx="5.5" cy="5.5" r="5" fill="#fff" /></svg>
                 ) : index === currentStep ? (
-                  <div className="w-3 h-3 rounded-full bg-blue-400 animate-spin" />
+                  <div className="w-3.5 h-3.5 rounded-full bg-[#1ab5a9] animate-spin" />
                 ) : null}
               </div>
               {/* Vertical Line */}
@@ -205,9 +205,9 @@ console.log("jwt:",jwt);
                     w-1 h-10 pt-14 transition-all duration-900
                     ${
                       index < currentStep - 1
-                        ? "bg-blue-600"
+                        ? "bg-[#1ab5a9]"
                         : index === currentStep - 1
-                        ? "bg-blue-600 animate-pulse"
+                        ? "bg-[#0f766e] animate-pulse"
                         : "bg-gray-700 animate-pulse"
                     }
                   `}

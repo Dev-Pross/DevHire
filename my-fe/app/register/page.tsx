@@ -4,7 +4,7 @@ import Register from '../Components/Register'
 
 const RegisterPage = () => {
   return (
-    <div className='min-h-screen'>
+    <div className='min-h-screen page-section'>
         <Navbar/>
         <Register/>
     </div>

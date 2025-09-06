@@ -51,7 +51,7 @@ export const HeroTalent = () => {
     getResume();
   }, [id]);
   return (
-    <section className="h-screen w-full flex items-center px-30  ">
+    <section className="h-screen hero w-full flex items-center px-30  ">
       <div className="flex-1.5 w-[50%] z-10 absolute">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -81,7 +81,7 @@ export const HeroTalent = () => {
             applications, personalize your approach, and discover jobs that
             truly fit you. Your journey to a better career starts here.
           </p> */}
-          <p className="text-2xl font-extralight text-white/80 leading-tight mb-6">
+          <p className="text-2xl font-extralight text-white leading-tight mb-6">
             Try Smart Applier Now
           </p>
         </motion.div>
@@ -102,7 +102,7 @@ export const HeroTalent = () => {
                 {resume && (
                   <Link href={"/Jobs"}>
                     <button className="cursor-pointer hover:bg-gray-300 text-[#1E3A8A] hover:text-[#8B5FBF] font-bold transition-all duration-300 hover:scale-105 py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
-                      Proceed
+                      Find your perfect Job
                     </button>
                   </Link>
                 )}
@@ -110,12 +110,12 @@ export const HeroTalent = () => {
             ) : (
               <div className="flex space-x-4">
                 <Link href="/login">
-                  <button className="cursor-pointer border hover:bg-[#ff8a00] hover:border-gray-300 text-white-700  py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
+                  <button className=" cursor-pointer bg-gradient-to-r from-[#FFFF00] to-[#FFD700] text-[#fffff] font-bold hover:bg-gradient-to-r hover:from-[#FF6B35] hover:to-[#F7931E] hover:text-white transition-all duration-300 hover:scale-110 hover:shadow-2xl  px-8 py-4 rounded-lg transition-colors">
                     Get Started
                   </button>
                 </Link>
-                <button className=" cursor-pointer border  bg-transparent  border-border-green-700 hover:bg-blue-600  text-white px-8 py-4 rounded-lg transition-colors">
-                  Upload resume
+                <button className="cursor-pointer hover:bg-gray-300 text-[#1E3A8A] hover:text-[#8B5FBF] font-bold transition-all duration-300 hover:scale-105 py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
+                  Upload Resume
                 </button>
               </div>
             )}
@@ -151,10 +151,13 @@ export const HeroTalent = () => {
         transition={{ duration: 0.6 }}
       >
         <div className=" w-full text-center">
-          <h1 className="text-4xl font-bold text-white leading-tight mb-6">
-            Need a Custom Resume?
+          <h1 className="text-5xl font-thin text-transparent leading-tight mb-6"
+          style={{
+              WebkitTextStroke: "2px white", // 2px blue stroke
+            }}>
+            Need a Perfect Resume?
           </h1>
-          <p className="text-2xl font-extralight text-white/80 leading-tight mb-6">
+          <p className="text-2xl font-extralight text-white leading-tight mb-6">
             Try our Resume Tailor for personalized results.
           </p>
           <Link href={"/LinkedinUserDetails"}>

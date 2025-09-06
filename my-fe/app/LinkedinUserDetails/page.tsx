@@ -126,7 +126,7 @@ export default function LinkedinUserDetailsPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen ">
+    <div className="flex page-section flex-col items-center justify-center min-h-screen ">
       <h1 className="text-3xl font-bold mb-6">LinkedIn User Details</h1>
       <p className="text-lg text-gray-700">
         This is a placeholder for LinkedIn user details.

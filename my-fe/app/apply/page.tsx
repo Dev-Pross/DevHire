@@ -4,10 +4,10 @@ import Apply from '../Components/Apply'
 
 const page = () => {
   return (
-    <>
+    <div className='page-section'>
     <Navbar/>
     <Apply/>
-    </>
+    </div>
   )
 }
 

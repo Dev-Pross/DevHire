@@ -4,7 +4,7 @@ import Login from "../Components/Login";
 
 const LoginPage = () => {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen page-section">
       <Navbar />
       <Login />
     </div>

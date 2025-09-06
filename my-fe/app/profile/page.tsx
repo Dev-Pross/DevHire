@@ -1,9 +1,12 @@
 import React from 'react'
 import Image from "next/image";
+import Navbar from '../Components/Navbar';
 
 const ProfilePage = () => {
   return (
-    <div className='min-h-screen  bg-gradient-to-br from-[#1e3a8a] to-[#0f766e] flex gap-8 items-center justify-center px-4 py-8'>
+    <div className='page-section'>
+      <Navbar/>
+    <div className='min-h-screen flex gap-8 items-center justify-center px-4 py-8'>
       {/* Profile Card */}
       <div className='bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl'>
         <div className='flex flex-col items-center space-y-6'>
@@ -108,7 +111,7 @@ const ProfilePage = () => {
                   <h3 className='text-sm font-medium text-white/60 uppercase tracking-wider mb-2'>Applications Submitted</h3>
                   <div className='flex items-baseline gap-2'>
                     <p className='text-3xl font-bold text-white'>50</p>
-                    <span className='text-green-400 text-sm font-medium bg-green-400/10 px-2 py-1 rounded-full'>+12 this month</span>
+                    <span className='text-green-900 text-sm font-medium bg-green-400 px-2 py-1 rounded-full'>+12 this month</span>
                   </div>
                 </div>
                 <div className='w-12 h-12 bg-gradient-to-br from-purple-500/20 to-pink-600/20 rounded-lg flex items-center justify-center'>
@@ -121,6 +124,7 @@ const ProfilePage = () => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   )
 }

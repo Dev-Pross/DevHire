@@ -151,7 +151,7 @@ import Navbar from '../Components/Navbar'
 
 const page = () => {
   return (
-    <div>
+    <div className='page-section'>
       <Navbar/>
       <Tailor_resume />
     </div>
