@@ -8,7 +8,7 @@ const Features = () => {
     const isInView = useInView(ref, { once: true });
   return (
       <div className={'place-items-center'} id='features-section'>
-        <div className='bg-white/90 w-[98%] py-0  cursor-default' >
+        <div className='bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 features w-[98%] py-0  cursor-default' >
         <motion.div
           ref={ref}
           initial={{ opacity: 0, y: 50 }}

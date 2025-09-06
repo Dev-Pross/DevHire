@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "../utiles/supabaseClient";
 import Image from "next/image";
 import getLoginUser from "../utiles/getUserData";
+import { useRouter } from "next/navigation";
 
 const WHITE_BG_SECTIONS = ["features-section", "pricing-section"];
 const Navbar = () => {
@@ -11,6 +12,11 @@ const Navbar = () => {
   const ref = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
   const [color, setColor] = useState("white");
+  const [open,setOpen] = useState<boolean>(false)
+  const dropdownRef = useRef<HTMLDivElement>(null);;
+
+  const router = useRouter()
+
 
   useEffect(() => {
     async function fetchUser() {
@@ -20,6 +26,15 @@ const Navbar = () => {
       }
     }
     fetchUser();
+
+    function handleClickOutside(event: { target: any; }) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+
   }, []);
 
   useEffect(() => {
@@ -50,6 +65,7 @@ const Navbar = () => {
     return () => observer.disconnect();
   }, []);
 
+  
   const navbarStyle = {
     position: "sticky",
     top: 0,
@@ -75,6 +91,16 @@ const Navbar = () => {
   const hoverStyle = {
     color: "#00ffcc",
   };
+
+  function logoutHandler() {
+    console.log("Are you sure to logout!!");
+    setTimeout(async()=>{
+      setUser(null)
+      const {error} = await supabase.auth.signOut()
+      if(error) console.log("error in loggin out: ",error);
+      router.push("/")
+    },1000)
+  }
 
   return (
     <div className="navbar" style={navbarStyle} ref={ref}>
@@ -151,7 +177,13 @@ const Navbar = () => {
             Get Started
           </Link>
         ) : (
-          <div className="rounded-full overflow-hidden">
+          <div className={`bg-white w-20 rounded-4xl }`}
+          ref={dropdownRef}>
+          <div className="rounded-full flex items-center pr-3 justify-between overflow-hidden relative" 
+          onClick={()=>setOpen(!open)}
+          onMouseEnter={() => setOpen(true)}
+          // onMouseLeave={() => setOpen(!open)}
+          >
             <Image
               src="/profile.svg"
               alt="Profile Icon"
@@ -159,8 +191,24 @@ const Navbar = () => {
               height={50}
               className="object-cover"
             />
+            <p className={`text-black transform transition-transform ${open ? 'rotate-180' : ''}`}>
+            ▼
+            </p>          
+          </div>
+          <div className={`absolute top-15 p-3 w-50 h-24 bg-gray-600 rounded-lg shadow-lg transition-opacity duration-200 ${
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}>
+            <ul className="">
+              <Link href={"/profile"}>
+              <li className="bg-gray-600 hover:bg-gray-700 cursor-pointer rounded-lg text-center p-1 mb-2">profile</li>
+              </Link>
+              <li className="bg-gray-600 hover:bg-gray-700 cursor-pointer rounded-lg text-center p-1" onClick={logoutHandler}>Logout</li>
+            </ul>
+          </div>
           </div>
         )}
+        
       </nav>
     </div>
   );

@@ -3,7 +3,7 @@ import Image from "next/image";
 
 const ProfilePage = () => {
   return (
-    <div className='min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex gap-8 items-center justify-center px-4 py-8'>
+    <div className='min-h-screen profile bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex gap-8 items-center justify-center px-4 py-8'>
       {/* Profile Card */}
       <div className='bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl'>
         <div className='flex flex-col items-center space-y-6'>
