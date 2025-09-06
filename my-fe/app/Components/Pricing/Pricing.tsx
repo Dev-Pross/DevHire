@@ -23,17 +23,16 @@ export const Pricing = () => {
 
         <div className="price-card size-[70%] shadow-[-11px_0px_20px_1px_#ffffff30] border-[#FFFF00] cursor-pointer hover:border-[#FFD700] hover:border-2 transition-all duration-100 p-6 text-white animate-fade">
           <h2 className="text-2xl font-semibold mb-4">Pro</h2>
-          <p className="text-4xl font-bold mb-4 text-[#FFFF00]">
-            199₹<span className="text-base font-normal text-[#FFFF00]">/month</span>
+          <p className="text-4xl font-bold mb-4 text-[#00000]">
+            199₹<span className="text-base font-normal text-black">/month</span>
           </p>
           <ul className="mb-6 space-y-5">
-            <li className="flex items-center">
-            <span className="checkmark">✓</span>Access to all advanced resume templates</li>
-            <li><span className="checkmark">✓</span> Tailor your resume for 10 times/day</li>
-            <li><span className="checkmark">✓</span> Apply upto 20 applications/day</li>
-            <li><span className="checkmark">✓</span> Full access to Smart Applier</li>
+            <li>✔️ Access to all advanced resume templates</li>
+            <li>✔️ Tailor your resume for 10 times/day</li>
+            <li>✔️ Apply upto 20 applications/day</li>
+            <li>✔️ Full access to Smart Applier</li>
           </ul>
-          <button className="bg-gradient-to-r from-[#FFFF00] to-[#FFD700] border hover:bg-[#159950] w-full text-[#1E3A8A] font-bold py-2 px-4 rounded-4xl focus:outline-none focus:shadow-outline hover:scale-105 transition-transform duration-300 cursor-pointer">
+          <button className="bg-black border hover:bg-gray w-full text-white font-bold py-2 px-4 rounded-4xl focus:outline-none focus:shadow-outline hover:scale-105 transition-transform duration-300 cursor-pointer">
             Choose plan
           </button>
         </div>

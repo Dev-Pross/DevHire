@@ -95,13 +95,13 @@ export const HeroTalent = () => {
             {id ? (
               <div className="flex space-x-4">
                 <Link href={"/LinkedinUserDetails"}>
-                  <button className=" cursor-pointer border  bg-transparent  border-border-green-700 hover:bg-blue-600  text-white px-8 py-4 rounded-lg transition-colors">
+                  <button className=" cursor-pointer bg-gradient-to-r from-[#FFFF00] to-[#FFD700] text-[#fffff] font-bold hover:bg-gradient-to-r hover:from-[#FF6B35] hover:to-[#F7931E] hover:text-white transition-all duration-300 hover:scale-110 hover:shadow-2xl  px-8 py-4 rounded-lg transition-colors">
                     Upload Resume
                   </button>
                 </Link>
                 {resume && (
                   <Link href={"/Jobs"}>
-                    <button className="cursor-pointer border hover:bg-blue-600 hover:border-gray-300 text-white-700  py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
+                    <button className="cursor-pointer hover:bg-gray-300 text-[#1E3A8A] hover:text-[#8B5FBF] font-bold transition-all duration-300 hover:scale-105 py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
                       Proceed
                     </button>
                   </Link>
@@ -158,7 +158,7 @@ export const HeroTalent = () => {
             Try our Resume Tailor for personalized results.
           </p>
           <Link href={"/LinkedinUserDetails"}>
-            <button className=" cursor-pointer border content-center bg-white  border-border-green-700 hover:bg-blue-400  text-bg-clip px-8 py-4 rounded-lg transition-colors">
+            <button className=" cursor-pointer border content-center bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-bold hover:from-[#059669] hover:to-[#047857] transition-all duration-300 hover:scale-105 text-bg-clip px-8 py-4 rounded-lg transition-colors">
               Checkout our Resume Tailor
             </button>
           </Link>

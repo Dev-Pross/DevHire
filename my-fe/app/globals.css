@@ -20,6 +20,10 @@
   }
 } */
 
+/* linear-gradient(135deg, #1E3A8A 0%, #10B981 100%); */
+
+
+
 body {
   background: var(--background);
   min-height: "100vh";
@@ -44,6 +48,8 @@ color: #ffffff;
 }
 .price-card{
 background: linear-gradient(135deg, #1E3A8A 0%, #10B981 100%);
+background: #fccb06;
+color: black;
 }
 .checkmark-icon {
   color: #FFFF00; /* Bright yellow */

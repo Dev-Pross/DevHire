@@ -193,7 +193,7 @@ const Navbar = () => {
               className="object-cover"
             />
             <p className={`text-black transform transition-transform ${open ? 'rotate-180' : ''}`}>
-            ▼
+            ⏷
             </p>          
           </div>
           <div className={`absolute top-15 p-3 w-50 h-24 bg-gray-600 rounded-lg shadow-lg transition-opacity duration-200 ${
