@@ -96,9 +96,10 @@ const Navbar = () => {
     console.log("Are you sure to logout!!");
     setTimeout(async()=>{
       setUser(null)
+      sessionStorage.clear()
       const {error} = await supabase.auth.signOut()
       if(error) console.log("error in loggin out: ",error);
-      router.push("/")
+      window.location.href = "/"
     },1000)
   }
 
