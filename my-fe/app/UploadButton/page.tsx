@@ -145,15 +145,22 @@
 //     </div>
 //   );
 // }
+// "use client"
 import React from 'react'
-import Tailor_resume from '../Components/Tailor_resume'
 import Navbar from '../Components/Navbar'
+import Tailor_resume from '../Components/Tailor_resume'
+// import dynamic from 'next/dynamic';
+
+// Dynamically import Tailor_resume only on client-side
+// const Tailor_resume = dynamic(() => import('../Components/Tailor_resume'), {
+//   ssr: false,
+// });
 
 const page = () => {
   return (
     <div className='page-section'>
       <Navbar/>
-      <Tailor_resume />
+      <Tailor_resume/>
     </div>
   )
 }

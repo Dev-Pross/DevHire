@@ -151,8 +151,10 @@ export const HeroTalent = () => {
         transition={{ duration: 0.6 }}
       >
         <div className=" w-full text-center">
-          <h1 className="text-5xl font-bold text-white leading-tight mb-6">
-       
+          <h1 className="text-5xl font-thin text-transparent leading-tight mb-6"
+          style={{
+              WebkitTextStroke: "2px white", // 2px blue stroke
+            }}>
             Need a Perfect Resume?
           </h1>
           <p className="text-2xl font-extralight text-white leading-tight mb-6">
