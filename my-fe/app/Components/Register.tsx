@@ -19,12 +19,15 @@ const Register = () => {
         
         if(!email || !password || !confirmPassword || !username){
             setError("All fields are required")
+            setLoading(false)
         }
         else if(password !== confirmPassword){
             setError("password not match");
+            setLoading(false)
         }
         else if(! isStrongPassword(password)){
             setError("password isn't strong enough");
+            setLoading(false)
         }
         else{
             setLoading(true)

@@ -153,6 +153,7 @@ const Apply: React.FC<ApplyProps> = () => {
       try {
         const { data, error } = await Apply_Jobs(jobs, url, userId, password);
         if (data) {
+          sessionStorage.setItem("applied",data.successful_applications.flat(Infinity).length)
           const payload = [
             ...new Set([
               ...dbData,

@@ -3,32 +3,56 @@ import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
 import getLoginUser from "../utiles/getUserData";
 import Navbar from "../Components/Navbar";
+import { error } from "console";
+import { supabase } from "../utiles/supabaseClient";
 
 const ProfilePage = () => {
-  const [data, setDbData] = useState(null);
+  const [data, setDbData] = useState< any | null>(null);
+  const [phone, setPhone] = useState<string | null>(null)
+  const [jobCount, setJobCount] = useState<string | null>(null)
   // const id = sessionStorage.getItem("id");
   useEffect(() => {
     try {
       async function fetchData() {
-        const id: any = await getLoginUser().then(
-          (res) => res.data?.user.user_metadata.sub
-        );
+        const userData = await getLoginUser();
+        const id: any = userData?.data?.user     
         console.log("id", id);
         if (!id) return;
-        const res = await fetch(`/api/User?id=${id}`, {
+        if (id.phone != "") setPhone(id.phone)
+        else setPhone("0")
+      
+        const res = await fetch(`/api/User?id=${id.id}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
         });
         const dataq = await res.json();
         console.log("mydata", dataq?.user);
-        setDbData(dataq);
+        setDbData(dataq.user);
       }
       fetchData();
+      try{
+        const jobs = sessionStorage.getItem("applied")
+        if(jobs) setJobCount(jobs)
+      }
+      catch(e: any){
+        console.error("fetcing from sessionStorage failed: ",e);
+        
+      }
     } catch (error) {
       console.error("Error fetching profile data:", error);
     }
   }, []);
+
+  function logoutHandler() {
+      console.log("Are you sure to logout!!");
+      setTimeout(async()=>{
+        sessionStorage.clear()
+        const {error} = await supabase.auth.signOut()
+        if(error) console.log("error in loggin out: ",error);
+        window.location.href = "/"
+      },1000)
+    }
 
   return (
     <div className="page-section">
@@ -57,10 +81,10 @@ const ProfilePage = () => {
 
             {/* Action Buttons */}
             <div className="flex flex-col gap-3 w-full">
-              <button className="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5">
+              {/* <button className="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5">
                 <span className="relative z-10">Edit Profile</span>
-              </button>
-              <button className="bg-white/5 hover:bg-white/10 border border-white/20 hover:border-white/30 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 backdrop-blur-sm hover:-translate-y-0.5">
+              </button> */}
+              <button onClick={logoutHandler} className="bg-white/5 hover:bg-red border border-white/20 hover:border-white/30 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 backdrop-blur-sm hover:-translate-y-0.5">
                 Sign Out
               </button>
             </div>
@@ -94,7 +118,7 @@ const ProfilePage = () => {
                       Full Name
                     </h3>
                     <p className="text-xl font-semibold text-white">
-                      {data?.user?.name}
+                      {data?.name ? (data?.name) : (<p className="w-40 h-10 bg-white/5 rounded-lg animate-pulse"></p>)}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500/20 to-purple-600/20 rounded-lg flex items-center justify-center">
@@ -123,7 +147,7 @@ const ProfilePage = () => {
                       Email Address
                     </h3>
                     <p className="text-xl font-semibold text-white">
-                      {data?.user?.email}
+                      {data?.email ? (data?.email) : (<p className="w-100 h-10 bg-white/5 rounded-lg animate-pulse"></p>)}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-lg flex items-center justify-center">
@@ -152,7 +176,7 @@ const ProfilePage = () => {
                       Phone Number
                     </h3>
                     <p className="text-xl font-semibold text-white">
-                      +91 7993057519
+                      {phone ? (phone == "0" ? (<p className="text-xl font-bold text-white ">-</p>): (phone)) : (<p className="w-40 h-10 bg-white/5 rounded-lg animate-pulse"></p>)}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-lg flex items-center justify-center">
@@ -181,10 +205,10 @@ const ProfilePage = () => {
                       Applications Submitted
                     </h3>
                     <div className="flex items-baseline gap-2">
-                      <p className="text-3xl font-bold text-white">50</p>
-                      <span className="text-green-900 text-sm font-medium bg-green-400 px-2 py-1 rounded-full">
-                        +12 this month
-                      </span>
+                      <p className="text-3xl font-bold text-white">{data?.applied_jobs ? (data?.applied_jobs.length) : (<p className="w-40 h-10 bg-white/5 rounded-lg animate-pulse"></p>)}</p>
+                      {data?.applied_jobs && (<span className="text-green-900 text-sm font-medium bg-green-400 px-2 py-1 rounded-full">
+                        {jobCount ?  (`+${jobCount} now`) :("0 added now")}
+                      </span>)}
                     </div>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-pink-600/20 rounded-lg flex items-center justify-center">

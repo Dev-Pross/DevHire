@@ -16,6 +16,7 @@ const Login = () => {
     try {
       if (!email || !password) {
         setError("Email and password are required");
+        setLoading(false)
       } else {
         setLoading(true);
         const { error: supabaseError } = await supabase.auth.signInWithPassword(
@@ -28,6 +29,7 @@ const Login = () => {
         if (supabaseError) {
           console.log("Supabase sign-in failed:", supabaseError.message);
           setError(supabaseError.message)
+          setLoading(false)
         } else {
           console.log("Login successful");
           router.push("/");
@@ -37,9 +39,11 @@ const Login = () => {
       if (err && err.response && err.response.status === 401) {
         console.log("Invalid email or password.");
         setError("Invalid email or password.")
+        setLoading(false)
       } else {
         console.log("An error occurred during signin.");
         setError("An error occurred during signin. Please try again. ")
+        setLoading(false)
       }
       console.log(err);
     }
@@ -117,7 +121,7 @@ const Login = () => {
           </form>
           <div className="w-full text-center mt-4 text-white">
             Dont have an account?{" "}
-            <a href="/register" className="text-blue-500">
+            <a href="/register" className="text-green-500">
               Register
             </a>
           </div>

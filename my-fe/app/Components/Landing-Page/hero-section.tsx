@@ -9,47 +9,53 @@ export const HeroTalent = () => {
   const [id, setId] = useState<string | null>(null);
   const [resume, setResume] = useState<string | null>(null);
   // const router = useRouter();
-  useEffect(() => {
-    // const id = sessionStorage.getItem("id")
-    const resume_url = sessionStorage.getItem("resume");
-    // setId(id)
-    // if(!id) return
-    async function getResume() {
-      const { data, error } = await getLoginUser();
-      console.log("session ", data);
-      if (error) {
-        console.error("Error fetching user:", error);
-      } else if (data?.user) {
-        console.log(
-          "User is logged in:",
-          data?.user.user_metadata.email,
-          " ",
-          data?.user.user_metadata.username
-        );
-      } else {
-        console.log("No user is logged in.");
-      }
-      // setUser(data.user.user_metadata);
-      sessionStorage.setItem("id", data?.user.user_metadata.sub);
-      setId(data?.user.user_metadata.sub);
-      sessionStorage.setItem("name", data?.user.user_metadata.username);
-      sessionStorage.setItem("email", data?.user.user_metadata.email);
+  // useEffect(() => {
+  //   // const id = sessionStorage.getItem("id")
+  //   const resume_url = sessionStorage.getItem("resume");
+  //   // setId(id)
+  //   // if(!id) return
+  //   async function getResume() {
+  //     const { data, error } = await getLoginUser();
+  //     console.log("session ", data);
+  //     if (error) {
+  //       console.error("Error fetching user:", error);
+  //     } else if (data?.user) {
+  //       console.log(
+  //         "User is logged in:",
+  //         data?.user.user_metadata.email,
+  //         " ",
+  //         data?.user.user_metadata.username
+  //       );
+  //     } else {
+  //       console.log("No user is logged in.");
+  //     }
+  //     // setUser(data.user.user_metadata);
+  //     sessionStorage.setItem("id", data?.user.user_metadata.sub);
+  //     setId(data?.user.user_metadata.sub);
+  //     sessionStorage.setItem("name", data?.user.user_metadata.username);
+  //     sessionStorage.setItem("email", data?.user.user_metadata.email);
 
-      if (id) {
-        const res = await fetch(`/api/User?id=${id}`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
-        const resume_data = await res.json();
-        console.log("mydata", resume_data.user.resume_url);
-        if (!resume_url)
-          sessionStorage.setItem("resume", resume_data.user.resume_url);
-        setResume(resume_data.user.resume_url);
-      }
-    }
-    getResume();
-  }, [id]);
+  //     if (id) {
+  //       const res = await fetch(`/api/User?id=${id}`, {
+  //         method: "GET",
+  //         headers: { "Content-Type": "application/json" },
+  //         credentials: "include",
+  //       });
+  //       const resume_data = await res.json();
+  //       console.log("mydata", resume_data.user.resume_url);
+  //       if (!resume_url)
+  //         sessionStorage.setItem("resume", resume_data.user.resume_url);
+  //       setResume(resume_data.user.resume_url);
+  //     }
+  //   }
+  //   getResume();
+  // }, [id]);
+  useEffect(()=>{
+    const user = sessionStorage.getItem("id")
+    if(user !="undefined") setId(user)
+    const res = sessionStorage.getItem("resume")
+    if(res !="undefined") setResume(res)
+  },[id, resume])
   return (
     <section className="h-screen hero w-full flex items-center px-30  ">
       <div className="flex-1.5 w-[50%] z-10 absolute">
@@ -113,10 +119,12 @@ export const HeroTalent = () => {
                   <button className=" cursor-pointer bg-gradient-to-r from-[#FFFF00] to-[#FFD700] text-[#fffff] font-bold hover:bg-gradient-to-r hover:from-[#FF6B35] hover:to-[#F7931E] hover:text-white transition-all duration-300 hover:scale-110 hover:shadow-2xl  px-8 py-4 rounded-lg transition-colors">
                     Get Started
                   </button>
-                </Link>
+                </Link >
+                <Link href="/register">
                 <button className="cursor-pointer hover:bg-gray-300 text-[#1E3A8A] hover:text-[#8B5FBF] font-bold transition-all duration-300 hover:scale-105 py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
                   Upload Resume
                 </button>
+                </Link>
               </div>
             )}
           </motion.div>
