@@ -147,8 +147,8 @@
 // }
 // "use client"
 import React from 'react'
-import Navbar from '../Components/Navbar'
-import Tailor_resume from '../Components/Tailor_resume'
+import Navbar from '../../Components/Navbar'
+import Tailor_resume from '../../Components/Tailor_resume'
 // import dynamic from 'next/dynamic';
 
 // Dynamically import Tailor_resume only on client-side

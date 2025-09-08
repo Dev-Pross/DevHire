@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../utiles/supabaseClient"; // adjust path as needed
+import { supabase } from "../../utiles/supabaseClient"; // adjust path as needed
 
 export default function LinkedinUserDetailsPage() {
   const router = useRouter();

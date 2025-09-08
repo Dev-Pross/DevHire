@@ -102,7 +102,7 @@ export const HeroTalent = () => {
           >
             {id ? (
               <div className="flex space-x-4">
-                <Link href={"/LinkedinUserDetails"}>
+                <Link href={"/Jobs/LinkedinUserDetails"}>
                   <button className=" cursor-pointer bg-gradient-to-r from-[#FFFF00] to-[#FFD700] text-[#fffff] font-bold hover:bg-gradient-to-r hover:from-[#FF6B35] hover:to-[#F7931E] hover:text-white transition-all duration-300 hover:scale-110 hover:shadow-2xl  px-8 py-4 rounded-lg transition-colors">
                     Upload Resume
                   </button>
@@ -131,11 +131,6 @@ export const HeroTalent = () => {
             )}
           </motion.div>
         </div>
-
-        {/* <div className="space-x-4">
-       
-       
-        </div> */}
       </div>
 
       <div className="w-[40%] ml-[45%] relative flex justify-center opacity-75">
@@ -172,7 +167,7 @@ export const HeroTalent = () => {
           <p className="text-2xl font-extralight text-white leading-tight mb-6">
             Try our Resume Tailor for personalized results.
           </p>
-          <Link href={"/LinkedinUserDetails"}>
+          <Link href={"/Jobs/tailor"}>
             <button className=" cursor-pointer border content-center bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-bold hover:from-[#059669] hover:to-[#047857] transition-all duration-300 hover:scale-105 text-bg-clip px-8 py-4 rounded-lg transition-colors">
               Checkout our Resume Tailor
             </button>

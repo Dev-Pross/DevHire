@@ -1,10 +1,10 @@
 "use client";
 import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
-import getLoginUser from "../utiles/getUserData";
-import Navbar from "../Components/Navbar";
+import getLoginUser from "../../utiles/getUserData";
+import Navbar from "../../Components/Navbar";
 import { error } from "console";
-import { supabase } from "../utiles/supabaseClient";
+import { supabase } from "../../utiles/supabaseClient";
 
 const ProfilePage = () => {
   const [data, setDbData] = useState< any | null>(null);

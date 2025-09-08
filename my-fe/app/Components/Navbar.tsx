@@ -172,7 +172,7 @@ const Navbar = () => {
             Home
           </Link>
           <Link
-            href="/"
+            href="/pricing"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
             onMouseEnter={(e) =>
@@ -185,7 +185,7 @@ const Navbar = () => {
             Pricing
           </Link>
           <Link
-            href="/tailor"
+            href="/Jobs/tailor"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
             onMouseEnter={(e) =>
@@ -198,7 +198,7 @@ const Navbar = () => {
             Tailor Resume
           </Link>
           <Link
-            href="/"
+            href="/about"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
             onMouseEnter={(e) =>
@@ -243,7 +243,7 @@ const Navbar = () => {
           onMouseEnter={() => setOpen(true)}
           onMouseLeave={() => setOpen(false)}>
             <ul className="">
-              <Link href={"/profile"}>
+              <Link href={"/Jobs/profile"}>
               <li className="bg-transparent backdrop-blur hover:bg-gray-100 cursor-pointer rounded-lg text-center p-1 mb-2">Profile</li>
               </Link>
               <li className="bg-transparent backdrop-blur hover:bg-gray-100 cursor-pointer rounded-lg text-center p-1" onClick={logoutHandler}>Logout</li>
