@@ -9,17 +9,17 @@ const About = () => {
           <div className="flex justify-center">
             <div className="relative">
               <Image
-                src="/logo.png"
+                src="/full_logo.jpg"
                 alt="Profile Picture"
                 width={400}
                 height={500}
                 className="rounded-lg shadow-lg object-cover"
               />
-              <div className="pt-4">
+              {/* <div className="pt-4">
                 <button className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-300">
                   Get In Touch
                 </button>
-              </div>
+              </div> */}
               <br />
               <div>
                 <h3 className="text-xl font-semibold text-white mb-4">
@@ -27,7 +27,7 @@ const About = () => {
                 </h3>
                 <div className="flex space-x-4">
                   <a
-                    href="https://github.com/yourusername"
+                    href="https://github.com/Dev-Pross/DevHire"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center w-12 h-12 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-colors duration-300"
@@ -42,7 +42,7 @@ const About = () => {
                   </a>
 
                   <a
-                    href="https://linkedin.com/in/yourusername"
+                    href="https://linkedin.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center w-12 h-12 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors duration-300"
@@ -57,7 +57,7 @@ const About = () => {
                   </a>
 
                   <a
-                    href="https://twitter.com/yourusername"
+                    href="https://x.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center w-12 h-12 bg-blue-400 text-white rounded-full hover:bg-blue-500 transition-colors duration-300"
@@ -72,7 +72,7 @@ const About = () => {
                   </a>
 
                   <a
-                    href="mailto:your.email@gmail.com"
+                    href="mailto:linkedinpostgenerator@gmail.com"
                     className="flex items-center justify-center w-12 h-12 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-300"
                   >
                     <svg
@@ -96,16 +96,9 @@ const About = () => {
 
           <div className="space-y-6">
             <div>
-              <h2 className="text-4xl font-bold text-white"> About DevHire</h2>
+              <h2 className="text-4xl font-bold text-white"> About HireHawk</h2>
               <p className="mt-4 text-gray-300">
-                DevHire is a cutting-edge platform designed to streamline the
-                job search and application process for developers. Our mission
-                is to empower developers by providing them with tailored job
-                recommendations, resume optimization tools, and efficient
-                application processes. Whether you're a seasoned professional or
-                Amazing tech Developer This project will help to unleash your
-                true potential and gt your dream Job by spending less time on
-                searching , applying{" "}
+                HireHawk is a cutting-edge platform designed to streamline the job search and application process for all professionals. Our mission is to empower job seekers by delivering personalized job recommendations, intelligent resume optimization tools, and a fast, efficient application experience. Whether you’re starting your career, advancing to new opportunities, or making a major change, HireHawk helps you unlock your true potential and land your dream job with less effort and more confidence. Spend less time searching and applying, and more time growing your career with HireHawk.{" "}
               </p>
             </div>
 

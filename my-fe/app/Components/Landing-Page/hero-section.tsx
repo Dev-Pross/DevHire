@@ -53,8 +53,10 @@ export const HeroTalent = () => {
   useEffect(()=>{
     const user = sessionStorage.getItem("id")
     if(user !="undefined") setId(user)
+    else setId(null)
     const res = sessionStorage.getItem("resume")
     if(res !="undefined") setResume(res)
+      else setResume(null)
   },[id, resume])
   return (
     <section className="h-screen hero w-full flex items-center px-30  ">

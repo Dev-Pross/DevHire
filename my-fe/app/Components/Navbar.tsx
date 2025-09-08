@@ -150,7 +150,7 @@ const Navbar = () => {
       <nav className="flex justify-between items-center gap-6 p-4 h-full max-w-7xl mx-auto">
         <div className="rounded-full overflow-hidden">
           <Image
-            src="/logo.jpeg"
+            src="/logo.jpg"
             alt="Icon"
             width={50}
             height={50}
@@ -185,7 +185,7 @@ const Navbar = () => {
             Pricing
           </Link>
           <Link
-            href="/"
+            href="/tailor"
             className="hover:text-gray-300 font-bold"
             style={navLinkStyle}
             onMouseEnter={(e) =>
@@ -214,8 +214,8 @@ const Navbar = () => {
         {!user ? (
           <Link
             href="/login"
-            className="rounded-full pl-4 pr-4 border-2 border-white p-2 hover:bg-white hover:text-black transition-colors duration-300"
-            style={{ ...navLinkStyle, padding: "6px 12px" }}
+            className="cursor-pointer bg-gradient-to-r from-[#FFFF00] to-[#FFD700] font-[Poppins] text-black font-bold hover:bg-gradient-to-r hover:from-[#FF6B35] hover:to-[#F7931E] hover:text-white transition-all duration-300 hover:scale-110 hover:shadow-2xl  px-8 py-2 rounded-lg transition-colors"
+            // style={{ ...navLinkStyle, padding: "6px 12px" }}
           >
             Get Started
           </Link>

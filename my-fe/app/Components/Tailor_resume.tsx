@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Image from "next/image";
 import { useResumeUpload } from '../utiles/useUploadResume';
+import { error } from 'console';
 
 const Tailor_resume = () => {
     const resume = sessionStorage.getItem("resume")
@@ -79,8 +80,13 @@ const Tailor_resume = () => {
 
 
   useEffect(() => {
+    try{
     const id = sessionStorage.getItem("id");
     if (id) setUserId(id);
+    }catch(e:any){
+      console.error("error to fetch id from sessionStorage: ", e);
+      
+    }
   }, []);
 
   const {
@@ -95,7 +101,9 @@ const Tailor_resume = () => {
   return (
     <div className='h-screen overflow-hidden flex p-10 gap-5'>
         <div className='w-[50%] bg-white/10 h-full flex items-end justify-center gap-2 rounded-xl '>
-          <div className='w-full flex items-end justify-center gap-2 mb-10 p-3'>
+          <div className='w-full h-full flex flex-col justify-between p-3'>
+            <h1 className='text-white text-xl p-6 uppercase text-center'>Drop that dream job description here.<br/> Our AI will instantly highlight the keywords and skills you need to stand out from 100+ other applicants!</h1>
+            <div className='w-full flex justify-center items-end gap-2 mb-10 p-3'>
             <textarea name="job_description" rows={1} onChange={(e)=>{
               setDescription(e.target.value); 
               e.target.style.height = 'auto';
@@ -134,6 +142,7 @@ const Tailor_resume = () => {
                   </span>
                 )}
             </button>
+            </div>
         </div>
         <input
           type="file"
