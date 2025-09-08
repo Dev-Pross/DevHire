@@ -4,7 +4,7 @@ export const Pricing = () => {
     <div className="flex bg-white/90 flex-col items-start  min-h-screen p-30" id="pricing-section">
       <h1 className="text-4xl font-bold mb-8 ">Choose the perfect plan to<br/> streamline your hiring process</h1>
       <div className="flex   w-full">
-        <div className="bg-black cursor-default size-[70%] p-6 min-h-9/10 shadow-lg text-white">
+        <div className="bg-black cursor-default size-[70%] p-6 min-h-9/10 shadow-lg text-white" id="pricing-card">
           <h2 className="text-2xl font-semibold mb-4 ">Basic</h2>
           <p className="text-4xl font-bold mb-4">
             FREE<span className="text-base font-normal"></span>

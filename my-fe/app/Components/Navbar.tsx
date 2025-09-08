@@ -6,7 +6,7 @@ import Image from "next/image";
 import getLoginUser from "../utiles/getUserData";
 import { useRouter } from "next/navigation";
 
-const WHITE_BG_SECTIONS = ["features-section", "pricing-section"];
+const WHITE_BG_SECTIONS = ["pricing-section","pricing-card"];
 const Navbar = () => {
   const [user, setUser] = React.useState<any>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -15,7 +15,9 @@ const Navbar = () => {
   const [open,setOpen] = useState<boolean>(false)
   const [ id, setId ] = useState<any|null>(null)
   const [ resume, setResume ] = useState<any|null>(null)
+  const [top, setTop] = useState<number>(0)
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [toggle, setToggle] = useState(true)
 
   const router = useRouter()
 
@@ -84,18 +86,20 @@ const Navbar = () => {
     if (ref.current) {
       setHeight(ref.current.offsetHeight);
     }
+    if(toggle) setColor("white")
+    else setColor("black")
     const observer = new IntersectionObserver(
       ([entry]) => {
-        const top = entry.boundingClientRect.top;
-
-        if (entry.isIntersecting && top <= height) {
-          setColor("black");
-        } else if (top > height) {
-          setColor("white");
-        }
+        setTop(entry.boundingClientRect.top);
+        if(entry.target.id === "pricing-card")
+          setColor("white")
+        if(entry.target.id === "pricing-section")
+          setColor("#7a7a7a")
+        console.log("top:",top);
+        console.log("height:",height)
       },
       {
-        threshold: 0,
+        threshold: 1,
         rootMargin: `-${height}px 0px 0px 0px`,
       }
     );
@@ -106,7 +110,7 @@ const Navbar = () => {
     });
 
     return () => observer.disconnect();
-  }, []);
+  }, [top]);
 
   
   const navbarStyle = {

@@ -4,7 +4,8 @@ import { Pricing } from '../Components/Pricing/Pricing'
 
 const page = () => {
   return (
-    <div className='page-section'>
+    <div className='pricing-section'>
+
       <Navbar/>
       <Pricing/>
     </div>

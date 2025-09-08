@@ -127,9 +127,9 @@ const page = () => {
     //     </div>
     //   </div>
     // </section>
-    <div className='page-section'>
+    <div className='about-section'>
       <Navbar/>
-      <div className="w-screen h-full">
+      <div className="h-full w-full">
       <About />
       </div>
     </div>

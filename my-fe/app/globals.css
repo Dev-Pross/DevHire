@@ -39,6 +39,13 @@ background: var(--background)
 .page-section{
   background: linear-gradient(135deg, #1e3a8a 0%, #0f766e 100%);
 }
+.pricing-section{
+  background: #fdfdff
+}
+.about-section{
+  background: #000;
+  height: 100vh;
+}
 .navbar{
   min-width: "100vw";
   /* height: "64px"; */

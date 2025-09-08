@@ -1,7 +1,7 @@
 import Image from "next/image";
 const About = () => {
     return (
-    <section className="py-16 px-4 bg-black h-[inherit]">
+    <section className="py-16 px-4 bg-black min-h-full">
       <div className="max-w-6xl mx-auto">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div className="flex justify-center">
