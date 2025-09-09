@@ -5,6 +5,7 @@ import { useState } from "react";
 import getLoginUser from "@/app/utiles/getUserData";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 export const HeroTalent = () => {
   const [id, setId] = useState<string | null>(null);
   const [resume, setResume] = useState<string | null>(null);
@@ -50,17 +51,25 @@ export const HeroTalent = () => {
   //   }
   //   getResume();
   // }, [id]);
-  useEffect(()=>{
-    const user = sessionStorage.getItem("id")
-    if(user !="undefined") setId(user)
-    else setId(null)
-    const res = sessionStorage.getItem("resume")
-    if(res !="undefined") setResume(res)
-      else setResume(null)
-  },[id, resume])
+  useEffect(() => {
+    const user = sessionStorage.getItem("id");
+    if (user != "undefined") setId(user);
+    else setId(null);
+    const res = sessionStorage.getItem("resume");
+    if (res != "undefined") setResume(res);
+    else setResume(null);
+  }, [id, resume]);
   return (
     <section className="h-screen hero w-full flex items-center px-30  ">
       <div className="flex-1.5 w-[50%] z-10 absolute">
+        <div>
+          <button
+            onClick={() => toast.error("Hello world ")}
+            className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
+          >
+            Hello world
+          </button>
+        </div>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -121,11 +130,11 @@ export const HeroTalent = () => {
                   <button className=" cursor-pointer bg-gradient-to-r from-[#FFFF00] to-[#FFD700] text-[#fffff] font-bold hover:bg-gradient-to-r hover:from-[#FF6B35] hover:to-[#F7931E] hover:text-white transition-all duration-300 hover:scale-110 hover:shadow-2xl  px-8 py-4 rounded-lg transition-colors">
                     Get Started
                   </button>
-                </Link >
+                </Link>
                 <Link href="/register">
-                <button className="cursor-pointer hover:bg-gray-300 text-[#1E3A8A] hover:text-[#8B5FBF] font-bold transition-all duration-300 hover:scale-105 py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
-                  Upload Resume
-                </button>
+                  <button className="cursor-pointer hover:bg-gray-300 text-[#1E3A8A] hover:text-[#8B5FBF] font-bold transition-all duration-300 hover:scale-105 py-4 rounded-lg bg-gray-100 text-black transition-colors px-8">
+                    Upload Resume
+                  </button>
                 </Link>
               </div>
             )}
