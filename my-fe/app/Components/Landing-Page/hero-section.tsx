@@ -5,6 +5,7 @@ import { useState } from "react";
 import getLoginUser from "@/app/utiles/getUserData";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 export const HeroTalent = () => {
   const [id, setId] = useState<string | null>(null);
   const [resume, setResume] = useState<string | null>(null);
@@ -61,6 +62,11 @@ export const HeroTalent = () => {
   return (
     <section className="h-screen hero w-full flex items-center px-30  ">
       <div className="flex-1.5 w-[50%] z-10 absolute">
+        <div>
+          <button onClick={()=>toast.error("Hello world ")} className="bg-blue-500 text-white px-4 py-2 rounded mb-4">
+            Hello world 
+          </button>
+        </div>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
