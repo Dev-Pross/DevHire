@@ -2,17 +2,19 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../utiles/supabaseClient"; // adjust path as needed
+import toast from "react-hot-toast";
+import { useResumeUpload } from "@/app/utiles/useUploadResume";
 
 export default function LinkedinUserDetailsPage() {
   const router = useRouter();
   const [data, setData] = useState({ username: "", password: "" });
   const [ userId, setUserId]  = useState<string>("")
   // File upload states
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  // const fileInputRef = useRef<HTMLInputElement>(null);
+  // const [uploading, setUploading] = useState(false);
+  // const [uploadError, setUploadError] = useState<string | null>(null);
+  // const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  // const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 
   async function sendCredentials(data: { username: string; password: string }) {
     try {
@@ -24,13 +26,16 @@ export default function LinkedinUserDetailsPage() {
       });
       const json = await res.json();
       if (res.ok) {
-        console.log("credentials stored successfully");
+        console.log("credentials");
       } else {
-        console.log("error storing credentials", json);
+        console.log("error", json.message);
+        toast.error("something went wrong, please try again later")
       }
       
     } catch (error) {
-      console.log("network error:", error);
+      // console.log("network error:", error);
+      toast.error("something went wrong with network, please try again later")
+
     }
   }
 
@@ -39,11 +44,11 @@ export default function LinkedinUserDetailsPage() {
     if(id)
       setUserId(id)
     else
-      throw new Error("user not logged in")
+      toast.error("Please login to proceed.")
   },[])
 
   async function resumePush(userid: any | null,link:string) {
-    console.log(userid);
+    // console.log(userid);
     
     // if(!user) return
     try{
@@ -58,19 +63,15 @@ export default function LinkedinUserDetailsPage() {
           }
         )
       }catch(err){
-        console.log(err);
-        
+        toast.error("something went wrong, please try again later")        
       }
   }
 
   async function handleLogin(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
-    console.log("Logging in with:", data);
+    // console.log("Logging in with:", data);
 
     await sendCredentials(data);
-
-
-    
 
     router.push("/");
   }
@@ -80,51 +81,59 @@ export default function LinkedinUserDetailsPage() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setUploadError(null);
-    setUploadSuccess(null);
-    setUploadedUrl(null);
-    const file = event.target.files?.[0];
+  // const handleFileChange = async (
+  //   event: React.ChangeEvent<HTMLInputElement>
+  // ) => {
+  //   setUploadError(null);
+  //   setUploadSuccess(null);
+  //   setUploadedUrl(null);
+  //   const file = event.target.files?.[0];
 
-    if (!file) return;
+  //   if (!file) return;
 
-    setUploading(true);
+  //   setUploading(true);
 
-    try {
-      const filePath = `${Date.now()}_${file.name}`;
+  //   try {
+  //     const filePath = `${Date.now()}_${file.name}`;
 
-      const { data, error } = await supabase.storage
-        .from("user-resume")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: file.type,
-        });
+  //     const { data, error } = await supabase.storage
+  //       .from("user-resume")
+  //       .upload(filePath, file, {
+  //         cacheControl: "3600",
+  //         upsert: false,
+  //         contentType: file.type,
+  //       });
 
-      if (error) throw error;
+  //     if (error) throw error;
 
-      const { data: urlData, error: urlError } = await supabase.storage
-        .from("user-resume")
-        .createSignedUrl(filePath, 8640000);
+  //     const { data: urlData, error: urlError } = await supabase.storage
+  //       .from("user-resume")
+  //       .createSignedUrl(filePath, 8640000);
 
-      if (urlError) throw urlError;
+  //     if (urlError) throw urlError;
 
-      setUploadSuccess(`File uploaded successfully: ${file.name}`);
-      setUploadedUrl(urlData?.signedUrl || null);
-      if(urlData?.signedUrl){
-        await resumePush(userId,urlData?.signedUrl)
-        sessionStorage.setItem("resume", urlData?.signedUrl || "");
-      }
-    } catch (error: any) {
-      setUploadError(`Upload failed: ${error.message || error.toString()}`);
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
+  //     setUploadSuccess(`File uploaded successfully: ${file.name}`);
+  //     setUploadedUrl(urlData?.signedUrl || null);
+  //     if(urlData?.signedUrl){
+  //       await resumePush(userId,urlData?.signedUrl)
+  //       sessionStorage.setItem("resume", urlData?.signedUrl || "");
+  //     }
+  //   } catch (error: any) {
+  //     setUploadError(`Upload failed: ${error.message || error.toString()}`);
+  //   } finally {
+  //     setUploading(false);
+  //     if (fileInputRef.current) fileInputRef.current.value = "";
+  //   }
+  // };
 
+  const {
+      fileInputRef,
+      uploading,
+      uploadError,
+      uploadSuccess,
+      uploadedUrl,
+      onUploadClick,
+    } = useResumeUpload(userId)
   return (
     <div className="flex page-section flex-col items-center justify-center min-h-screen ">
       <h1 className="text-3xl font-bold mb-6">LinkedIn User Details</h1>
@@ -170,7 +179,7 @@ export default function LinkedinUserDetailsPage() {
           type="file"
           accept=".pdf"
           style={{ display: "none" }}
-          onChange={handleFileChange}
+          onChange={onUploadClick}
         />
         {uploadError && <div className="text-red-500 mt-2">{uploadError}</div>}
         {uploadSuccess && (

@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { supabase } from "../utiles/supabaseClient";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -16,6 +17,7 @@ const Login = () => {
     try {
       if (!email || !password) {
         setError("Email and password are required");
+        toast.error("Email and Password required!")
         setLoading(false)
       } else {
         setLoading(true);
@@ -27,25 +29,29 @@ const Login = () => {
         );
 
         if (supabaseError) {
-          console.log("Supabase sign-in failed:", supabaseError.message);
+          // console.log("Supabase sign-in failed:", supabaseError.message);
           setError(supabaseError.message)
+          toast.error(supabaseError.message)
           setLoading(false)
         } else {
-          console.log("Login successful");
+          // console.log("Login successful");
+          toast.success("Login success")
           router.push("/");
         }
       }
     } catch (err: any) {
       if (err && err.response && err.response.status === 401) {
-        console.log("Invalid email or password.");
+        // console.log("Invalid email or password.");
         setError("Invalid email or password.")
+        toast.error("Invalid email or password.")
         setLoading(false)
       } else {
-        console.log("An error occurred during signin.");
+        // console.log("An error occurred during signin.");
         setError("An error occurred during signin. Please try again. ")
+        toast.error("An error occurred during signin. Please try again. ")
         setLoading(false)
       }
-      console.log(err);
+      // console.log(err);
     }
   };
 

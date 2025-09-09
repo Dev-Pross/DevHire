@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react'
+import toast from 'react-hot-toast';
 
 interface JobcardProps{
     title:string,
@@ -21,6 +22,7 @@ interface JobcardProps{
 interface JobCardsProps{
     jobs:JobcardProps[];
 }
+// testing job data
 // const jobs=[
 //     {
 //     "title": "Software Engineer",
@@ -247,19 +249,20 @@ const JobCards: React.FC<JobCardsProps> = ({jobs=[] }) => {
             job_description,
             job_url
         }))
-        console.log("all ids: ",allIds)
+        // console.log("all ids: ",allIds)
         setSelectedIds(allIds)
     }
-    console.log("slect all",selectedIds);
+    // console.log("slect all",selectedIds);
     
    
     const ApplierHandler = ()=>{
         if(selectedIds.length === 0){
-            console.log("please select jobs to proceed");
+            // console.log("please select jobs to proceed");
+            toast.error("please select jobs to proceed")
             return
         }
         else{
-            console.log("data sending to apply agent...", selectedIds);
+            // console.log("data sending to apply agent...", selectedIds);
             const refinedJobs = selectedIds.map(({ job_url, job_description }) => ({
                 job_url,
                 job_description,
@@ -283,7 +286,7 @@ const JobCards: React.FC<JobCardsProps> = ({jobs=[] }) => {
             return prev.filter(selectedJob => selectedJob.job_id !== job.job_id);
             } else {
             // Add job to selection
-            console.log("previos ",prev);
+            // console.log("previos ",prev);
             // const previous = prev.map(j=>j.job_id,job.job_url,job.job_description)
             
             return [...prev, {job_url: job.job_url, job_id: job.job_id, job_description:job.job_description}];

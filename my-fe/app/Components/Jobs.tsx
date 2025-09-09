@@ -3,6 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import JobCards from './JobCards';
 import {sendUrl} from '../utiles/agentsCall';
 import CryptoJS from 'crypto-js';
+import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
   const steps = [
     {
@@ -40,9 +42,9 @@ const Jobs = () => {
   const [url, setUrl] = useState<string>("");
   const [userId, setUserId]  =useState<string>("")
   const [password, setPassword] = useState<string>("")
+  const router = useRouter()
 
-
-  let jwt=""
+  // let jwt=""
 
   const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456" // ensure 32 bytes for AES-256
   const IV = "741852963qwerty0"
@@ -64,10 +66,10 @@ const Jobs = () => {
     const pdf = sessionStorage.getItem("resume")
     if(pdf)
       setUrl(pdf)
-    else
-      throw new Error("resume not uploaded")
-      
-
+    else{
+      toast.error("Resume not found. Please upload your resume")
+      router.push("/Jobs/LinkedinUserDetails")
+    }
     async function fetchEncryptedCredentials() {
       try {
         const res = await fetch("http://localhost:3000/api/get-data", {
@@ -77,51 +79,57 @@ const Jobs = () => {
         });
 
         const json = await res.json();
-        jwt=json.encryptedData as string
+        // jwt=json.encryptedData as string
 
         if (json.encryptedData) {
           const decrypted = decryptData(json.encryptedData, ENC_KEY, IV);
           const credentials = JSON.parse(decrypted);
           setUserId(credentials.username);
           setPassword(credentials.password);
-          console.log("Decrypted user credentials:", userId," ",password);
+          // console.log("Decrypted user credentials:", userId," ",password);
         } else {
-          console.error("No encryptedData in response");
+          // console.error("No encryptedData in response");
+          toast.error("Linkedin Credentials not provided")
+          router.push("/Jobs/LinkedinUserDetails")
         }
-      } catch (error) {
-        console.error("Error fetching or decrypting credentials:", error);
+      } catch (error:any) {
+        // console.error("Error fetching or decrypting credentials:", error);
+        toast.error("error caused by: ",error.message)
       }
     }
 
     fetchEncryptedCredentials();
   }, []);
 
-  console.log("encrypted data: ", jwt)
+  // console.log("encrypted data: ", jwt)
   
   useEffect(()=>{
     const fetchJobs = async()=>{
       if(url==="" &&  userId==="" && password===""){
-        console.log("all parameters are empty")
+        // console.log("all parameters are empty")
+
         return
       }else if(userId===""){
-        console.log("userid is empty")
+        // console.log("userid is empty")
         return
       }
       else if(password===""){
-        console.log("password is empty")
+        // console.log("password is empty")
         return
       }
       else if(url === ""){
-        console.log("file url is empty")
+        // console.log("file url is empty")
         return
       }
       else{
-        console.log("calling agent to fetch jobs");
+        // console.log("calling agent to fetch jobs");
         const {data ,error} = await sendUrl(url,userId,password)
         if(data)
           setJobs(data.jobs)
         else
-          console.log("error from fetching jobs ",error);
+          toast.error(`error from fetching jobs ${error}`)
+          // console.log("error from fetching jobs ",error);
+
       }
     }
 
@@ -132,7 +140,7 @@ const Jobs = () => {
     fetch(`http://127.0.0.1:8000/jobs/${userId}/progress`)
     .then((res)=>res.json())
     .then((data)=>{
-      console.log("progress: ",data.progress);
+      // console.log("progress: ",data.progress);
       // setPercentage(data.progress)
       let stepIndex=0
       for (let i = 0; i < steps.length; i++) {
@@ -160,7 +168,7 @@ const Jobs = () => {
     };
     }
     else{
-      console.log("user id not provided");
+      // console.log("user id not provided");
       
     }
 
@@ -168,8 +176,8 @@ const Jobs = () => {
 
  
 
-console.log("current step: ",currentStep); 
-console.log("jwt:",jwt);
+// console.log("current step: ",currentStep); 
+// console.log("jwt:",jwt);
  
 
   return (

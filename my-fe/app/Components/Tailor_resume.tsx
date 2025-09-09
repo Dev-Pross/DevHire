@@ -1,8 +1,7 @@
 "use client"
 import React, { useEffect, useRef, useState } from 'react'
-import Image from "next/image";
 import { useResumeUpload } from '../utiles/useUploadResume';
-import { error } from 'console';
+import toast from 'react-hot-toast';
 
 const Tailor_resume = () => {
     const resume = sessionStorage.getItem("resume")
@@ -70,10 +69,13 @@ const Tailor_resume = () => {
           const url = URL.createObjectURL(blob);
           setTailoredUrl(url);
         } else {
-          console.error("Invalid response data or missing PDF");
+          // console.error("Invalid response data or missing PDF");
+          toast.error("Somethind went wrong from server")
+
         }
       }catch(e:any){
         console.log(e);
+        toast.error("Something went wrong, please retry later.")
         setLoading(false)
       }
     }
@@ -84,7 +86,7 @@ const Tailor_resume = () => {
     const id = sessionStorage.getItem("id");
     if (id) setUserId(id);
     }catch(e:any){
-      console.error("error to fetch id from sessionStorage: ", e);
+      toast.error("Please login to proceed");
       
     }
   }, []);

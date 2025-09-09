@@ -5,6 +5,7 @@ import { supabase } from "../utiles/supabaseClient";
 import Image from "next/image";
 import getLoginUser from "../utiles/getUserData";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 const WHITE_BG_SECTIONS = ["pricing-section","pricing-card"];
 const Navbar = () => {
@@ -21,24 +22,18 @@ const Navbar = () => {
   const router = useRouter()
 
   useEffect(() => {
-      // const id = sessionStorage.getItem("id")
       const resume_url = sessionStorage.getItem("resume");
-      // setId(id)
-      // if(!id) return
       async function getResume() {
         const { data, error } = await getLoginUser();
-        console.log("session ", data);
+        // console.log("session ", data);
         if (error) {
-          console.error("Error fetching user:", error);
+          // console.error("Error fetching user:", error);
+          toast.error(`Error fetching user: ${error}` )
         } else if (data?.user) {
-          console.log(
-            "User is logged in:",
-            data?.user.user_metadata.email,
-            " ",
-            data?.user.user_metadata.username
-          );
+          console.log("loggedin");
         } else {
           console.log("No user is logged in.");
+          // toast.error("")
         }
         // setUser(data.user.user_metadata);
         sessionStorage.setItem("id", data?.user.user_metadata.sub);
@@ -53,7 +48,7 @@ const Navbar = () => {
             credentials: "include",
           });
           const resume_data = await res.json();
-          console.log("mydata", resume_data.user.resume_url);
+          // console.log("mydata", resume_data.user.resume_url);
           if (!resume_url)
             sessionStorage.setItem("resume", resume_data.user.resume_url);
           setResume(resume_data.user.resume_url);
@@ -81,38 +76,6 @@ const Navbar = () => {
 
   }, []);
 
-  // useEffect(() => {
-  //   if (ref.current) {
-  //     setHeight(ref.current.offsetHeight);
-  //   }
-
-  //   const observer = new IntersectionObserver(
-  //     ([entry]) => {
-  //       setTop(entry.boundingClientRect.top);
-  //       if (entry.target.id === "pricing-card" || entry.target.id === "pricing-section") {
-  //       console.log("White background section:", entry.target.id);
-  //       setColor("black");
-  //     } else {
-  //       console.log("Dark background section:", entry.target.id);
-  //       setColor("white");
-  //     }
-  //       console.log("top:",top);
-  //       console.log("height:",height)
-  //     },
-  //     {
-  //       threshold: 0.5,
-  //       rootMargin: `-${height}px 0px 0px 0px`,
-  //     }
-  //   );
-
-  //   WHITE_BG_SECTIONS.forEach((id) => {
-  //     const target = document.getElementById(id);
-  //     if (target) observer.observe(target);
-  //   });
-
-  //   return () => observer.disconnect();
-  // }, [height]);
-
 
   useEffect(() => {
   if (ref.current) {
@@ -126,14 +89,14 @@ const Navbar = () => {
       // Only change color when actually intersecting with sufficient threshold
       if (entry.isIntersecting) {
         if (entry.target.id === "pricing-section"){
-          console.log("White background section:", entry.target.id);
+          // console.log("White background section:", entry.target.id);
           setColor("black");
         }
         else if (entry.target.id === "pricing-card") {
-          console.log("White background section:", entry.target.id);
+          // console.log("White background section:", entry.target.id);
           setColor("white");
         } else {
-          console.log("Dark background section:", entry.target.id);
+          // console.log("Dark background section:", entry.target.id);
           setColor("white");
         }
       } else {
@@ -143,9 +106,9 @@ const Navbar = () => {
         }
       }
       
-      console.log("top:", entry.boundingClientRect.top);
-      console.log("height:", height);
-      console.log("isIntersecting:", entry.isIntersecting);
+      // console.log("top:", entry.boundingClientRect.top);
+      // console.log("height:", height);
+      // console.log("isIntersecting:", entry.isIntersecting);
     },
     {
       threshold: 0.9,

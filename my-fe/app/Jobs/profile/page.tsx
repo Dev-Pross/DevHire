@@ -5,10 +5,11 @@ import getLoginUser from "../../utiles/getUserData";
 import Navbar from "../../Components/Navbar";
 import { error } from "console";
 import { supabase } from "../../utiles/supabaseClient";
+import toast from "react-hot-toast";
 
 const ProfilePage = () => {
   const [data, setDbData] = useState< any | null>(null);
-  const [resume, setPhone] = useState<string | null>(null)
+  // const [resume, setPhone] = useState<string | null>(null)
   const [jobCount, setJobCount] = useState<string | null>(null)
   // const id = sessionStorage.getItem("id");
   useEffect(() => {
@@ -16,7 +17,7 @@ const ProfilePage = () => {
       async function fetchData() {
         const userData = await getLoginUser();
         const id: any = userData?.data?.user     
-        console.log("id", id);
+        // console.log("id", id);
         if (!id) return;
 
       
@@ -26,7 +27,7 @@ const ProfilePage = () => {
           credentials: "include",
         });
         const dataq = await res.json();
-        console.log("mydata", dataq?.user);
+        // console.log("mydata", dataq?.user);
         setDbData(dataq.user);
       }
       fetchData();
@@ -35,20 +36,20 @@ const ProfilePage = () => {
         if(jobs) setJobCount(jobs)
       }
       catch(e: any){
-        console.error("fetcing from sessionStorage failed: ",e);
+        // toast.error("fetcing from sessionStorage failed: ",e);
         
       }
-    } catch (error) {
-      console.error("Error fetching profile data:", error);
+    } catch (error:any) {
+      toast.error("Something went wrong, Pleas try again later.");
     }
   }, []);
 
   function logoutHandler() {
-      console.log("Are you sure to logout!!");
+      toast.error("Are you sure to logout!!");
       setTimeout(async()=>{
         sessionStorage.clear()
         const {error} = await supabase.auth.signOut()
-        if(error) console.log("error in loggin out: ",error);
+        if(error) toast.error("error in loggin out");
         window.location.href = "/"
       },1000)
     }

@@ -2,6 +2,7 @@
 import React, { useState } from 'react'
 import { supabase } from '../utiles/supabaseClient'
 import {useRouter} from 'next/navigation'
+import toast from 'react-hot-toast'
 
 const Register = () => {
 
@@ -19,14 +20,17 @@ const Register = () => {
         
         if(!email || !password || !confirmPassword || !username){
             setError("All fields are required")
+            toast.error("All fields are required")
             setLoading(false)
         }
         else if(password !== confirmPassword){
             setError("password not match");
+            toast.error("password not match")
             setLoading(false)
         }
         else if(! isStrongPassword(password)){
-            setError("password isn't strong enough");
+            setError("password At least 8 characters, one uppercase, one lowercase, one digit, one special character");
+            toast.error("password isn't strong enough")
             setLoading(false)
         }
         else{
@@ -47,12 +51,14 @@ const Register = () => {
             },
         })
         if(error){
-            console.log("error",error);
+            // console.log("error",error);
+            toast.error(`failed to establish connection with server`)
             setLoading(false)
             setError("failed to establish connection with server")
         }
         else{
-            console.log("success", data); 
+            // console.log("success", data); 
+            toast.success("Register successfull, please login.")
             fetch('api/User?action=insert',{
                 method: "POST",
                 headers: {"Content-Type":"application/json"},
@@ -108,7 +114,7 @@ const Register = () => {
                     </div>
                 </form>
                 <div className='w-full text-center mt-4 text-white'>
-                    Already have an account? <a href='/login' className='text-blue-500'>Login</a>
+                    Already have an account? <a href='/login' className='text-green-500'>Login</a>
                 </div>
             </div>
     </div>

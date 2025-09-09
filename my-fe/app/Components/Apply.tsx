@@ -2,7 +2,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Apply_Jobs } from "../utiles/agentsCall";
 import CryptoJS from "crypto-js";
-import getLoginUser from "../utiles/getUserData";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 interface jobsData {
   job_url: string;
@@ -50,6 +51,7 @@ const Apply: React.FC<ApplyProps> = () => {
   const [jobs, setJobs] = useState<
     { job_url: string; job_description: string }[]
   >([]);
+  const router = useRouter();
 
   const [url, setUrl] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
@@ -81,7 +83,10 @@ const Apply: React.FC<ApplyProps> = () => {
     // fecthing resume
     const pdf = sessionStorage.getItem("resume");
     if (pdf) setUrl(pdf);
-    else throw new Error("no resume found");
+    else {
+      toast.error("Resume not found. Please upload your resume")
+      router.push("/Jobs/LinkedinUserDetails")
+    }
 
     // fecthing jobs, user id
     const job_data = sessionStorage.getItem("jobs");
@@ -89,14 +94,17 @@ const Apply: React.FC<ApplyProps> = () => {
     if (job_data != null) {
       setJobs(JSON.parse(job_data));
     } else {
-      throw new Error("no jobs found");
+      toast.error("No Jobs not found to proceed")
+      router.push("/Jobs")
     }
     if (id != null) {
       setUser(id);
     } else {
-      throw new Error("no id found");
+      // throw new Error("no id found");
+      toast.error("Please Login to start")
     }
-    console.log("jobs from ls: ", job_data);
+
+    // console.log("jobs from ls: ", job_data);
 
     // fetching li_c
     async function fetchEncryptedCredentials() {
@@ -115,10 +123,13 @@ const Apply: React.FC<ApplyProps> = () => {
           setUserId(credentials.username);
           setPassword(credentials.password);
         } else {
-          console.error("No encryptedData in response");
+          // console.error("No encryptedData in response");
+          toast.error("Linkedin Credentials not provided")
+          router.push("/Jobs/LinkedinUserDetails")
         }
-      } catch (error) {
-        console.error("Error fetching or decrypting credentials:", error);
+      } catch (error: any) {
+        // console.error("Error fetching or decrypting credentials:", error);
+        toast.error("error caused by: ",error.message)
       }
     }
 
@@ -133,7 +144,7 @@ const Apply: React.FC<ApplyProps> = () => {
       });
       const my_data = await res.json();
       if (res) {
-        console.log("mydata", my_data.user.applied_jobs);
+        // console.log("mydata", my_data.user.applied_jobs);
         setDbData(my_data.user.applied_jobs);
       }
     }
@@ -142,8 +153,8 @@ const Apply: React.FC<ApplyProps> = () => {
 
   // Applying jobs
   useEffect(() => {
-    console.log("apply called");
-    console.log("Ready to apply: ", { jobs, userId, dbData });
+    // console.log("apply called");
+    // console.log("Ready to apply: ", { jobs, userId, dbData });
     if (!jobs || jobs.length === 0) return;
     if (!user) return;
     if (!dbData) return;
@@ -177,27 +188,29 @@ const Apply: React.FC<ApplyProps> = () => {
           }
           setResponse(data);
         } else {
-          console.log("error from fetching jobs ", error?.status);
+          // console.log("error from fetching jobs ", error?.status);
+          toast.error("error from fetching jobs: ",error?.status)
           if (error.status === 500) {
-            console.log("cant reach server, please try again");
+            // console.log("cant reach server, please try again");
+            toast.error("cant reach server, please try again")
           }
         }
-      } catch (error) {
-        console.log("error in applying jobs ", error);
+      } catch (error:any) {
+        toast.error("error in applying jobs ", error.message);
+        
       }
     }
 
     apply();
 
     if (userId) {
-      console.log("all set to start apply");
+      // console.log("all set to start apply");
 
       intervalRef.current = window.setInterval(() => {
         fetch(`http://127.0.0.1:8000/apply/${userId}/progress`)
           .then((res) => res.json())
           .then((data) => {
-            console.log("progress: ", data.progress);
-            // setPercentage(data.progress)
+            // console.log("progress: ", data.progress);
             let stepIndex = 0;
             for (let i = 0; i < steps.length; i++) {
               if (data.progress == 100) {
@@ -221,7 +234,8 @@ const Apply: React.FC<ApplyProps> = () => {
         }
       };
     } else {
-      console.log("user id not provided");
+      toast.error("Linkedin Credentials not provided")
+      router.push("/Jobs/LinkedinUserDetails")
     }
   }, [user, jobs, dbData]);
 
