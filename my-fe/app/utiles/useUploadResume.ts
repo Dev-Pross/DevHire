@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { supabase } from "../utiles/supabaseClient";
+import toast from "react-hot-toast";
 
 export function useResumeUpload(userId: string | undefined) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -20,7 +21,7 @@ export function useResumeUpload(userId: string | undefined) {
         }),
       });
     } catch (err) {
-      console.log(err);
+      toast.error("something went wrong, please try again later")
     }
   }
 

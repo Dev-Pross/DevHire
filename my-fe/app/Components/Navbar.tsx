@@ -49,9 +49,10 @@ const Navbar = () => {
           });
           const resume_data = await res.json();
           // console.log("mydata", resume_data.user.resume_url);
-          if (!resume_url)
+          if (resume_url){
             sessionStorage.setItem("resume", resume_data.user.resume_url);
-          setResume(resume_data.user.resume_url);
+            setResume(resume_data.user.resume_url);
+          }
         }
       }
       getResume();

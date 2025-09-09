@@ -41,7 +41,11 @@ const Tailor_resume = () => {
     ];
 
     const tailorButton= async ()=>{
-      if (!resume && !description) return
+      if (!resume) return
+      if(!description) {
+        toast.error("enter description to proceed") 
+        return
+      }
       setLoading(true)
       try{
         const response = await fetch('http://127.0.0.1:8000/tailor',{

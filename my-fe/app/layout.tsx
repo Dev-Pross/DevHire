@@ -36,7 +36,7 @@ export default function RootLayout({
   toastOptions={{
     position: "top-right",
     style: {
-      fontSize: "1.7rem",
+      fontSize: "1.2rem",
       minWidth: "350px",
       // padding: "20px 26px",
       borderRadius: "14px",
@@ -63,16 +63,16 @@ export default function RootLayout({
         letterSpacing: "0.02em"
       },
     },
-    info: {
-      style: {
-        background: "white",
-        color: "#14b8a6", // teal-600 for info
-        borderBottom: "5px solid #38bdf8", // sky-400 underline
-        boxShadow: "0 2px 10px 0 rgba(16,185,129,0.09)", // soft teal
-        fontWeight: "600",
-        letterSpacing: "0.02em"
-      },
-    }
+    // info: {
+    //   style: {
+    //     background: "white",
+    //     color: "#14b8a6", // teal-600 for info
+    //     borderBottom: "5px solid #38bdf8", // sky-400 underline
+    //     boxShadow: "0 2px 10px 0 rgba(16,185,129,0.09)", // soft teal
+    //     fontWeight: "600",
+    //     letterSpacing: "0.02em"
+    //   },
+    // }
   }}
 />
 
