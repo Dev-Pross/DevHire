@@ -17,7 +17,6 @@ const Navbar = () => {
   const [ resume, setResume ] = useState<any|null>(null)
   const [top, setTop] = useState<number>(0)
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [toggle, setToggle] = useState(true)
 
   const router = useRouter()
 
@@ -82,35 +81,85 @@ const Navbar = () => {
 
   }, []);
 
+  // useEffect(() => {
+  //   if (ref.current) {
+  //     setHeight(ref.current.offsetHeight);
+  //   }
+
+  //   const observer = new IntersectionObserver(
+  //     ([entry]) => {
+  //       setTop(entry.boundingClientRect.top);
+  //       if (entry.target.id === "pricing-card" || entry.target.id === "pricing-section") {
+  //       console.log("White background section:", entry.target.id);
+  //       setColor("black");
+  //     } else {
+  //       console.log("Dark background section:", entry.target.id);
+  //       setColor("white");
+  //     }
+  //       console.log("top:",top);
+  //       console.log("height:",height)
+  //     },
+  //     {
+  //       threshold: 0.5,
+  //       rootMargin: `-${height}px 0px 0px 0px`,
+  //     }
+  //   );
+
+  //   WHITE_BG_SECTIONS.forEach((id) => {
+  //     const target = document.getElementById(id);
+  //     if (target) observer.observe(target);
+  //   });
+
+  //   return () => observer.disconnect();
+  // }, [height]);
+
+
   useEffect(() => {
-    if (ref.current) {
-      setHeight(ref.current.offsetHeight);
-    }
-    if(toggle) setColor("white")
-    else setColor("black")
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setTop(entry.boundingClientRect.top);
-        if(entry.target.id === "pricing-card")
-          setColor("white")
-        if(entry.target.id === "pricing-section")
-          setColor("#7a7a7a")
-        console.log("top:",top);
-        console.log("height:",height)
-      },
-      {
-        threshold: 1,
-        rootMargin: `-${height}px 0px 0px 0px`,
+  if (ref.current) {
+    setHeight(ref.current.offsetHeight);
+  }
+
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      setTop(entry.boundingClientRect.top);
+      
+      // Only change color when actually intersecting with sufficient threshold
+      if (entry.isIntersecting) {
+        if (entry.target.id === "pricing-section"){
+          console.log("White background section:", entry.target.id);
+          setColor("black");
+        }
+        else if (entry.target.id === "pricing-card") {
+          console.log("White background section:", entry.target.id);
+          setColor("white");
+        } else {
+          console.log("Dark background section:", entry.target.id);
+          setColor("white");
+        }
+      } else {
+        // When not intersecting, check if we should return to default (white)
+        if (entry.target.id === "pricing-card" || entry.target.id === "pricing-section") {
+          setColor("white"); // Return to white when leaving white sections
+        }
       }
-    );
+      
+      console.log("top:", entry.boundingClientRect.top);
+      console.log("height:", height);
+      console.log("isIntersecting:", entry.isIntersecting);
+    },
+    {
+      threshold: 0.9,
+      rootMargin: `-${height}px 0px 0px 0px`,
+    }
+  );
 
-    WHITE_BG_SECTIONS.forEach((id) => {
-      const target = document.getElementById(id);
-      if (target) observer.observe(target);
-    });
+  WHITE_BG_SECTIONS.forEach((id) => {
+    const target = document.getElementById(id);
+    if (target) observer.observe(target);
+  });
 
-    return () => observer.disconnect();
-  }, [top]);
+  return () => observer.disconnect();
+}, [height]);
 
   
   const navbarStyle = {
