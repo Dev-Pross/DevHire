@@ -258,7 +258,7 @@ const JobCards: React.FC<JobCardsProps> = ({jobs=[] }) => {
     const ApplierHandler = ()=>{
         if(selectedIds.length === 0){
             // console.log("please select jobs to proceed");
-            toast.error("please select jobs to proceed")
+            toast.error("Please select jobs to proceed")
             return
         }
         else{

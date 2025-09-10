@@ -19,15 +19,15 @@ export default function LinkedinUserDetailsPage() {
       });
       const json = await res.json();
       if (res.ok) {
-        toast.success("successfully submitted your data");
+        toast.success("Successfully submitted your data");
       } else {
         console.log("error", json.message);
-        toast.error("something went wrong, please try again later")
+        toast.error("Something went wrong, please try again later")
       }
       
     } catch (error) {
       // console.log("network error:", error);
-      toast.error("something went wrong with network, please try again later")
+      toast.error("Something went wrong with network, please try again later")
 
     }
   }
@@ -40,25 +40,6 @@ export default function LinkedinUserDetailsPage() {
       toast.error("Please login to proceed.")
   },[])
 
-//   async function resumePush(userid: any | null,link:string) {
-//     // console.log(userid);
-    
-//     // if(!user) return
-//     try{
-//         const res = await fetch("/api/User?action=update",
-//           {
-//             method: "POST",
-//             headers: { "content-type": "application/json" },
-//             body: JSON.stringify({
-//               id: userid,
-//               data: {column: "resume_url", value: link}
-//             }),
-//           }
-//         )
-//       }catch(err){
-//         toast.error("something went wrong, please try again later")        
-//       }
-//   }
 
   async function handleLogin(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
@@ -74,50 +55,6 @@ export default function LinkedinUserDetailsPage() {
     fileInputRef.current?.click();
   };
 
-  // const handleFileChange = async (
-  //   event: React.ChangeEvent<HTMLInputElement>
-  // ) => {
-  //   setUploadError(null);
-  //   setUploadSuccess(null);
-  //   setUploadedUrl(null);
-  //   const file = event.target.files?.[0];
-
-  //   if (!file) return;
-
-  //   setUploading(true);
-
-  //   try {
-  //     const filePath = `${Date.now()}_${file.name}`;
-
-  //     const { data, error } = await supabase.storage
-  //       .from("user-resume")
-  //       .upload(filePath, file, {
-  //         cacheControl: "3600",
-  //         upsert: false,
-  //         contentType: file.type,
-  //       });
-
-  //     if (error) throw error;
-
-  //     const { data: urlData, error: urlError } = await supabase.storage
-  //       .from("user-resume")
-  //       .createSignedUrl(filePath, 8640000);
-
-  //     if (urlError) throw urlError;
-
-  //     setUploadSuccess(`File uploaded successfully: ${file.name}`);
-  //     setUploadedUrl(urlData?.signedUrl || null);
-  //     if(urlData?.signedUrl){
-  //       await resumePush(userId,urlData?.signedUrl)
-  //       sessionStorage.setItem("resume", urlData?.signedUrl || "");
-  //     }
-  //   } catch (error: any) {
-  //     setUploadError(`Upload failed: ${error.message || error.toString()}`);
-  //   } finally {
-  //     setUploading(false);
-  //     if (fileInputRef.current) fileInputRef.current.value = "";
-  //   }
-  // };
 
   const {
       fileInputRef,

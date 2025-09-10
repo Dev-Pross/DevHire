@@ -89,12 +89,12 @@ const Jobs = () => {
           // console.log("Decrypted user credentials:", userId," ",password);
         } else {
           // console.error("No encryptedData in response");
-          toast.error("Linkedin Credentials not provided")
+          toast.error("Linkedin credentials not provided")
           router.push("/Jobs/LinkedinUserDetails")
         }
       } catch (error:any) {
         // console.error("Error fetching or decrypting credentials:", error);
-        toast.error("error caused by: ",error.message)
+        toast.error("Error caused by: ",error.message)
       }
     }
 
@@ -127,7 +127,7 @@ const Jobs = () => {
         if(data)
           setJobs(data.jobs)
         else
-          toast.error(`error from fetching jobs ${error}`)
+          toast.error(`Error from fetching jobs ${error}`)
           // console.log("error from fetching jobs ",error);
 
       }

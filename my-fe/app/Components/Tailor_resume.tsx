@@ -106,15 +106,15 @@ const Tailor_resume = () => {
 
   return (
     <div className='h-screen overflow-hidden flex p-10 gap-5'>
-        <div className='w-[50%] bg-white/10 h-full flex items-end justify-center gap-2 rounded-xl '>
+        <div className='w-[40%] bg-white/10 h-full flex items-end justify-center gap-2 rounded-xl '>
           <div className='w-full h-full flex flex-col justify-between p-3'>
-            <h1 className='text-white text-xl p-6 uppercase text-center'>Drop that dream job description here.<br/> Our AI will instantly highlight the keywords and skills you need to stand out from 100+ other applicants!</h1>
+            <h1 className='text-white text-xl p-6 uppercase text-center'>Drop that dream job description here.<br/> Our AI will instantly highlight the keywords and skills you need to stand out from other applicants!</h1>
             <div className='w-full flex justify-center items-end gap-2 mb-10 p-3'>
             <textarea name="job_description" rows={1} onChange={(e)=>{
               setDescription(e.target.value); 
               e.target.style.height = 'auto';
               e.target.style.height = e.target.scrollHeight + 'px';}} 
-            className='bg-[#183b70] text-white w-[90%] min-h-16 box-border block max-h-100 resize-none text-lg p-4 outline-none overflow-y-auto rounded-lg' placeholder='enter job description'></textarea>
+            className='bg-[#183b70] text-white w-[90%] min-h-16 box-border block max-h-100 resize-none text-lg p-4 outline-none overflow-y-auto rounded-lg' placeholder='Enter your job description'></textarea>
             <button
                 onClick={tailorButton}
                 className="bg-blue-600 hover:bg-blue-800 transition w-16 h-16 text-black font-bold py-2 px-4 rounded-4xl focus:outline-none focus:shadow-outline"
@@ -158,7 +158,7 @@ const Tailor_resume = () => {
           style={{ display: "none" }}
         />
         </div>
-        <div className='w-[50%] h-full flex flex-col gap-10'>
+        <div className='w-[60%] h-full flex flex-col gap-10'>
           
           { loading ? (
             <span className="flex items-center justify-center h-[inherit] text-white items-center gap-2 flex-col mt-1/2">

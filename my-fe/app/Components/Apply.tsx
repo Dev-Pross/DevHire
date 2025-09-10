@@ -94,7 +94,7 @@ const Apply: React.FC<ApplyProps> = () => {
     if (job_data != null) {
       setJobs(JSON.parse(job_data));
     } else {
-      toast.error("No Jobs not found to proceed")
+      toast.error("No jobs found to proceed")
       router.push("/Jobs")
     }
     if (id != null) {
@@ -124,12 +124,12 @@ const Apply: React.FC<ApplyProps> = () => {
           setPassword(credentials.password);
         } else {
           // console.error("No encryptedData in response");
-          toast.error("Linkedin Credentials not provided")
+          toast.error("Linkedin credentials not provided")
           router.push("/Jobs/LinkedinUserDetails")
         }
       } catch (error: any) {
         // console.error("Error fetching or decrypting credentials:", error);
-        toast.error("error caused by: ",error.message)
+        toast.error("Error caused by: ",error.message)
       }
     }
 
@@ -189,14 +189,14 @@ const Apply: React.FC<ApplyProps> = () => {
           setResponse(data);
         } else {
           // console.log("error from fetching jobs ", error?.status);
-          toast.error("error from fetching jobs: ",error?.status)
+          toast.error("Error from fetching jobs: ",error?.status)
           if (error.status === 500) {
             // console.log("cant reach server, please try again");
-            toast.error("cant reach server, please try again")
+            toast.error("Can't reach server, please try again")
           }
         }
       } catch (error:any) {
-        toast.error("error in applying jobs ", error.message);
+        toast.error("Error in applying jobs ", error.message);
         
       }
     }
@@ -234,7 +234,7 @@ const Apply: React.FC<ApplyProps> = () => {
         }
       };
     } else {
-      toast.error("Linkedin Credentials not provided")
+      toast.error("Linkedin credentials not provided")
       router.push("/Jobs/LinkedinUserDetails")
     }
   }, [user, jobs, dbData]);

@@ -21,7 +21,7 @@ export function useResumeUpload(userId: string | undefined) {
         }),
       });
     } catch (err) {
-      toast.error("something went wrong, please try again later")
+      toast.error("Something went wrong, please try again later")
     }
   }
 

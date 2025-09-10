@@ -9,48 +9,7 @@ import toast from "react-hot-toast";
 export const HeroTalent = () => {
   const [id, setId] = useState<string | null>(null);
   const [resume, setResume] = useState<string | null>(null);
-  // const router = useRouter();
-  // useEffect(() => {
-  //   // const id = sessionStorage.getItem("id")
-  //   const resume_url = sessionStorage.getItem("resume");
-  //   // setId(id)
-  //   // if(!id) return
-  //   async function getResume() {
-  //     const { data, error } = await getLoginUser();
-  //     console.log("session ", data);
-  //     if (error) {
-  //       console.error("Error fetching user:", error);
-  //     } else if (data?.user) {
-  //       console.log(
-  //         "User is logged in:",
-  //         data?.user.user_metadata.email,
-  //         " ",
-  //         data?.user.user_metadata.username
-  //       );
-  //     } else {
-  //       console.log("No user is logged in.");
-  //     }
-  //     // setUser(data.user.user_metadata);
-  //     sessionStorage.setItem("id", data?.user.user_metadata.sub);
-  //     setId(data?.user.user_metadata.sub);
-  //     sessionStorage.setItem("name", data?.user.user_metadata.username);
-  //     sessionStorage.setItem("email", data?.user.user_metadata.email);
 
-  //     if (id) {
-  //       const res = await fetch(`/api/User?id=${id}`, {
-  //         method: "GET",
-  //         headers: { "Content-Type": "application/json" },
-  //         credentials: "include",
-  //       });
-  //       const resume_data = await res.json();
-  //       console.log("mydata", resume_data.user.resume_url);
-  //       if (!resume_url)
-  //         sessionStorage.setItem("resume", resume_data.user.resume_url);
-  //       setResume(resume_data.user.resume_url);
-  //     }
-  //   }
-  //   getResume();
-  // }, [id]);
   useEffect(() => {
     const user = sessionStorage.getItem("id");
     if (user != "undefined") setId(user);
@@ -62,14 +21,14 @@ export const HeroTalent = () => {
   return (
     <section className="h-screen hero w-full flex items-center px-30  ">
       <div className="flex-1.5 w-[50%] z-10 absolute">
-        <div>
+        {/* <div>
           <button
             onClick={() => toast.error("Hello world ")}
             className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
           >
             Hello world
           </button>
-        </div>
+        </div> */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

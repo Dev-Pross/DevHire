@@ -24,13 +24,13 @@ const Register = () => {
             setLoading(false)
         }
         else if(password !== confirmPassword){
-            setError("password not match");
-            toast.error("password not match")
+            setError("Password not match");
+            toast.error("Password not match")
             setLoading(false)
         }
         else if(! isStrongPassword(password)){
-            setError("password At least 8 characters, one uppercase, one lowercase, one digit, one special character");
-            toast.error("password isn't strong enough")
+            setError("Password should contain atleast 8 characters, one uppercase, 1 lowercase, 1 digit, 1 special character");
+            toast.error("Password isn't strong enough")
             setLoading(false)
         }
         else{
@@ -52,13 +52,13 @@ const Register = () => {
         })
         if(error){
             // console.log("error",error);
-            toast.error(`failed to establish connection with server`)
+            toast.error(`Failed to establish connection with server`)
             setLoading(false)
-            setError("failed to establish connection with server")
+            setError("Failed to establish connection with server")
         }
         else{
             // console.log("success", data); 
-            toast.success("Register successfull, please login.")
+            toast.success("Registration done successfully, please login.")
             fetch('api/User?action=insert',{
                 method: "POST",
                 headers: {"Content-Type":"application/json"},

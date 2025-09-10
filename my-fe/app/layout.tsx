@@ -39,7 +39,8 @@ export default function RootLayout({
       fontSize: "1.2rem",
       minWidth: "350px",
       // padding: "20px 26px",
-      borderRadius: "14px",
+      borderRadius: "5px",
+      // opacity:50,
       boxShadow: "0 4px 22px 0 rgba(34,197,94,0.15)", // soft green shadow
       border: "none",
     },
@@ -55,12 +56,12 @@ export default function RootLayout({
     },
     error: {
       style: {
-        background: "white",
+        backgroundColor: "#ffffffb6",
         color: "#ef4444", // red-500 for error text
         borderBottom: "5px solid #ef4444", // vivid red underline
         boxShadow: "0 4px 14px 0 rgba(239,68,68,0.10)", // soft red
         fontWeight: "600",
-        letterSpacing: "0.02em"
+        letterSpacing: "0.02em",
       },
     },
     // info: {
