@@ -129,7 +129,7 @@ const Apply: React.FC<ApplyProps> = () => {
         }
       } catch (error: any) {
         // console.error("Error fetching or decrypting credentials:", error);
-        toast.error("Error caused by: ",error.message)
+        toast.error("Error caused by: ", error.message)
       }
     }
 
@@ -149,7 +149,7 @@ const Apply: React.FC<ApplyProps> = () => {
       }
     }
     if (user) getAppliedJobs();
-  }, [user]);
+  }, [user, router]);
 
   // Applying jobs
   useEffect(() => {
@@ -164,7 +164,7 @@ const Apply: React.FC<ApplyProps> = () => {
       try {
         const { data, error } = await Apply_Jobs(jobs, url, userId, password);
         if (data) {
-          sessionStorage.setItem("applied",data.successful_applications.flat(Infinity).length)
+          sessionStorage.setItem("applied", data.successful_applications.flat(Infinity).length)
           const payload = [
             ...new Set([
               ...dbData,
@@ -189,15 +189,15 @@ const Apply: React.FC<ApplyProps> = () => {
           setResponse(data);
         } else {
           // console.log("error from fetching jobs ", error?.status);
-          toast.error("Error from fetching jobs: ",error?.status)
+          toast.error("Error from fetching jobs: ", error?.status)
           if (error.status === 500) {
             // console.log("cant reach server, please try again");
             toast.error("Can't reach server, please try again")
           }
         }
-      } catch (error:any) {
+      } catch (error: any) {
         toast.error("Error in applying jobs ", error.message);
-        
+
       }
     }
 
@@ -249,13 +249,12 @@ const Apply: React.FC<ApplyProps> = () => {
                 <div
                   className={`
                               w-15 h-15 rounded-full border-2 flex items-center justify-center transition-all duration-900 
-                              ${
-                                index < currentStep
-                                  ? "bg-blue-600 border-blue-600"
-                                  : index === currentStep
-                                  ? "border-blue-500  shadow-white-500 bg-white "
-                                  : "border-gray-600 bg-[#13182c] animate-pulse"
-                              }
+                              ${index < currentStep
+                      ? "bg-blue-600 border-blue-600"
+                      : index === currentStep
+                        ? "border-blue-500  shadow-white-500 bg-white "
+                        : "border-gray-600 bg-[#13182c] animate-pulse"
+                    }
                               `}
                 >
                   {index < currentStep ? (
@@ -275,13 +274,12 @@ const Apply: React.FC<ApplyProps> = () => {
                   <div
                     className={`
                               w-60 h-2 transition-all duration-900
-                              ${
-                                index < currentStep - 1
-                                  ? "bg-blue-600"
-                                  : index === currentStep - 1
-                                  ? "bg-blue-600 animate-pulse"
-                                  : "bg-gray-700 animate-pulse"
-                              }
+                              ${index < currentStep - 1
+                        ? "bg-blue-600"
+                        : index === currentStep - 1
+                          ? "bg-blue-600 animate-pulse"
+                          : "bg-gray-700 animate-pulse"
+                      }
                           `}
                   />
                 )}
@@ -290,13 +288,12 @@ const Apply: React.FC<ApplyProps> = () => {
               <div className="">
                 <div
                   className={`font-bold text-left pt-5 text-lg transition-colors duration-900
-                              ${
-                                index === currentStep
-                                  ? "text-blue-400"
-                                  : index < currentStep
-                                  ? "text-white"
-                                  : "text-gray-500 animate-pulse"
-                              }`}
+                              ${index === currentStep
+                      ? "text-blue-400"
+                      : index < currentStep
+                        ? "text-white"
+                        : "text-gray-500 animate-pulse"
+                    }`}
                 >
                   {step.label}
                 </div>
@@ -304,13 +301,12 @@ const Apply: React.FC<ApplyProps> = () => {
 
               <div
                 className={`text-md transition-colors duration-900
-                            ${
-                              index === currentStep
-                                ? "text-blue-300"
-                                : index < currentStep
-                                ? "text-gray-300"
-                                : "text-gray-600 animate-pulse hidden"
-                            }`}
+                            ${index === currentStep
+                    ? "text-blue-300"
+                    : index < currentStep
+                      ? "text-gray-300"
+                      : "text-gray-600 animate-pulse hidden"
+                  }`}
               >
                 {step.description}
               </div>

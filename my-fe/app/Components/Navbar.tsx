@@ -164,7 +164,7 @@ const Navbar = () => {
   }
 
   return (
-    <div className="navbar" style={navbarStyle} ref={ref}>
+    <div className="navbar"  ref={ref}>
       <nav className="flex justify-between items-center gap-6 p-4 h-full max-w-7xl mx-auto">
         <div className="rounded-full overflow-hidden">
           <Image
@@ -179,7 +179,7 @@ const Navbar = () => {
           <Link
             href="/"
             className="hover:text-gray-300 font-bold"
-            style={navLinkStyle}
+            
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
             }
@@ -192,7 +192,7 @@ const Navbar = () => {
           <Link
             href="/pricing"
             className="hover:text-gray-300 font-bold"
-            style={navLinkStyle}
+            
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
             }
@@ -205,7 +205,7 @@ const Navbar = () => {
           <Link
             href="/Jobs/tailor"
             className="hover:text-gray-300 font-bold"
-            style={navLinkStyle}
+           
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
             }
@@ -218,7 +218,7 @@ const Navbar = () => {
           <Link
             href="/about"
             className="hover:text-gray-300 font-bold"
-            style={navLinkStyle}
+           
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
             }

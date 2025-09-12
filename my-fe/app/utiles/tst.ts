@@ -1,5 +1,5 @@
-import {UserOperations} from './database'
 import { PrismaClient } from '@prisma/client'
+import {UserOperations} from './database'
 
 const prisma = new PrismaClient()
 

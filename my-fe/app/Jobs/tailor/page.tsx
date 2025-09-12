@@ -1,15 +1,17 @@
-import React from 'react'
-import Navbar from '../../Components/Navbar'
-import Tailor_resume from '../../Components/Tailor_resume'
+'use client';
+import Navbar from '../../Components/Navbar';
+import dynamic from 'next/dynamic';
 
+const Tailor_resume = dynamic(
+  () => import('../../Components/Tailor_resume'),
+  { ssr: false }
+);
 
-const page = () => {
+export default function Page() {
   return (
-    <div className='page-section'>
-      <Navbar/>
-      <Tailor_resume/>
+    <div className="page-section">
+      <Navbar />
+      <Tailor_resume />
     </div>
-  )
+  );
 }
-
-export default page

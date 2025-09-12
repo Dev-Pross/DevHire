@@ -1,15 +1,23 @@
 import { PrismaClient } from '@prisma/client';
 
-declare global {
-  // Prevent multiple instances in local development by attaching to globalThis
-  // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined;
+const prisma = new PrismaClient();
+
+/**
+ * Upserts a user record.
+ * This is just an example helper — you can add more operations here.
+ */
+export async function UserOperations(user: {
+  id: string;
+  email: string;
+  name: string;
+  resume_url: string | null;
+  applied_jobs: any[];
+}) {
+  return prisma.user.upsert({
+    where: { id: user.id },
+    update: user,
+    create: user,
+  });
 }
 
-const prisma = global.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV === 'development') {
-  global.prisma = prisma;
-}
-
-export default prisma;
+export default prisma; // so other files can still do prisma.user.findMany()
