@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { CSSProperties, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../utiles/supabaseClient";
 import Image from "next/image";
@@ -127,7 +127,7 @@ const Navbar = () => {
   }, [height]);
 
 
-  const navbarStyle = {
+  const navbarStyle:CSSProperties = {
     position: "sticky",
     top: 0,
     width: "100%",
@@ -137,7 +137,7 @@ const Navbar = () => {
     height: "60px", // Increased height for better visibility
   };
 
-  const navLinkStyle = {
+  const navLinkStyle :CSSProperties= {
     color: color,
     textDecoration: "none",
     fontFamily: "'Poppins', sans-serif",
@@ -164,8 +164,8 @@ const Navbar = () => {
   }
 
   return (
-    <div className="navbar" ref={ref}>
-      <nav className="flex justify-between items-center gap-6 p-4 h-full max-w-7xl mx-auto">
+    <div className="navbar" style={navbarStyle} ref={ref}>
+      <nav className="flex justify-between items-center gap-6 p-4 h-full max-w-7xl mx-auto" style={navbarStyle}>
         <div className="rounded-full overflow-hidden">
           <Image
             src="/logo.jpg"
@@ -176,22 +176,26 @@ const Navbar = () => {
           />
         </div>
         <div className="flex gap-6">
-          <Link
+          <Link 
+
             href="/"
             className="hover:text-gray-300 font-bold"
-
+            style={navLinkStyle}
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
             }
             onMouseLeave={(e) =>
               ((e.target as HTMLAnchorElement).style.color = color)
             }
+
           >
             Home
           </Link>
           <Link
             href="/pricing"
             className="hover:text-gray-300 font-bold"
+            style={navLinkStyle}
+            
 
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
@@ -205,7 +209,7 @@ const Navbar = () => {
           <Link
             href="/Jobs/tailor"
             className="hover:text-gray-300 font-bold"
-
+            style={navLinkStyle}
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
             }
@@ -218,12 +222,13 @@ const Navbar = () => {
           <Link
             href="/about"
             className="hover:text-gray-300 font-bold"
-
+            style={navLinkStyle}
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
             }
             onMouseLeave={(e) =>
               ((e.target as HTMLAnchorElement).style.color = color)
+              
             }
           >
             About us
