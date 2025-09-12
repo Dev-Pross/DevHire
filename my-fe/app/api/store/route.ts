@@ -22,6 +22,8 @@ export async function POST(request: Request) {
     let encrypted = cipher.update(plaintext, "utf8", "base64");
     encrypted += cipher.final("base64");
     return encrypted;
+
+    
   }
 
   const data = JSON.stringify({ username, password });
