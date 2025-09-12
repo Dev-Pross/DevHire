@@ -21,7 +21,7 @@ const ProfilePage = () => {
         if (!id) return;
 
       
-        const res = await fetch(`/api/User?id=${id.id}`, {
+        const res = await fetch(`https://dev-hire-znlr.vercel.app//api/User?id=${id.id}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
           credentials: "include",

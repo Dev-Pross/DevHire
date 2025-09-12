@@ -47,7 +47,7 @@ const Register = () => {
                 data:{
                     username: username
                 },
-            emailRedirectTo: 'http://localhost:3000/login',
+            emailRedirectTo: 'https://dev-hire-znlr.vercel.app//login',
             },
         })
         if(error){
