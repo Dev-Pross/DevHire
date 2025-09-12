@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { supabase } from "../utiles/supabaseClient";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import Link from "next/link";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -17,8 +18,8 @@ const Login = () => {
     try {
       if (!email || !password) {
         setError("Email and password are required");
-        toast.error("Email and Password required!")
-        setLoading(false)
+        toast.error("Email and Password required!");
+        setLoading(false);
       } else {
         setLoading(true);
         const { error: supabaseError } = await supabase.auth.signInWithPassword(
@@ -30,26 +31,33 @@ const Login = () => {
 
         if (supabaseError) {
           // console.log("Supabase sign-in failed:", supabaseError.message);
-          setError(supabaseError.message)
-          toast.error(supabaseError.message)
-          setLoading(false)
+          setError(supabaseError.message);
+          toast.error(supabaseError.message);
+          setLoading(false);
         } else {
           // console.log("Login successful");
-          toast.success("Login success")
-          router.push("/");
+          setTimeout(() => {
+            toast.success("Login success");
+
+            window.location.href = "/";
+            // router.refresh()
+            // router.push("/");
+
+            // <Link href={"/"}> </Link>;
+          }, 3000);
         }
       }
     } catch (err: any) {
       if (err && err.response && err.response.status === 401) {
         // console.log("Invalid email or password.");
-        setError("Invalid email or password.")
-        toast.error("Invalid email or password.")
-        setLoading(false)
+        setError("Invalid email or password.");
+        toast.error("Invalid email or password.");
+        setLoading(false);
       } else {
         // console.log("An error occurred during signin.");
-        setError("An error occurred during signin. Please try again. ")
-        toast.error("An error occurred during signin. Please try again. ")
-        setLoading(false)
+        setError("An error occurred during signin. Please try again. ");
+        toast.error("An error occurred during signin. Please try again. ");
+        setLoading(false);
       }
       // console.log(err);
     }
@@ -128,7 +136,8 @@ const Login = () => {
           <div className="w-full text-center mt-4 text-white">
             Dont have an account?{" "}
             <a href="/register" className="text-green-500">
-              Register
+              Register   
+              
             </a>
           </div>
         </div>
