@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastBar, Toaster } from "react-hot-toast";
-import Navbar from "./Components/Navbar";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -20,6 +19,11 @@ export const metadata: Metadata = {
     icon: "/logo.jpg"
   }
 };
+
+
+
+
+
 
 export default function RootLayout({
   children,
