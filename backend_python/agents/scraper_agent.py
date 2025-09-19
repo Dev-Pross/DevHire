@@ -15,6 +15,8 @@ from google import genai
 from google.genai import types
 from urllib.parse import urlparse
 from config import GOOGLE_API, LINKEDIN_ID, LINKEDIN_PASSWORD
+# from main.progress_dict import LinkedinContext
+# import main.progress_dict as progress_dict 
 
 # Color constants for enhanced debugging
 class Colors:
@@ -32,7 +34,7 @@ class Colors:
 # Configuration
 PLATFORMS = {
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
+        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F%2CP%2CI&f_TPR=r84600&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
         "base_url": "https://in.linkedin.com",
         "login_url": "https://www.linkedin.com/login"
     },
@@ -56,102 +58,8 @@ LOGGED_IN_CONTEXT = None
 MODEL_NAME="gemini-2.5-flash"
 # ---------------------------------------------------------------------------
 # 1. ENHANCED LOGIN FUNCTIONALITY
+
 # ---------------------------------------------------------------------------
-
-
-# async def apply_forced_zoom(page):
-#     """Perfect page alignment + scrolling fix"""
-#     # await page.evaluate('''
-#     # () => {
-#     #     const style = document.createElement('style');
-#     #     style.textContent = `
-#     #     /* Remove all margins and padding */
-#     #     * { box-sizing: border-box !important; }
-        
-#     #     html, body {
-#     #         margin: 0 !important;
-#     #         padding: 0 !important;
-#     #         height: 100vh !important;
-#     #         overflow: hidden !important;
-#     #     }
-        
-#     #     /* Hide LinkedIn header to save space */
-#     #     .global-nav,
-#     #     .msg-overlay-list-bubble,
-#     #     .application-outlet > nav {
-#     #         display: none !important;
-#     #     }
-        
-#     #     /* Main app container full height */
-#     #     .application-outlet {
-#     #         height: 100vh !important;
-#     #         display: flex !important;
-#     #         flex-direction: column !important;
-#     #     }
-        
-#     #     /* Jobs page container */
-#     #     .jobs-search-page {
-#     #         flex: 1 !important;
-#     #         height: 100% !important;
-#     #         display: flex !important;
-#     #         flex-direction: column !important;
-#     #     }
-        
-#     #     /* Remove sidebar completely */
-#     #     .scaffold-layout__sidebar,
-#     #     .jobs-search-filters-panel {
-#     #         display: none !important;
-#     #     }
-        
-#     #     /* Main content area full width and height */
-#     #     .scaffold-layout__content {
-#     #         flex: 1 !important;
-#     #         width: 100% !important;
-#     #         display: flex !important;
-#     #     }
-        
-#     #     .scaffold-layout__main {
-#     #         width: 100% !important;
-#     #         height: 100% !important;
-#     #         flex: 1 !important;
-#     #         display: flex !important;
-#     #         flex-direction: column !important;
-#     #     }
-        
-#     #     /* Job results container - KEY FIX */
-#     #     .jobs-search-results-list,
-#     #     ul[data-view-name="jobs-search-results-list"] {
-#     #         flex: 1 !important;
-#     #         height: 100% !important;
-#     #         max-height: none !important;
-#     #         overflow-y: auto !important;
-#     #         padding: 2px !important;
-#     #         margin: 0 !important;
-#     #         list-style: none !important;
-#     #     }
-        
-#     #     /* Compact job cards */
-#     #     .job-card-container,
-#     #     .jobs-search-results__list-item {
-#     #         margin: 1px 0 !important;
-#     #         min-height: 70px !important;
-#     #         max-height: 80px !important;
-#     #     }
-        
-#     #     /* Hide pagination */
-#     #     .jobs-search-pagination {
-#     #         display: none !important;
-#     #     }
-#     #     `;
-#     #     document.head.appendChild(style);
-        
-#     #     // Apply 33% zoom
-#     #     //document.documentElement.style.zoom = '0.';
-        
-#     #     console.log('✅ Perfect alignment + zoom applied');
-#     # }
-#     # ''')
-
 
 async def debug_capture_page(page, step_name, job_title=""):
     """Capture screenshot and HTML at any step for debugging"""
@@ -182,7 +90,6 @@ async def debug_capture_page(page, step_name, job_title=""):
         return None
 
 
-
 async def linkedin_login(browser):
     """Login to LinkedIn with FORCED 50% zoom"""
     global LOGGED_IN_CONTEXT
@@ -196,12 +103,14 @@ async def linkedin_login(browser):
             "Chrome/120.0.0.0 Safari/537.36"
         ),
         viewport={"width": 1920, "height": 1080},
-        # device_scale_factor=0.5,  # Keep this
+        device_scale_factor=0.5,  # Keep this
         locale="en-US",
         timezone_id="Asia/Calcutta",
     )
     
     page = await context.new_page()
+    # await context.storage_state(path="state.json")
+
     
     try:
         await page.goto(PLATFORMS["linkedin"]["login_url"])
@@ -213,7 +122,7 @@ async def linkedin_login(browser):
         # await apply_forced_zoom(page)
         # await asyncio.sleep(3)  # Wait for zoom to apply
         
-        print("✅ FORCED 50% zoom applied - LinkedIn should now be zoomed out")
+        # print("✅ FORCED 50% zoom applied - LinkedIn should now be zoomed out")
         
         print("📧 Entering email...")
         email_input = await page.wait_for_selector('#username', timeout=10000)
@@ -236,6 +145,7 @@ async def linkedin_login(browser):
 
         if "challenge" in current_url:
             print(f"{Colors.RED}❌ Login challenge detected! Please resolve manually.{Colors.END}")
+            # await asyncio.sleep(200)
 
         if "feed" not in current_url:
              print(f"{Colors.RED}❌ Login Failed!{Colors.END}")
@@ -243,14 +153,15 @@ async def linkedin_login(browser):
         
         await debug_capture_page(page, "03_after_login_click")
 
-        LOGGED_IN_CONTEXT = context
+        LOGGED_IN_CONTEXT = context 
+        # LinkedinContext = context
         await page.close()
         return context
             
     except Exception as e:
         print(f"❌ Login error: {e}")
         await page.close()
-        await context.close()
+        # await context.close()
         return None
 
 async def ensure_logged_in(browser):
@@ -263,7 +174,8 @@ async def ensure_logged_in(browser):
         
         if LOGGED_IN_CONTEXT is None:
             raise Exception("Failed to login to LinkedIn")
-    
+    else:
+        print(" active login session logging")
     return LOGGED_IN_CONTEXT
 
 # ---------------------------------------------------------------------------
@@ -730,35 +642,35 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
         for i, card in enumerate(job_cards):
             try:
                 # Get text content
-                text_content = (await card.inner_text()).strip()
-                if len(text_content) < 5:  # Very minimal requirement
-                    text_failed += 1
-                    print(f"   Card {i+1}: No text content")
-                    continue
+                # text_content = (await card.inner_text()).strip()
+                # if len(text_content) < 5:  # Very minimal requirement
+                #     text_failed += 1
+                #     print(f"   Card {i+1}: No text content")
+                #     continue
                 
-                print(f"   Card {i+1}: Text preview: '{text_content[:50]}...'")
+                # print(f"   Card {i+1}: Text preview: '{text_content[:50]}...'")
                 
-                # RELAXED keyword check - much more lenient
-                text_lower = text_content.lower()
+                # # RELAXED keyword check - much more lenient
+                # text_lower = text_content.lower()
                 
-                # Check for job title match first (most important)
-                title_match = job_title.lower().split() 
-                has_title_keywords = any(word in text_lower for word in title_match if len(word) > 2)
+                # # Check for job title match first (most important)
+                # title_match = job_title.lower().split() 
+                # has_title_keywords = any(word in text_lower for word in title_match if len(word) > 2)
                 
-                # Check for any technical keywords
-                has_tech_keywords = any(keyword.lower() in text_lower for keyword in FILTERING_KEYWORDS)
+                # # Check for any technical keywords
+                # has_tech_keywords = any(keyword.lower() in text_lower for keyword in FILTERING_KEYWORDS)
                 
-                # Check for common job-related words (very broad)
-                # common_job_words = ['developer', 'engineer', 'software', 'programming', 'coding', 'technical', 'technology', 'web', 'application', 'system']
-                # has_job_words = any(word in text_lower for word in common_job_words)
+                # # Check for common job-related words (very broad)
+                # # common_job_words = ['developer', 'engineer', 'software', 'programming', 'coding', 'technical', 'technology', 'web', 'application', 'system']
+                # # has_job_words = any(word in text_lower for word in common_job_words)
                 
-                # MUCH MORE LENIENT: Accept if ANY of these conditions are met
-                if has_title_keywords or has_tech_keywords:
-                    print(f"   ✅ Card {i+1}: Passed keyword filter")
-                else:
-                    keyword_filtered += 1
-                    print(f"   ❌ Card {i+1}: No relevant keywords found")
-                    continue
+                # # MUCH MORE LENIENT: Accept if ANY of these conditions are met
+                # if has_title_keywords and has_tech_keywords:
+                #     print(f"   ✅ Card {i+1}: Passed keyword filter")
+                # else:
+                #     keyword_filtered += 1
+                #     print(f"   ❌ Card {i+1}: No relevant keywords found")
+                #     continue
                 
                 # Extract job link with enhanced debugging
                 href = await card.get_attribute('href')
@@ -816,7 +728,7 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
                 for i, job_link in enumerate(valid_job_links)
             ]
             
-            semaphore = asyncio.Semaphore(5)
+            semaphore = asyncio.Semaphore(18)
             
             async def bounded_task(task):
                 async with semaphore:
@@ -835,8 +747,38 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
                     processed_jobs += 1
             
             print(f"✅ {processed_jobs} jobs processed with full descriptions")
-        
-        return job_dict
+            with open("scrapped_jobs", "w", encoding="utf-8") as f:
+                f.write(str(job_dict))
+            if len(job_dict)<=0:
+                return {}
+            skills = FILTERING_KEYWORDS+JOB_TITLES
+            prompt = build_prompt(skills,jobs=job_dict)
+            # for jobs in job_dict:
+            #     print(" need to call this batch f jobs to gemini to filter efficinrtly", jobs)
+            delay=3
+            for i in range(1,5):
+                try:
+                    print("gemini attempt for filteration: ",i)
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            temperature=0.3,
+                        )
+                    )
+                    filename = f"gemini_scraper_filteration.txt"
+                    
+                    with open(filename, "w", encoding="utf-8") as f:
+                        f.write(response.text)
+                    if(response.text):
+                        return parse_filtering(response.text, job_dict)
+                        # return job_dict
+                
+                    asyncio.sleep(delay)
+                except Exception as e:
+                    print("Gemini error: %s", str(e))
+                    
+
         
     except Exception as e:
         print(f"❌ Error in speed-optimized search: {e}")
@@ -897,7 +839,87 @@ Example:
         prompt += f'\n--- JOB {idx} ---\njob_url: "{url}"\njob_description: "{safe_desc[:1500]}"\n'
     return prompt
 
+RULES=f"""Decision rules:
+1. A job is **relevant** only if BOTH of the following are true:
+   a. The job's responsibilities or required skills clearly match at least one
+      of the candidate's core skills (synonyms and common variations count).
+   b. The job's role/title matches or is a close variant of at least one
+      target job title (e.g., “Software Engineer (Backend)” matches “Backend Developer”).
+2. Ignore jobs that primarily require unrelated stacks or roles, even if they
+   mention one matching keyword casually.
+3. Consider context in the description: if a skill appears only as an optional
+   “nice to have” but the core role is unrelated, treat it as NOT relevant.
+4. Return only the required format dont provide any other format this is mandatory"""
 
+def build_prompt(original: list[str], jobs: dict) -> str:
+    out = f"""You are an expert job-matching assistant.
+
+    Goal:
+    From the list of jobs below, identify which positions are truly relevant to the
+    candidate based on their skill set and desired job titles.
+
+    Candidate skills:
+    - skills: {original}     
+    \n\n{RULES}\n\n"""
+    out += f"Input format must follow:\n\n"
+    for i, (job_link, job_description) in enumerate(jobs.items(), 1):
+        out += f"=== JOB {i} ===\nURL: {job_link}\nDESCRIPTION: {job_description}\n\n"
+    out+="""Your task:
+    Return **only** the jobs that meet the rules above as a valid JSON array,
+    with each element having exactly these keys and values every pair should seperated by new line:
+    - "job_url":"job_description"
+
+
+    here is the example:
+    {
+        "https:..........":"about the job..............",
+        "https:..........":"about the job..............",
+    }
+    
+
+    Do not include any explanation, markdown, or additional text.
+    Your entire output must be a single valid JSON array.
+
+    Jobs to evaluate:
+    {json.dumps(job_batch, ensure_ascii=False)}
+    """
+    return out
+
+def parse_filtering(response_text, original_jobs:dict):
+    print("provided dictionary: ",original_jobs)
+    print("="*60)
+    print("responses from gemini: ",response_text)
+    print("="*60)
+    
+    try:
+        clean = response_text.strip()
+        if clean.startswith("```json"):
+            clean = clean[7:].lstrip()
+        elif clean.startswith("```"):
+            clean = clean[3:].lstrip()
+        if clean.endswith("```"):
+            clean = clean[:-3].rstrip()
+
+        data = json.loads(clean)
+        print("data json:", data)
+        print("="*60)
+        extracted_jobs={}
+        if not isinstance(data, list):
+            extracted_jobs = [data]
+        print("extracted jobs list/ dict: ",extracted_jobs)
+        # job_urls = list(original_jobs.keys())
+        extracted_jobs = {
+            url: desc 
+            for url, desc in data.items()
+        }
+                # keep the 'relavance' field if Gemini returned it
+                # job["relavance"] = job.get("relavance", "unknown")
+        print("extracted jobs list after parsing: ", extracted_jobs)
+        return extracted_jobs
+
+    except Exception as e:
+        print(f"❌ Error parsing response: {e}")
+        return []
 
 def create_fallback_data_from_dict(url: str, job_description: str) -> dict:
     return {
@@ -1035,7 +1057,7 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
         
         try:
             print("🔐 Performing LinkedIn login...")
-            login_context = await linkedin_login(browser)
+            login_context = await ensure_logged_in(browser)
             
             if login_context is None:
                 print("❌ Failed to login to LinkedIn. Exiting...")
@@ -1056,8 +1078,15 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
                         result = await scrape_platform_speed_optimized(
                             browser, platform_name, PLATFORMS[platform_name], job_title
                         )
-                        all_jobs.update(result)
+                        # print(result[0])
+                        if(len(result)>0):
+                            all_jobs.update(result)
                         print(f"📈 Jobs from '{job_title}': {len(result)}")
+                        print(f"jobs form {job_title}: {len(all_jobs)}")
+                        # for (k,v) in all_jobs.items():
+                        #     # print(f"{k}: {all_jobs[k]}")
+                        #     print(f"{k}: {v}")
+                        # print("all_jobs dct: ",len(all_jobs))
                     except Exception as e:
                         print(f"❌ Error searching '{job_title}' on {platform_name}: {e}")
                     
@@ -1072,6 +1101,7 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
         finally:
             if LOGGED_IN_CONTEXT:
                 await LOGGED_IN_CONTEXT.close()
+                LOGGED_IN_CONTEXT=None
             await browser.close()
     
     print(f"\n{'='*70}")

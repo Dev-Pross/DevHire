@@ -7,13 +7,17 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 export const HeroTalent = () => {
-  const [id, setId] = useState<string | null>(null);
+  const [id, setId] = useState<any>(null);
   const [resume, setResume] = useState<string | null>(null);
 
   useEffect(() => {
-    const user = sessionStorage.getItem("id");
-    if (user != "undefined") setId(user);
-    else setId(null);
+    const  updateUserId = async() => {
+        const { data, error } = await getLoginUser();
+          if (data) {
+            setId(data?.user.user_metadata);
+          }
+      };
+    updateUserId();
     const res = sessionStorage.getItem("resume");
     if (res != "undefined") setResume(res);
     else setResume(null);

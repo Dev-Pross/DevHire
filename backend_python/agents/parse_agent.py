@@ -41,9 +41,9 @@ You are an expert AI recruiter and resume analyzer.
 
 Your task is to analyze the provided resume text and generate two outputs that maximize the candidate’s visibility and job matching potential:
 
-1. Generate 5 high-quality, market-aligned job titles that reflect the candidate’s skills and experience.
+1. Generate 5 high-quality, specific tech stacks market-aligned job titles that reflect the candidate’s skills and experience.
 
-2. Extract 20-25 precise keywords optimized for ATS and recruiter searches.
+2. Extract 35-50 precise keywords optimized for ATS and recruiter searches.
 
 Important instructions for job titles:
 
@@ -54,7 +54,7 @@ Important instructions for job titles:
 
 For keywords extraction:
 
-- Extract technical skills, domain knowledge, soft skills, certifications, emerging technologies, and business acumen terms.
+- Extract technical skills, domain knowledge, soft skills, certifications tech, projects tech stacks and skills, emerging technologies, and business acumen terms.
 - Include keywords that reflect the candidate’s actual experience without fabricating information.
 
 Please return ONLY the following output format:
@@ -71,8 +71,8 @@ Maintain the "~" separator without quotes and no additional text.
                     Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:
 
                     🎯 **PRIMARY OBJECTIVES:**
-                    1. **STRATEGIC JOB TITLES** - Generate 5 solid and quality, high-impact, market-aligned job titles that should align with candidate's skill and expertise spectrum
-                    2. **INTELLIGENT KEYWORDS** - Extract 20-25 precisely targeted keywords that create maximum ATS compatibility and recruiter appeal
+                    1. **STRATEGIC JOB TITLES** - Generate 5 solid and quality, high-impact, specifc tech domain, market-aligned job titles that should align with candidate's skill and expertise spectrum
+                    2. **INTELLIGENT KEYWORDS** - Extract 35-50 precisely targeted keywords that create maximum ATS compatibility and recruiter appeal
 
                     📊 **ADVANCED ANALYSIS FRAMEWORK:**
 
@@ -88,7 +88,7 @@ Maintain the "~" separator without quotes and no additional text.
                     • **Technical Stack Taxonomy**: Programming languages, frameworks, libraries, databases, cloud platforms, tools, and methodologies
                     • **Domain Intelligence**: Industry-specific terminology, business domains, and vertical expertise
                     • **Soft Skills Mining**: Extract leadership, communication, problem-solving, and collaboration abilities from project descriptions and achievements
-                    • **Certification & Standards**: Professional certifications, compliance standards, and industry methodologies
+                    • **Certification & Standards**: Professional certifications, compliance standards, and industry methodologies tech names only not provider name like skillUp etc 
                     • **Emerging Technologies**: AI/ML, blockchain, IoT, edge computing, quantum computing if relevant
                     • **Business Acumen**: Product management, strategy, analytics, and commercial awareness indicators
                     • **Scale & Impact**: Keywords reflecting system scale, user base, performance metrics, and business impact
@@ -104,7 +104,7 @@ Maintain the "~" separator without quotes and no additional text.
                     🎯 **QUALITY ASSURANCE CRITERIA:**
                     • Job titles must be realistic, specific, and currently in-demand in the market
                     • Keywords must be substantiated by actual resume evidence (no speculation)
-                    • Avoid company names, project codenames, or proprietary terminology
+                    • Avoid company names, project codenames, certification's organization's names or proprietary terminology
                     • Ensure geographic and cultural relevance for target job markets
                     • Balance technical depth with business relevance
                     • Prioritize terms that maximize job matching algorithms
@@ -119,7 +119,7 @@ Maintain the "~" separator without quotes and no additional text.
                     • **Market Intelligence**: Reflect current industry trends and hiring patterns
 
                     ✅ **Precise Output Format:**
-                    Return EXCLUSIVELY the analyzed content in this exact structure:
+                    Return EXCLUSIVELY the analyzed content in this exact structure example below:
 
                     Senior Full Stack Engineer, Cloud Solutions Architect, DevOps Engineering Manager, Backend System Engineer, Frontend Technical Lead, Software Engineering Consultant, Platform Engineer, Site Reliability Engineer~JavaScript, TypeScript, React, Node.js, Python, AWS, Kubernetes, Docker, Microservices, GraphQL, PostgreSQL, MongoDB, Redis, Terraform, Jenkins, Git, Agile, Scrum, System Design, API Design, Cloud Architecture, DevOps, CI/CD, Monitoring, Performance Optimization, Team Leadership, Mentoring, Stakeholder Management, Problem Solving, Technical Documentation
 
