@@ -1,24 +1,43 @@
 from config import GOOGLE_API
 import requests
 import fitz
-import io
+from pdf2image import convert_from_bytes
+import pytesseract
 from google import genai
 from google.genai import types
 
 client  = genai.Client(api_key= GOOGLE_API)
 
 def parse_pdf(url : str):
-    response = requests.get(url)
-    if response.status_code != 200 :
-        raise Exception("failed to fetch url")
-    else:
-        # print(response.content)
-        pdf = io.BytesIO(response.content)
-        doc = fitz.open("pdf",pdf)
+    print(url)
+    response = requests.get(url, timeout=60)
+    text = ""
+    if response.content:
+        pdf_bytes = response.content  # bytes of PDF from requests response
+        print("valid url")
+    # Open PDF document from bytes in memory
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        num_pages = len(doc)
 
-        text=""
-        for page in doc:
-            text+=page.get_text()
+        for page_num in range(num_pages):
+            page = doc.load_page(page_num)
+            page_text = page.get_text().strip()
+            if page_text:
+                text += page_text + "\n\n"
+            else:
+                # Fallback to OCR using pdf2image + pytesseract on page bytes
+                # Convert only the page to image
+                images = convert_from_bytes(pdf_bytes, first_page=page_num + 1, last_page=page_num + 1)
+                if images:
+                    ocr_text = pytesseract.image_to_string(images[0])
+                    text += ocr_text + "\n\n"
+                else:
+                    print(f"No image generated for PDF page {page_num + 1}")
+
+        doc.close()
+    
+    else:
+        print("data not found from pdf")
     return text
 
 # def resumeNotExist(resume_id : str):
@@ -36,6 +55,7 @@ def main(user, url):
     if userID:
         # UploadedResume = session.query(UploadedResume.file_url,UploadedResume.id).filter(UploadedResume.users_id== userID).first()
             resume_text = (parse_pdf(url))
+            print("resume preview: ", resume_text[:50])
             system_instruction = """
 You are an expert AI recruiter and resume analyzer.
 
@@ -63,84 +83,86 @@ Please return ONLY the following output format:
 
 Maintain the "~" separator without quotes and no additional text.
 """
+            if resume_text:
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash-lite",
+                    contents =f"""You are an elite AI hiring strategist and career intelligence specialist with deep expertise in talent acquisition, market trends, and career optimization across the global technology sector.
 
-            response = client.models.generate_content(
-                model="gemini-2.5-flash-lite",
-                contents =f"""You are an elite AI hiring strategist and career intelligence specialist with deep expertise in talent acquisition, market trends, and career optimization across the global technology sector.
+                        Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:
 
-                    Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:
+                        🎯 **PRIMARY OBJECTIVES:**
+                        1. **STRATEGIC JOB TITLES** - Generate 5 solid and quality, high-impact, specifc tech domain, market-aligned job titles that should align with candidate's skill and expertise spectrum
+                        2. **INTELLIGENT KEYWORDS** - Extract 35-50 precisely targeted keywords that create maximum ATS compatibility and recruiter appeal
 
-                    🎯 **PRIMARY OBJECTIVES:**
-                    1. **STRATEGIC JOB TITLES** - Generate 5 solid and quality, high-impact, specifc tech domain, market-aligned job titles that should align with candidate's skill and expertise spectrum
-                    2. **INTELLIGENT KEYWORDS** - Extract 35-50 precisely targeted keywords that create maximum ATS compatibility and recruiter appeal
+                        📊 **ADVANCED ANALYSIS FRAMEWORK:**
 
-                    📊 **ADVANCED ANALYSIS FRAMEWORK:**
+                        **For JOB TITLES - Apply Multi-Dimensional Matching:**
+                        • **Experience Calibration**: Analyze years of experience, project complexity, and leadership indicators to determine accurate seniority levels (Freshers/Entry/Junior/Mid/Senior/Staff/Principal/Architect/VP) make sure to find the best match for the candidate's experience. If the candidate has only projects not having any work experinece he mentioned as fresher or entry level whatever the projects he done he has to mention his professional working experience like company name and duration all stiff orelse he mention only his personal projects he done consider him as fresher or entry level
+                        • **Skill Intersection Analysis**: Identify overlapping competencies to suggest hybrid roles (e.g., "Full Stack Engineer", "DevSecOps Specialist", "AI/ML Engineer") dont give the general titles unless the candidate has not worked on any specific domain or technology that may be a personal project or an organization project
+                        • **Market Positioning**: Include both traditional titles recruiters search for AND emerging/trendy titles gaining market traction
+                        • **Industry Verticals**: Consider domain expertise (FinTech, HealthTech, EdTech, E-commerce, Gaming, etc.) for specialized titles
+                        • **Role Evolution Path**: Include both current-level roles AND natural next-step positions for career growth
+                        • **Geographical Relevance**: Consider titles popular in target markets (US, Europe, India, etc.)
 
-                    **For JOB TITLES - Apply Multi-Dimensional Matching:**
-                    • **Experience Calibration**: Analyze years of experience, project complexity, and leadership indicators to determine accurate seniority levels (Freshers/Entry/Junior/Mid/Senior/Staff/Principal/Architect/VP) make sure to find the best match for the candidate's experience. If the candidate has only projects not having any work experinece he mentioned as fresher or entry level whatever the projects he done he has to mention his professional working experience like company name and duration all stiff orelse he mention only his personal projects he done consider him as fresher or entry level
-                    • **Skill Intersection Analysis**: Identify overlapping competencies to suggest hybrid roles (e.g., "Full Stack Engineer", "DevSecOps Specialist", "AI/ML Engineer") dont give the general titles unless the candidate has not worked on any specific domain or technology that may be a personal project or an organization project
-                    • **Market Positioning**: Include both traditional titles recruiters search for AND emerging/trendy titles gaining market traction
-                    • **Industry Verticals**: Consider domain expertise (FinTech, HealthTech, EdTech, E-commerce, Gaming, etc.) for specialized titles
-                    • **Role Evolution Path**: Include both current-level roles AND natural next-step positions for career growth
-                    • **Geographical Relevance**: Consider titles popular in target markets (US, Europe, India, etc.)
+                        **For KEYWORDS - Execute Comprehensive Extraction:**
+                        • **Technical Stack Taxonomy**: Programming languages, frameworks, libraries, databases, cloud platforms, tools, and methodologies
+                        • **Domain Intelligence**: Industry-specific terminology, business domains, and vertical expertise
+                        • **Soft Skills Mining**: Extract leadership, communication, problem-solving, and collaboration abilities from project descriptions and achievements
+                        • **Certification & Standards**: Professional certifications, compliance standards, and industry methodologies tech names only not provider name like skillUp etc 
+                        • **Emerging Technologies**: AI/ML, blockchain, IoT, edge computing, quantum computing if relevant
+                        • **Business Acumen**: Product management, strategy, analytics, and commercial awareness indicators
+                        • **Scale & Impact**: Keywords reflecting system scale, user base, performance metrics, and business impact
+                        • **Cross-Functional Abilities**: Keywords showing collaboration across teams, stakeholder management, and interdisciplinary skills
 
-                    **For KEYWORDS - Execute Comprehensive Extraction:**
-                    • **Technical Stack Taxonomy**: Programming languages, frameworks, libraries, databases, cloud platforms, tools, and methodologies
-                    • **Domain Intelligence**: Industry-specific terminology, business domains, and vertical expertise
-                    • **Soft Skills Mining**: Extract leadership, communication, problem-solving, and collaboration abilities from project descriptions and achievements
-                    • **Certification & Standards**: Professional certifications, compliance standards, and industry methodologies tech names only not provider name like skillUp etc 
-                    • **Emerging Technologies**: AI/ML, blockchain, IoT, edge computing, quantum computing if relevant
-                    • **Business Acumen**: Product management, strategy, analytics, and commercial awareness indicators
-                    • **Scale & Impact**: Keywords reflecting system scale, user base, performance metrics, and business impact
-                    • **Cross-Functional Abilities**: Keywords showing collaboration across teams, stakeholder management, and interdisciplinary skills
+                        ⚡ **STRATEGIC ENHANCEMENTS:**
+                        • **ATS Optimization**: Prioritize keywords frequently used in job descriptions for target roles
+                        • **Recruiter Psychology**: Include terms that trigger recruiter interest and convey seniority/expertise
+                        • **Competitive Differentiation**: Highlight unique combinations that set the candidate apart
+                        • **Future-Proofing**: Include emerging skills and technologies relevant to career trajectory
+                        • **Global Standards**: Use internationally recognized terminology and industry standards
 
-                    ⚡ **STRATEGIC ENHANCEMENTS:**
-                    • **ATS Optimization**: Prioritize keywords frequently used in job descriptions for target roles
-                    • **Recruiter Psychology**: Include terms that trigger recruiter interest and convey seniority/expertise
-                    • **Competitive Differentiation**: Highlight unique combinations that set the candidate apart
-                    • **Future-Proofing**: Include emerging skills and technologies relevant to career trajectory
-                    • **Global Standards**: Use internationally recognized terminology and industry standards
+                        🎯 **QUALITY ASSURANCE CRITERIA:**
+                        • Job titles must be realistic, specific, and currently in-demand in the market
+                        • Keywords must be substantiated by actual resume evidence (no speculation)
+                        • Avoid company names, project codenames, certification's organization's names or proprietary terminology
+                        • Ensure geographic and cultural relevance for target job markets
+                        • Balance technical depth with business relevance
+                        • Prioritize terms that maximize job matching algorithms
 
-                    🎯 **QUALITY ASSURANCE CRITERIA:**
-                    • Job titles must be realistic, specific, and currently in-demand in the market
-                    • Keywords must be substantiated by actual resume evidence (no speculation)
-                    • Avoid company names, project codenames, certification's organization's names or proprietary terminology
-                    • Ensure geographic and cultural relevance for target job markets
-                    • Balance technical depth with business relevance
-                    • Prioritize terms that maximize job matching algorithms
+                        📥 **Resume Content for Analysis:**
+                        {resume_text}
 
-                    📥 **Resume Content for Analysis:**
-                    {resume_text}
+                        🔥 **ENHANCED OUTPUT REQUIREMENTS:**
+                        • **Ranking Logic**: Order titles by market demand + skill alignment + experience match
+                        • **Keyword Weighting**: Prioritize by frequency in job descriptions + skill importance + uniqueness factor
+                        • **Completeness Check**: Ensure keywords support ALL listed job titles comprehensively
+                        • **Market Intelligence**: Reflect current industry trends and hiring patterns
 
-                    🔥 **ENHANCED OUTPUT REQUIREMENTS:**
-                    • **Ranking Logic**: Order titles by market demand + skill alignment + experience match
-                    • **Keyword Weighting**: Prioritize by frequency in job descriptions + skill importance + uniqueness factor
-                    • **Completeness Check**: Ensure keywords support ALL listed job titles comprehensively
-                    • **Market Intelligence**: Reflect current industry trends and hiring patterns
+                        ✅ **Precise Output Format:**
+                        Return EXCLUSIVELY the analyzed content in this exact structure example below:
 
-                    ✅ **Precise Output Format:**
-                    Return EXCLUSIVELY the analyzed content in this exact structure example below:
+                        Senior Full Stack Engineer, Cloud Solutions Architect, DevOps Engineering Manager, Backend System Engineer, Frontend Technical Lead, Software Engineering Consultant, Platform Engineer, Site Reliability Engineer~JavaScript, TypeScript, React, Node.js, Python, AWS, Kubernetes, Docker, Microservices, GraphQL, PostgreSQL, MongoDB, Redis, Terraform, Jenkins, Git, Agile, Scrum, System Design, API Design, Cloud Architecture, DevOps, CI/CD, Monitoring, Performance Optimization, Team Leadership, Mentoring, Stakeholder Management, Problem Solving, Technical Documentation
 
-                    Senior Full Stack Engineer, Cloud Solutions Architect, DevOps Engineering Manager, Backend System Engineer, Frontend Technical Lead, Software Engineering Consultant, Platform Engineer, Site Reliability Engineer~JavaScript, TypeScript, React, Node.js, Python, AWS, Kubernetes, Docker, Microservices, GraphQL, PostgreSQL, MongoDB, Redis, Terraform, Jenkins, Git, Agile, Scrum, System Design, API Design, Cloud Architecture, DevOps, CI/CD, Monitoring, Performance Optimization, Team Leadership, Mentoring, Stakeholder Management, Problem Solving, Technical Documentation
-
-                    **Critical**: Maintain the "~" separator and ensure both lists flow from highest to lowest strategic value for the candidate's career positioning."""
-                    ,
-                config=types.GenerateContentConfig(
-                temperature=0.3,
-                system_instruction=system_instruction
+                        **Critical**: Maintain the "~" separator and ensure both lists flow from highest to lowest strategic value for the candidate's career positioning."""
+                        ,
+                    config=types.GenerateContentConfig(
+                    temperature=0.3,
+                    system_instruction=system_instruction
+                    )
                 )
-            )
 
-            # print(response.text)
-            [titles,Keywords ]= response.text.split("~")
-            # titles = [title.strip() for title in titles if titles] 
-            # print((titles))
-            # print(Keywords)
-            title_keyword =[]
-            title_keyword.append(titles)
-            title_keyword.append(Keywords)
-            # print(title_keyword[0])
-            return title_keyword 
+                # print(response.text)
+                [titles,Keywords ]= response.text.split("~")
+                # titles = [title.strip() for title in titles if titles] 
+                # print((titles))
+                # print(Keywords)
+                title_keyword =[]
+                title_keyword.append(titles)
+                title_keyword.append(Keywords)
+                # print(title_keyword[0])
+                return title_keyword 
+            else:
+                print("resume text not found")
 
         # inserting data into tables
             # if resumeNotExist(resume_id):
