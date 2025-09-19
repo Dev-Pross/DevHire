@@ -67,10 +67,10 @@ Your task is to analyze the provided resume text and generate two outputs that m
 
 Important instructions for job titles:
 
-- If the candidate does not have confirmed professional work experience or only lists academic or personal projects, classify them as "Fresher" or "Entry Level".
 - Generate only junior-level job titles such as "Software Engineer", " Developer", "Frontend Developer","Full Stack Developer" dont use Senior as a prefix of Job titles untill unless candidate has professional work experience not personal project's experience thats it.
 - Do NOT suggest "Senior", "Lead", "Manager", or other advanced roles unless there is clear evidence of such experience in the resume.
 - Base the job title recommendations strictly on the experience and evidence provided in the resume.
+- Dont add Junior, Entry level like stuff just provide role name if he is fresher or entry level person.
 
 For keywords extraction:
 
@@ -85,13 +85,13 @@ Maintain the "~" separator without quotes and no additional text.
 """
             if resume_text:
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash-lite",
+                    model="gemini-2.5-flash",
                     contents =f"""You are an elite AI hiring strategist and career intelligence specialist with deep expertise in talent acquisition, market trends, and career optimization across the global technology sector.
 
                         Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:
 
                         🎯 **PRIMARY OBJECTIVES:**
-                        1. **STRATEGIC JOB TITLES** - Generate 5 solid and quality, high-impact, specifc tech domain, market-aligned job titles that should align with candidate's skill and expertise spectrum
+                        1. **STRATEGIC JOB TITLES** - Generate 5 solid and quality, high-impact, domain specifc tech , market-aligned job titles that should align with candidate's skill and expertise spectrum
                         2. **INTELLIGENT KEYWORDS** - Extract 35-50 precisely targeted keywords that create maximum ATS compatibility and recruiter appeal
 
                         📊 **ADVANCED ANALYSIS FRAMEWORK:**
