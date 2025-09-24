@@ -34,7 +34,7 @@ class Colors:
 # Configuration
 PLATFORMS = {
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F%2CP%2CI&f_TPR=r84600&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
+        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F%2CP%2CI&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
         "base_url": "https://in.linkedin.com",
         "login_url": "https://www.linkedin.com/login"
     },
@@ -145,7 +145,7 @@ async def linkedin_login(browser):
 
         if "challenge" in current_url:
             print(f"{Colors.RED}❌ Login challenge detected! Please resolve manually.{Colors.END}")
-            # await asyncio.sleep(200)
+            await asyncio.sleep(200)
 
         if "feed" not in current_url:
              print(f"{Colors.RED}❌ Login Failed!{Colors.END}")
