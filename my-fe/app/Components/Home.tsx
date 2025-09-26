@@ -26,7 +26,7 @@ const HomePage = () => {
 
   return (
     <>
-    <HeroTalent key={userId ?? undefined} userId={userId}/>
+    <HeroTalent />
     </>
   )
 }

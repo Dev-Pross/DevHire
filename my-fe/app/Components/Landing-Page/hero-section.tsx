@@ -7,7 +7,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 export const HeroTalent = () => {
-  const [id, setId] = useState<any>(null);
+  const [id, setId] = useState<any| null  >(null);
   const [resume, setResume] = useState<string | null>(null);
 
   useEffect(() => {
