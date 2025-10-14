@@ -109,7 +109,7 @@ const Apply: React.FC<ApplyProps> = () => {
     // fetching li_c
     async function fetchEncryptedCredentials() {
       try {
-        const res = await fetch("http://localhost:3000/api/get-data", {
+        const res = await fetch("api/get-data", {
           method: "GET",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
