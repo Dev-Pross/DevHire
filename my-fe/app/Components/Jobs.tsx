@@ -72,7 +72,7 @@ const Jobs = () => {
     }
     async function fetchEncryptedCredentials() {
       try {
-        const res = await fetch("/api/get-data", {
+        const res = await fetch("https://dev-hire-znlr.vercel.app/api/get-data", {
           method: "GET",
           headers: { "Content-Type": "application/json" },
           credentials: "include",

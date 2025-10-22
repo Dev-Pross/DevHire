@@ -985,6 +985,7 @@ async def login(page: Page, user_id: str|None, password: str| None) -> bool:
             return True
         if any(x in page.url for x in ("/captcha", "/challenge", "/checkpoint")):
             log.error("❌ Login challenge encountered")
+            await asyncio.sleep(200)
             return False
 
     log.error("❌ Login timeout")

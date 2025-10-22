@@ -24,8 +24,7 @@ app.add_middleware(
         "chrome-extension://*",  # Allow any Chrome extension (less secure)
         "http://localhost:8000",
         "http://127.0.0.1:8000",
-        "http://localhost:3000",
-        "https://dev-hire-znlr.vercel.app"],  # or ["http://localhost"] for strict control
+        "http://localhost:3000"],  # or ["http://localhost"] for strict control
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

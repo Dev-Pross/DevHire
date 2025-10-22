@@ -48,7 +48,7 @@ log = logging.getLogger("tailor")
 if not GOOGLE_API:
     raise ValueError("Set GOOGLE_API env var")
 genai.configure(api_key=GOOGLE_API)
-model = genai.GenerativeModel("gemini-2.5-flash-lite") # gemini-2.5-flash-lite
+model = genai.GenerativeModel("gemini-2.5-flash") # gemini-2.5-flash-lite
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Resume-text helpers ────────────────────────────────────────╮
@@ -320,13 +320,10 @@ def ask_gemini(orig: str, jobs: List[str]) -> str:
     for attempt, delay in zip(range(1, 4), (0, 20, 40)):
         try:
             log.info("Gemini attempt %d/3", attempt)
-            
-            txt = model.generate_content(prompt, generation_config={
-                "temperature":0.3
-            }).text.strip()
+            txt = model.generate_content(prompt).text.strip()
 
             # ADD THIS LINE TO SAVE GEMINI RESPONSE:
-            Path(f"gemini_debug_tailor.txt").write_text(txt, encoding="utf-8")
+            # Path(f"gemini_debug_{int(time.time())}.txt").write_text(txt, encoding="utf-8")
 
             log.debug("Gemini preview: %s", txt[:300].replace("\n", " ↩ "))
             return txt
@@ -374,155 +371,45 @@ ENGINES = [
     ("ytotech", "https://latex.ytotech.com/builds/sync", "orig"),
     ("latexonline", "https://latexonline.cc/compile", "orig"),
     ("api.online", "https://api.latexonline.cc/compile", "orig"),
-    ("texlive_api", "https://texlive.net/cgi-bin/latexcgi", "texlive"),
+    ("texlive", "https://texlive.net/run", "texlive"),
     ("codecogs", "https://latex.codecogs.com/pdf.download", "direct")
 ]
-# def compile_tex(tex: str) -> bytes | None:
-#     tex = soften_hboxes(tex)
-#     for name, url, m in ENGINES:
-#         try:
-#             log.info("Trying %s...", name)  # Show which endpoint we're trying
-#             if m == "orig":
-#                 r = requests.post(url, files={"texfile": ("main.tex", tex)}, data={"command": "pdflatex"}, timeout=120)
-#             elif m == "texlive":
-#                 r = requests.post(url, files={"file": ("m.tex", tex)}, data={"format": "pdf", "engine": "pdflatex"}, timeout=120)
-#             else:
-#                 r = requests.post(url, data=tex, headers={"Content-Type": "application/x-latex"}, timeout=120)
-
-#             # Show HTTP status for all responses
-#             log.info("%s returned HTTP %d", name, r.status_code)
-
-#             if 200 <= r.status_code < 300 and r.content.startswith(b"%PDF"):
-#                 log.info("✅ Compiled successfully via %s", name)
-#                 return r.content
-#             else:
-#                 # Show WHY it failed
-#                 if not r.content.startswith(b"%PDF"):
-#                     log.warning("❌ %s: Not a valid PDF response", name)
-#                     try:
-#                         log.warning("Response preview: %s", r.text[:200])
-#                     except Exception:
-#                         log.warning("Response preview: <binary or decode error>")
-#                 else:
-#                     log.warning("❌ %s: HTTP error %d", name, r.status_code)
-
-#         except requests.exceptions.Timeout:
-#             log.error("❌ %s: Request timed out", name)
-#         except requests.exceptions.ConnectionError as e:
-#             log.error("❌ %s: Connection error - %s", name, str(e))
-#         except Exception as e:
-#             log.error("❌ %s: Unexpected error - %s", name, str(e))
-
-#     log.error("🚫 All LaTeX services failed")
-#     return None
-MAX_RETRIES = 3
-DELAY_BETWEEN_ENGINES = 3
 def compile_tex(tex: str) -> bytes | None:
     tex = soften_hboxes(tex)
     for name, url, m in ENGINES:
-        for attempt in range(MAX_RETRIES):
-            try:
-                log.info("Trying %s (attempt %d)...", name, attempt+1)
+        try:
+            log.info("Trying %s...", name)  # Show which endpoint we're trying
+            if m == "orig":
+                r = requests.post(url, files={"texfile": ("main.tex", tex)}, data={"command": "pdflatex"}, timeout=120)
+            elif m == "texlive":
+                r = requests.post(url, files={"file": ("m.tex", tex)}, data={"format": "pdf", "engine": "pdflatex"}, timeout=120)
+            else:
+                r = requests.post(url, data=tex, headers={"Content-Type": "application/x-latex"}, timeout=120)
 
-                log.info("Trying %s...", name)  # Show which endpoint we're trying
-                if m == "orig":
-                    r = requests.post(url, files={"texfile": ("main.tex", tex)}, data={"command": "pdflatex"}, timeout=120)
-                elif m == "texlive":
-                    post_args['data'] = {'file': tex}
-                    headers = {"Content-Type": "application/x-latex"}
-                    r = requests.post(url, data=tex.encode('utf-8'), headers=headers, timeout=120)
+            # Show HTTP status for all responses
+            log.info("%s returned HTTP %d", name, r.status_code)
 
-                    log.info(f"{name} returned HTTP {r.status_code}")
-                    
-                    if r.status_code == 200 and r.content.startswith(b"%PDF"):
-                        log.info(f"✅ Compiled successfully via {name}")
-                        return r.content
-                    else:
-                        log.warning(f"❌ {name}: Not a valid PDF response.")
-                        # The response text usually contains the LaTeX error log.
-                        log.warning(f"Response preview: {r.text[:500]}")
-                # elif m == "yto":
-                #     r = requests.post(url, resources)
+            if 200 <= r.status_code < 300 and r.content.startswith(b"%PDF"):
+                log.info("✅ Compiled successfully via %s", name)
+                return r.content
+            else:
+                # Show WHY it failed
+                if not r.content.startswith(b"%PDF"):
+                    log.warning("❌ %s: Not a valid PDF response", name)
+                    try:
+                        log.warning("Response preview: %s", r.text[:200])
+                    except Exception:
+                        log.warning("Response preview: <binary or decode error>")
                 else:
-                    r = requests.post(url, data=tex, headers={"Content-Type": "application/x-latex"}, timeout=120)
+                    log.warning("❌ %s: HTTP error %d", name, r.status_code)
 
-                log.info("%s returned HTTP %d", name, r.status_code)
-                if 200 <= r.status_code < 300 and r.content.startswith(b"%PDF"):
-                    log.info("✅ Compiled successfully via %s", name)
-                    return r.content
-                else:
-                    # Show WHY it failed
-                    if not r.content.startswith(b"%PDF"):
-                        log.warning("❌ %s: Not a valid PDF response", name)
-                        try:
-                            # ADD THIS: Print the full error for better debugging
-                            if name == "texlive": 
-                                log.error("Full error from texlive: %s", r.text)
-                            else:
-                                log.warning("Response preview: %s", r.text[:200])
-                        except Exception:
-                            log.warning("Response preview: <binary or decode error>")
-                    # Optionally log text preview
+        except requests.exceptions.Timeout:
+            log.error("❌ %s: Request timed out", name)
+        except requests.exceptions.ConnectionError as e:
+            log.error("❌ %s: Connection error - %s", name, str(e))
+        except Exception as e:
+            log.error("❌ %s: Unexpected error - %s", name, str(e))
 
-            # import io
-            # import zipfile
-            # log.info(f"Trying {name} (attempt {attempt + 1}/{MAX_RETRIES})...")
-            # try:
-            #     # Initialize variables for the request
-            #     post_args = {'timeout': 120}
-
-            #     # --- NEW: Logic to handle different API requirements ---
-            #     if m == "ytotech_zip":
-            #         # This API wants a ZIP file containing main.tex
-            #         zip_buffer = io.BytesIO()
-            #         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-            #             zf.writestr('main.tex', tex)
-                    
-            #         zip_buffer.seek(0)
-            #         post_args['files'] = {'resources': ('latex.zip', zip_buffer, 'application/zip')}
-
-            #     elif m == "texlive_form":
-            #         # This API now wants the data as a form field, not raw text
-            #         post_args['data'] = {'file': tex}
-                
-            #     # --- Make the request with the prepared arguments ---
-            #     r = requests.post(url, **post_args)
-
-            #     log.info(f"{name} returned HTTP {r.status_code}")
-                
-            #     if r.status_code == 200 and r.content.startswith(b"%PDF"):
-            #         log.info(f"✅ Compiled successfully via {name}")
-            #         return r.content
-            #     else:
-            #         log.warning(f"❌ {name}: Not a valid PDF response.")
-            #         log.warning(f"Response preview: {r.text[:500]}")
-
-            except requests.exceptions.RequestException as e:
-                log.error(f"❌ {name}: Request error - {e}")
-            
-            # If the attempt failed, wait before the next retry
-        #     if attempt < MAX_RETRIES - 1:
-        #         log.info(f"Retrying {name} after a delay...")
-        #         time.sleep(DELAY_BETWEEN_ATTEMPTS)
-        #     else:
-        #         log.error(f"❌ All retries for {name} have failed.")
-        
-        # # Optional: Add a small delay before trying the next service in the list
-        # time.sleep(1)    
-            except requests.exceptions.Timeout:
-                log.error("❌ %s: Request timed out", name)
-            except requests.exceptions.ConnectionError as e:
-                log.error("❌ %s: Connection error - %s", name, str(e))
-            except Exception as e:
-                log.error("❌ %s: Unexpected error - %s", name, str(e))
-            
-            if attempt < MAX_RETRIES - 1:
-                log.info("Retrying %s after delay...", name)
-                time.sleep(DELAY_BETWEEN_ENGINES)
-        
-        log.info("Moving to next engine...")
-        time.sleep(DELAY_BETWEEN_ENGINES)
-    
     log.error("🚫 All LaTeX services failed")
     return None
 
