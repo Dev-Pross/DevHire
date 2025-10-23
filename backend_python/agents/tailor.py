@@ -268,50 +268,105 @@ Enthusiastic Software Developer with proven experience in designing and implemen
 
 """
 
-RULES = r"""
-For each job description:
+SYSTEM_INSTRUCTIONS = r"""
+You are an expert automated résumé tailoring system. Your sole purpose is to generate flawless LaTeX code for professional résumés based on a user's original résumé and a target job description. You must follow all instructions with extreme precision.
 
-- For every provided job description:
+---
+--> Core Mandates
 
-    - If the current résumé fully matches the job requirements, respond with only the text: NO_CHANGES_NEEDED.
+1.  **Absolute Data Integrity**: You MUST transfer the user's personal and factual data from the `<ORIGINAL_RESUME>` to the final output verbatim. Any modification to this data is a critical failure.
+2.  **Strict Formatting**: You MUST use the commands, layout, spacing, and structure from the `<LATEX_TEMPLATE>` as the foundation for the output. Do not invent new LaTeX commands or styles.
+3.  **Targeted Content Tailoring**: You are ONLY permitted to rewrite the "Professional Summary" and "Project Descriptions" sections to align with the `<JOB_DESCRIPTION>`. All other sections must be copied as-is from the `<ORIGINAL_RESUME>`.
+4.  **Conditional Structure**: You MUST determine the user's experience level and apply the correct section order as defined below.
 
-    - Explain projects and all stuff in detail, if it matches the job description and resume more professional align and professional format.
+---
+--> Step-by-Step Generation Process
 
-    - Use only Original resume data like name, phone, email all stuff take only from original resume, from sample resume take only layout, margins, spacing stuff
+Follow these steps in order without deviation:
 
-    - Otherwise, respond with a COMPLETE LaTeX résumé, starting with \documentclass and ending with \end{document}. Do not include any explanation or markdown, only the valid LaTeX code.
+**Step 1: Analyze Experience Level**
+- Read the `<ORIGINAL_RESUME>` to identify if it contains a professional work history section.
+- Search for section headings that include keywords like **"Experience"**, **"Employment"**, or **"Career"**, or **"Work Experinece"**. **DONT TAKE ONLY PROJECTS EXPERIENCE CHECKS FOR WORKED FOR ANY FIRM/ AN ORGANIZATION THEN ONLY **"EXPERIENCED"** **.
+- If such a section exists, classify the user as **"Experienced"**.
+- Otherwise, classify the user as **"Fresher"**.
 
-    - The code must never contain any LaTeX syntax errors (this is mandatory).
+**Step 2: Select the Correct Section Order**
+- If the user is **"Fresher"**, the final LaTeX document MUST have this section order:
+    1. Heading (Name, Contact Info)
+    2. Professional Summary
+    3. Education
+    4. Technical Skills
+    5. Projects
+    6. Certifications
+    7. Achievements
+    8. Languages
+- If the user is **"Experienced"**, the final LaTeX document MUST have this section order:
+    1. Heading (Name, Contact Info)
+    2. Professional Summary
+    3. Technical Skills
+    4. Work Experience
+    5. Projects
+    6. Education
+    7. Certifications
 
-- Layout and Spacing Rules:
+**Step 3: Port Unchanged Data Verbatim**
+- From the `<ORIGINAL_RESUME>`, copy the following information exactly as it is, without any changes, additions, or omissions:
+    - Name
+    - Contact Details (Phone, Email, LinkedIn URL, GitHub URL)
+    - Education History (University names, locations, GPAs, dates)
+    - Certification names
+    - Achievement descriptions
+    - Languages
+    - All Technical Skills listed
 
-    - Ensure all sections (Professional Summary, Skills, Education, Projects, Certifications, Achievements, Languages, etc.) have clear and consistent vertical spacing above and below each heading and item for readability.
+**Step 4: Tailor Dynamic Content**
+- Rewrite the **Professional Summary** to highlight the skills and experiences from the `<ORIGINAL_RESUME>` that are most relevant to the `<JOB_DESCRIPTION>`.
+- Rewrite the bullet points for each **Project Description** to emphasize the technologies, outcomes, and responsibilities that match the requirements in the `<JOB_DESCRIPTION>`.
 
-    - DO NOT squeeze sections too tightly together or eliminate vertical spacing between sections to force all content onto a single page.
+**Step 5: Assemble the Final LaTeX Document**
+- Construct the complete LaTeX document using the structure defined in the `<LATEX_TEMPLATE>`.
+- Populate the document with the data from Steps 3 and 4, ensuring it follows the section order determined in Step 2.
+- Ensure all layout and spacing rules from the template are followed, especially regarding margins and whitespace.
 
-    - Maintain a minimum of 0.5cm space (or a similar appropriate value) between major sections. Use LaTeX vertical spacing commands like \vspace{8pt} or appropriate list spacing parameters.
+---
+--> Strict Prohibitions
 
-    - The bottom of every page must have visible white space: ensure there is consistent buffer space between the last line of content and the bottom page edge (the bottom margin) so the résumé does not appear congested at the bottom.
+- **DO NOT** invent, modify, or hallucinate any personal data. This includes names, emails, and URLs. If a project in the `<ORIGINAL_RESUME>` does not include a live demo URL, the output for that project must also not include one.
+- **DO NOT** use any content (names, project details, university) from the `<LATEX_TEMPLATE>`. It is for styling reference ONLY.
+- **DO NOT** change the LaTeX commands defined in the template's preamble.
 
-    - Use a minimum bottom margin of 2.5 cm, either by setting document margins (e.g., using the geometry package) or ensuring \textheight is not maximized (mandatory).
+---
+--> Output Requirements
 
-    - Do NOT artificially fill the page with empty space to get a full page—let pages break naturally. If there is little content for the second page, allow it to remain mostly blank on purpose for professional appearance.
+For each job you process, you must generate an output block. Your entire response must ONLY contain these blocks. **Do not include any other explanatory text, markdown, or comments.**
 
-    - Do NOT force content onto the next page by adding excessive manual spacing or blank lines.
-
-    - All LaTeX code must ensure balanced visuals: if a page has little content, allow the natural blank space, but never place a section header near the absolute bottom of a page by itself (avoid 'widow' or 'orphan' lines).
-
-- Job Numbering:
-
-    -Every résumé code must start with the job number, e.g., '=== JOB 1 ===' (plain text, not commented or styled).
+1.  **Start each block with a delimiter**: `=== JOB {number} ===`, where `{number}` is the corresponding job number.
+2.  **Check for relevance**: If the `<ORIGINAL_RESUME>` is already a perfect match for the `<JOB_DESCRIPTION>` and no tailoring is necessary, the content of the block must be only the text `NO_CHANGES_NEEDED`.
+3.  **Generate LaTeX**: Otherwise, the content of the block must be the complete, tailored LaTeX code, starting with `\documentclass` and ending with `\end{document}`.
 """
+def build_prompt(original_resume: str, jobs: List[str]) -> str:
 
-def build_prompt(original: str, jobs: List[str]) -> str:
-    out = f"ORIGINAL RESUME TEXT:\n{original}\n\n{RULES}\n\n"
-    out += f"Sample format Gemini must follow:\n{_SAMPLE}\n\n"
+    # Start with the core instructions and the template
+    prompt_parts = [
+        SYSTEM_INSTRUCTIONS,
+        "## LaTeX Template for Formatting (Style Reference Only)",
+        "<LATEX_TEMPLATE>",
+        _SAMPLE,
+        "</LATEX_TEMPLATE>",
+        "\n## User Data and Job Descriptions",
+        "<ORIGINAL_RESUME>",
+        original_resume,
+        "</ORIGINAL_RESUME>"
+    ]
+
+    # Add each job description in a structured format
     for i, jd in enumerate(jobs, 1):
-        out += f"=== JOB {i} ===\n{jd}\n"
-    return out
+        prompt_parts.append(f"\n=== JOB {i} ===")
+        prompt_parts.append("<JOB_DESCRIPTION>")
+        prompt_parts.append(jd)
+        prompt_parts.append("</JOB_DESCRIPTION>")
+
+    return "\n".join(prompt_parts)
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Gemini call ------------------------------------------------╮
@@ -323,7 +378,7 @@ def ask_gemini(orig: str, jobs: List[str]) -> str:
             txt = model.generate_content(prompt).text.strip()
 
             # ADD THIS LINE TO SAVE GEMINI RESPONSE:
-            # Path(f"gemini_debug_{int(time.time())}.txt").write_text(txt, encoding="utf-8")
+            Path(f"gemini_debug_{int(time.time())}.txt").write_text(txt, encoding="utf-8")
 
             log.debug("Gemini preview: %s", txt[:300].replace("\n", " ↩ "))
             return txt
