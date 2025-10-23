@@ -331,7 +331,7 @@ Follow these steps in order without deviation:
 ---
 --> Strict Prohibitions
 
-- **DO NOT** invent, modify, or hallucinate any personal data. This includes names, emails, and URLs. If a project in the `<ORIGINAL_RESUME>` does not include a live demo URL, the output for that project must also not include one.
+- **DO NOT** invent, modify, or hallucinate any personal data. This includes names, emails, and URLs. If a project in the `<ORIGINAL_RESUME>` does not include a live demo URL in resume latex code, the output for that project must also not include one, if included then output should include that.
 - **DO NOT** use any content (names, project details, university) from the `<LATEX_TEMPLATE>`. It is for styling reference ONLY.
 - **DO NOT** change the LaTeX commands defined in the template's preamble.
 
