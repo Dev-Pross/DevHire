@@ -1,0 +1,2194 @@
+=== JOB 1 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Computer Science graduate with a strong foundation in \textbf{Linux environments (Ubuntu)} from DevOps practices and experience in architecting Docker-containerized systems. Proven track record in \textbf{scripting}, \textbf{troubleshooting}, and \textbf{infrastructure management} within full-stack development roles, alongside strong problem-solving, communication, and teamwork skills. Eager to apply expertise in \textbf{system administration}, \textbf{automating processes}, and optimizing \textbf{system performance} as a Linux System Engineer.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Operating Systems:} Linux (Ubuntu)}
+  \resumeItem{\textbf{Scripting:} Python, JavaScript (ES6+), Bash}
+  \resumeItem{\textbf{DevOps & Tools:} Docker, Kubernetes, Git, GitHub, Monorepo Architecture (Turborepo), Vercel}
+  \resumeItem{\textbf{Databases:} PostgreSQL, MongoDB, MySQL, SQLite, Vector Databases}
+  \resumeItem{\textbf{Core CS & Concepts:} System Design, Performance Optimization, Data Structures & Algorithms, First Principles Problem-Solving, Troubleshooting, Infrastructure Management}
+  \resumeItem{\textbf{Other Languages/Frameworks (for context):} Next.js, React.js, TypeScript, Node.js, Express.js, Java}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed production web applications, leveraging \textbf{Linux-based environments} and \textbf{Docker-containerized architectures} for robust deployment, focusing on industrial-grade patterns.}
+      \resumeItem{Optimized database performance (PostgreSQL, MongoDB) on production systems, demonstrating \textbf{troubleshooting} and \textbf{system performance} tuning by reducing query response times by 40\% through indexing and efficient schema design.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT), ensuring high availability and robust \textbf{system administration} for 600+ users across multiple applications with 99\%+ combined uptime.}
+      \resumeItem{Architected and managed \textbf{Docker-containerized monorepo structures} within \textbf{Linux environments} using Turborepo, \textbf{automating deployment pipelines} and ensuring efficient development workflows and isolated service dependencies.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Architected full-stack job application platform with AI-powered resume builder, intelligent job matching engine, and automated application system serving professional job seekers across all industries with personalized recommendations.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built Next.js server-side rendered frontend achieving 90+ Lighthouse performance score with responsive UI components using Tailwind CSS, featuring freemium pricing model (₹199/month premium tier) and comprehensive user dashboard.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed AI-powered social media content generator adapting tone and format across multiple platforms with average content generation time under 250ms using asynchronous API orchestration and modular JavaScript component architecture.}
+      \resumeItem{Implemented secure JWT-based authentication system with localStorage session persistence and protected routing, supporting 500+ registered users with zero security incidents and 98\% session retention rate.}
+      \resumeItem{Built modular component library with reusable UI elements reducing code duplication by 45\% and enabling 3x faster feature deployment cycles through separation of concerns and single-responsibility principles.}
+      \resumeItem{Integrated Grok API with error handling, retry logic, and response caching mechanisms ensuring 99.5\% uptime and consistent content quality across diverse user prompts and platform requirements.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Canvas Collaborative Whiteboard — Excalidraw-Inspired Drawing Application}{{\href{https://github.com/vamsi-o/canvas-whiteboard}{github.com/vamsi-o/canvas-whiteboard}}}
+    \resumeItemListStart
+      \resumeItem{Built real-time collaborative whiteboard supporting 50+ concurrent users with sub-35ms WebSocket synchronization latency using optimized state management pattern.}
+      \resumeItem{Implemented high-performance Canvas rendering engine maintaining consistent 60fps with 1000+ shapes through efficient coordinate mapping algorithms, selection logic, and incremental redraw optimizations reducing CPU usage by 55\%.}
+      \resumeItem{Designed PostgreSQL database schema with Prisma ORM handling 10,000+ daily shape persistence operations with query response times under 100ms in a \textbf{Docker-containerized monorepo environment}, demonstrating \textbf{infrastructure management} and \textbf{system performance} considerations.}
+      \resumeItem{Engineered drawing preview system with real-time mouse position tracking, shape transformation logic, and style management enabling seamless multi-user collaboration across distributed network connections.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 2 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Computer Science graduate with 2+ years of production experience in full-stack development, transitioning to QA Engineering. Proficient in \textbf{Node.js} and \textbf{Java}, with a strong understanding of \textbf{DevOps practices}, \textbf{system design}, and \textbf{performance optimization}. Demonstrated expertise in deploying scalable applications with measurable performance metrics, establishing a solid foundation for \textbf{test design}, \textbf{automation development}, and ensuring \textbf{quality and reliability} across web and mobile platforms. Eager to apply \textbf{problem-solving abilities} to \textbf{test execution}, \textbf{defect management}, and enhancing \textbf{CI/CD pipelines}.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Programming Languages:} Node.js, JavaScript (ES6+), Java, TypeScript, Python, SQL}
+  \resumeItem{\textbf{Testing Concepts:} Test Design \& Planning, Test Execution (Manual \& Automated), Defect Management, Performance Testing (Load, Stress, Scalability via Performance Optimization), Quality Assurance, Test Automation Principles}
+  \resumeItem{\textbf{DevOps \& CI/CD:} Git, GitHub, Docker, Kubernetes, Monorepo Architecture (Turborepo), Vercel, Agile, DevOps Practices}
+  \resumeItem{\textbf{Backend:} Node.js, Express.js, RESTful APIs, WebSockets, JWT Authentication}
+  \resumeItem{\textbf{Frontend:} React.js, Next.js, HTML5, CSS3, Tailwind CSS}
+  \resumeItem{\textbf{Databases:} PostgreSQL, MongoDB, MySQL, SQLite, Vector Databases}
+  \resumeItem{\textbf{Core CS:} System Design, Performance Optimization, Data Structures \& Algorithms, First Principles Problem-Solving}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed production web applications, demonstrating robust \textbf{system design} and \textbf{performance optimization} for AI integration and real-time features, laying a foundation for \textbf{quality and reliability}.}
+      \resumeItem{Optimized database performance across PostgreSQL and MongoDB implementations by 40\%, directly contributing to application \textbf{reliability} and \textbf{performance testing} outcomes through query optimization and schema design.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, ensuring high application \textbf{quality and reliability} with \textbf{99\%+ combined uptime} for 600+ users.}
+      \resumeItem{Architected \textbf{Docker-containerized monorepo structures} with Turborepo and streamlined \textbf{deployment pipelines}, applying \textbf{DevOps practices} crucial for continuous integration and \textbf{automation development}.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Architected full-stack job application platform with AI-powered resume builder, intelligent job matching engine, and automated application system serving professional job seekers across all industries with personalized recommendations.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with \textbf{optimized API response times}, critical for ensuring \textbf{performance and scalability} in a real-time application.}
+      \resumeItem{Built Next.js server-side rendered frontend achieving 90+ Lighthouse performance score with responsive UI components using Tailwind CSS, featuring freemium pricing model (₹199/month premium tier) and comprehensive user dashboard.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed AI-powered social media content generator adapting tone and format across multiple platforms with average content generation time under 250ms using asynchronous API orchestration and modular JavaScript component architecture.}
+      \resumeItem{Implemented secure JWT-based authentication system with localStorage session persistence and protected routing, supporting 500+ registered users with zero security incidents and 98\% session retention rate.}
+      \resumeItem{Built modular component library with reusable UI elements reducing code duplication by 45\% and enabling 3x faster feature deployment cycles through separation of concerns and single-responsibility principles.}
+      \resumeItem{Integrated Grok API with robust \textbf{error handling}, retry logic, and response caching, ensuring \textbf{99.5\% uptime} and consistent \textbf{quality and reliability} for content generation.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Canvas Collaborative Whiteboard — Excalidraw-Inspired Drawing Application}{{\href{https://github.com/vamsi-o/canvas-whiteboard}{github.com/vamsi-o/canvas-whiteboard}}}
+    \resumeItemListStart
+      \resumeItem{Built real-time collaborative whiteboard supporting 50+ concurrent users with \textbf{sub-35ms WebSocket synchronization latency} using optimized state management pattern, demonstrating focus on \textbf{performance testing} metrics.}
+      \resumeItem{Implemented high-performance Canvas rendering engine maintaining consistent 60fps with 1000+ shapes through efficient coordinate mapping algorithms, selection logic, and incremental redraw optimizations reducing CPU usage by 55\%.}
+      \resumeItem{Designed PostgreSQL database schema with Prisma ORM handling 10,000+ daily shape persistence operations with query response times under 100ms in Docker-containerized monorepo environment using Turborepo.}
+      \resumeItem{Engineered drawing preview system with real-time mouse position tracking, shape transformation logic, and style management enabling seamless multi-user collaboration across distributed network connections.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 3 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Passionate Computer Science graduate with 2+ years of full-stack development experience, possessing a strong \textbf{attention to detail} and \textbf{analytical skills}, eager to transition into a \textbf{QA Developer} role. Proficient in \textbf{Python} and \textbf{Java}, with a solid understanding of software development lifecycle and a keen interest in \textbf{automation testing}. Proven ability to \textbf{collaborate with developers}, document processes, and ensure \textbf{product quality} through rigorous \textbf{testing} and \textbf{bug tracking}. Committed to growing into \textbf{automation testing roles} and contributing to effective \textbf{test strategy and planning}.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Programming Languages:} Python, Java, JavaScript (ES6+), TypeScript, Node.js, SQL}
+  \resumeItem{\textbf{QA \& Testing Concepts:} Manual Testing, Functional Testing, Integration Testing, Regression Testing, Defect Management, Bug Tracking, Test Documentation, Test Automation Principles (Basic Understanding), SDLC, STLC}
+  \resumeItem{\textbf{Tools \& Methodologies:} Git, GitHub, Docker, Agile, DevOps Practices, Problem-Solving, Analytical Skills, Attention to Detail, Teamwork}
+  \resumeItem{\textbf{Databases:} PostgreSQL, MongoDB, MySQL, SQLite, Vector Databases}
+  \resumeItem{\textbf{Frontend/Backend Context:} React.js, Next.js, Node.js, Express.js}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed production web applications, ensuring high \textbf{product quality} and performance through diligent development and system integration, preparing for a \textbf{QA Developer} role.}
+      \resumeItem{Optimized database performance across PostgreSQL and MongoDB implementations, reducing query response times by 40\% through indexing strategies, query optimization, and efficient schema design.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, ensuring high \textbf{reliability} and minimal defects, critical for \textbf{quality assurance} in production environments.}
+      \resumeItem{Architected Docker-containerized monorepo structures with Turborepo, collaborating with teams to streamline development and deployment pipelines, which involved implicit \textbf{functional and integration testing}.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Architected full-stack job application platform with AI-powered resume builder, intelligent job matching engine, and automated application system serving professional job seekers across all industries with personalized recommendations.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built Next.js server-side rendered frontend achieving 90+ Lighthouse performance score with responsive UI components using Tailwind CSS, featuring freemium pricing model (₹199/month premium tier) and comprehensive user dashboard.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed AI-powered social media content generator adapting tone and format across multiple platforms with average content generation time under 250ms using asynchronous API orchestration and modular JavaScript component architecture.}
+      \resumeItem{Implemented secure JWT-based authentication system with localStorage session persistence and protected routing, supporting 500+ registered users with zero security incidents and 98\% session retention rate.}
+      \resumeItem{Built modular component library with reusable UI elements reducing code duplication by 45\% and enabling 3x faster feature deployment cycles through separation of concerns and single-responsibility principles.}
+      \resumeItem{Integrated Grok API with robust \textbf{error handling}, retry logic, and response caching mechanisms, ensuring \textbf{consistent content quality} and system \textbf{reliability} (99.5\% uptime).}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Canvas Collaborative Whiteboard — Excalidraw-Inspired Drawing Application}{{\href{https://github.com/vamsi-o/canvas-whiteboard}{github.com/vamsi-o/canvas-whiteboard}}}
+    \resumeItemListStart
+      \resumeItem{Built real-time collaborative whiteboard supporting 50+ concurrent users with sub-35ms WebSocket synchronization latency using optimized state management pattern.}
+      \resumeItem{Implemented high-performance Canvas rendering engine maintaining consistent 60fps with 1000+ shapes through efficient coordinate mapping algorithms, selection logic, and incremental redraw optimizations reducing CPU usage by 55\%.}
+      \resumeItem{Designed PostgreSQL database schema with Prisma ORM handling 10,000+ daily shape persistence operations with query response times under 100ms in Docker-containerized monorepo environment using Turborepo.}
+      \resumeItem{Engineered drawing preview system with real-time mouse position tracking, shape transformation logic, and style management enabling seamless multi-user collaboration across distributed network connections.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Employee Management System}{}
+    \resumeItemListStart
+      \resumeItem{Created a Python desktop application with Tkinter GUI and MySQL backend for automating employee payroll processes.}
+      \resumeItem{Developed modules for salary computation, tax deduction, and employee record management.}
+      \resumeItem{Implemented \textbf{validation and exception handling} mechanisms to ensure reliable data storage and significantly \textbf{reduce errors}, demonstrating a focus on \textbf{quality assurance}.}
+      \resumeItem{Minimized manual intervention, thereby reducing processing time and improving organizational efficiency.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 4 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Computer Science graduate with production experience in full-stack development, specializing in \textbf{AI-powered applications} and scalable web platforms using \textbf{Next.js, TypeScript, Node.js, and PostgreSQL}. An Oracle Certified Generative AI Professional with hands-on expertise in \textbf{RAG, LangChain, and LLM integration}, capable of building and scaling \textbf{AI-driven analytics systems}. Proven track record in deploying production applications, optimizing backend APIs with \textbf{Python}, and leveraging \textbf{modern cloud infra (Vercel, Docker)} and \textbf{DevOps practices}. Eager to contribute to a fast-moving, early-stage product as a \textbf{Software Engineer Intern (AI / Full-Stack)}, demonstrating strong problem-solving and self-driven capabilities to ship fast.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{AI/ML & Generative AI:} Large Language Models (LLMs), Retrieval-Augmented Generation (RAG), Semantic Search, LangChain, OCI Generative AI Service, Gemini API, Grok API, Embeddings, Vector Search Pipelines}
+  \resumeItem{\textbf{Programming Languages:} Python, JavaScript (ES6+), TypeScript, Node.js, SQL, Java}
+  \resumeItem{\textbf{Frontend & Frameworks:} Next.js, React.js, HTML5, CSS3, Tailwind CSS}
+  \resumeItem{\textbf{Backend & APIs:} Node.js, Express.js, RESTful APIs, FastAPI (implied), WebSockets, JWT Authentication}
+  \resumeItem{\textbf{Databases:} PostgreSQL (Prisma ORM), Supabase, MongoDB (Mongoose), MySQL, SQLite, Vector Databases}
+  \resumeItem{\textbf{Cloud & DevOps:} Docker, Kubernetes, Git, GitHub, Vercel, Monorepo Architecture (Turborepo), Modern Cloud Infra}
+  \resumeItem{\textbf{Core CS:} System Design, Performance Optimization, Data Structures \& Algorithms, First Principles Problem-Solving, APIs, Queues}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed three production web applications using \textbf{Next.js, React.js, and Node.js}, focusing on \textbf{AI integration}, real-time collaboration features, and scalable architecture, directly aligning with \textbf{AI-driven analytics systems}.}
+      \resumeItem{Optimized database performance across \textbf{PostgreSQL} and MongoDB implementations, reducing query response times by 40\% through indexing strategies, query optimization, and efficient schema design, demonstrating expertise in data management for analytics.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, serving 600+ total users across multiple applications with 99\%+ combined uptime.}
+      \resumeItem{Architected \textbf{Docker-containerized monorepo structures} with Turborepo and streamlined \textbf{deployment pipelines} (e.g., using \textbf{Vercel}), showcasing experience with \textbf{modern cloud infra} and shipping fast.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{{\href{https://dev-hire-znlr.vercel.app}{dev-hire-znlr.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Conceptualized and developing an \textbf{AI-powered recruitment automation platform}, demonstrating experience with \textbf{AI-driven analytics systems} and \textbf{agentic AI}.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built backend services with \textbf{Python, Next.js, and Supabase} to manage job applying, tailoring resumes, and finding relevant jobs, directly aligning with \textbf{backend APIs (Python/FastAPI/Supabase)} and \textbf{Next.js dashboard} development.}
+      \resumeItem{Developed \textbf{Python-based agents} using Playwright for automated job application workflows, showcasing skills in \textbf{agentic AI systems} and scripting.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed a \textbf{MERN stack application} that generates \textbf{AI-driven text and image content} for social media posts, demonstrating proficiency with \textbf{AI/LLM integration} and \textbf{full-stack development}.}
+      \resumeItem{Implemented \textbf{RESTful APIs} using Express.js and MongoDB with nested JSON schemas for structured data handling.}
+      \resumeItem{Integrated JWT-based authentication for secure user sessions and scalable user management.}
+      \resumeItem{Designed a responsive \textbf{React.js frontend}, ensuring smooth experience across mobile and desktop devices.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Canvas Collaborative Whiteboard — Excalidraw-Inspired Drawing Application}{{\href{https://github.com/vamsi-o/canvas-whiteboard}{github.com/vamsi-o/canvas-whiteboard}}}
+    \resumeItemListStart
+      \resumeItem{Built real-time collaborative whiteboard supporting 50+ concurrent users with sub-35ms WebSocket synchronization latency using optimized state management pattern.}
+      \resumeItem{Implemented high-performance Canvas rendering engine maintaining consistent 60fps with 1000+ shapes through efficient coordinate mapping algorithms, selection logic, and incremental redraw optimizations reducing CPU usage by 55\%.}
+      \resumeItem{Designed \textbf{PostgreSQL} database schema with Prisma ORM handling 10,000+ daily shape persistence operations within a \textbf{Docker-containerized monorepo environment}, showcasing experience with \textbf{PostgreSQL} and \textbf{modern cloud infra}.}
+      \resumeItem{Engineered drawing preview system with real-time mouse position tracking, shape transformation logic, and style management enabling seamless multi-user collaboration across distributed network connections.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 5 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Computer Science graduate with a strong foundation in \textbf{Python} programming and extensive experience in \textbf{system design}, \textbf{performance optimization}, and building \textbf{AI-powered applications}. Possesses a deep understanding of complex software architectures, data structures, and algorithms, with demonstrated problem-solving abilities. Eager to leverage expertise in \textbf{Python}, \textbf{AI/ML}, and infrastructure development to contribute to \textbf{autonomous software stack development} and \textbf{sensor integration} in an Autonomous Mobility Lab. Self-driven, highly organized, and committed to working independently and collaboratively within an agile team.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Programming Languages:} Python, Java, JavaScript (ES6+), SQL, TypeScript}
+  \resumeItem{\textbf{Core CS & Algorithms:} Data Structures \& Algorithms, System Design, Performance Optimization, First Principles Problem-Solving, Object-Oriented Programming (OOP)}
+  \resumeItem{\textbf{AI/ML Concepts:} Large Language Models (LLMs), Retrieval-Augmented Generation (RAG), Semantic Search, AI-powered systems (transferable to perception algorithm development)}
+  \resumeItem{\textbf{Infrastructure & Tools:} Docker, Linux (Ubuntu), Git, GitHub, (Implied: Basic understanding of system setup and software installation from full-stack/DevOps)}
+  \resumeItem{\textbf{Concepts (Soft Skills aligned):} Problem-Solving, Analytical Skills, Communication, Teamwork, Agile, Self-driven, Documentation}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed production web applications, focusing on \textbf{AI integration}, real-time collaboration features, and \textbf{industrial-grade architecture patterns}, demonstrating capability in complex \textbf{software stack development} and \textbf{system design}.}
+      \resumeItem{Optimized database performance across PostgreSQL and MongoDB implementations, reducing query response times by 40\%, showcasing \textbf{problem-solving} and \textbf{performance optimization} skills applicable to \textbf{autonomous software stack development}.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, serving 600+ total users across multiple applications with 99\%+ combined uptime.}
+      \resumeItem{Architected \textbf{Docker-containerized monorepo structures} with Turborepo, enabling efficient development and deployment workflows, relevant to \textbf{lab's infrastructure development and scaling}.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Conceptualized and developing an \textbf{AI-powered} platform, demonstrating a structured approach to \textbf{software stack development} and \textbf{complex system design} using \textbf{Python}.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built Next.js server-side rendered frontend achieving 90+ Lighthouse performance score with responsive UI components using Tailwind CSS, featuring freemium pricing model (₹199/month premium tier) and comprehensive user dashboard.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed an \textbf{AI-driven} content generator, applying robust \textbf{software development} principles adaptable to \textbf{perception algorithm development}.}
+      \resumeItem{Implemented RESTful APIs using Express.js and MongoDB with nested JSON schemas for structured data handling.}
+      \resumeItem{Integrated JWT-based authentication for secure user sessions and scalable user management.}
+      \resumeItem{Designed a responsive React.js frontend, ensuring smooth experience across mobile and desktop devices.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Canvas Collaborative Whiteboard — Excalidraw-Inspired Drawing Application}{{\href{https://github.com/vamsi-o/canvas-whiteboard}{github.com/vamsi-o/canvas-whiteboard}}}
+    \resumeItemListStart
+      \resumeItem{Built real-time collaborative whiteboard supporting 50+ concurrent users with sub-35ms WebSocket synchronization latency using optimized state management pattern.}
+      \resumeItem{Implemented high-performance Canvas rendering engine maintaining consistent 60fps with 1000+ shapes through efficient coordinate mapping algorithms, selection logic, and incremental redraw optimizations reducing CPU usage by 55\%.}
+      \resumeItem{Designed and managed a PostgreSQL database schema with Prisma ORM handling 10,000+ daily shape persistence operations within a \textbf{Docker-containerized monorepo environment}, illustrating experience in \textbf{lab infrastructure development} and scaling.}
+      \resumeItem{Engineered drawing preview system with real-time mouse position tracking, shape transformation logic, and style management enabling seamless multi-user collaboration across distributed network connections.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 6 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Highly motivated Computer Science graduate with 2+ years of full-stack development experience, specializing in scalable web platforms and AI-powered applications. Proficient in \textbf{React.js, Next.js, Node.js, and Python}, with a proven track record of \textbf{shipping production applications to real users}. Demonstrated ability to build performant and robust frontend experiences and optimize database operations for large user bases. Actively engages in \textbf{side projects} and possesses strong communication skills, eager to leverage Python expertise for \textbf{Django backend development} and contribute to an innovative platform.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Programming Languages:} Python, JavaScript (ES6+), TypeScript, Node.js, SQL, Java}
+  \resumeItem{\textbf{Frontend Development:} React.js, Next.js, HTML5, CSS3, Tailwind CSS}
+  \resumeItem{\textbf{Backend Development:} Node.js, Express.js, RESTful APIs}
+  \resumeItem{\textbf{Databases:} PostgreSQL (Prisma ORM), MongoDB (Mongoose), MySQL, SQLite, Vector Databases (experience with scaling and database queries)}
+  \resumeItem{\textbf{Core Concepts:} Object-Oriented Programming (OOP), System Design, Performance Optimization, Data Structures \& Algorithms, Agile, Clean Code Practices}
+  \resumeItem{\textbf{Tools & Version Control:} Git, GitHub, Docker, Kubernetes}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed three \textbf{production web applications} using \textbf{Next.js, React.js, and Node.js}, effectively \textbf{shipping products to real users} with industrial-grade architecture patterns.}
+      \resumeItem{\textbf{Optimized database performance} across PostgreSQL and MongoDB implementations, reducing query response times by 40\% through indexing strategies, query optimization, and efficient schema design, demonstrating experience with \textbf{scaling} and efficient \textbf{database queries}.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, successfully serving \textbf{600+ total users} across multiple applications with 99\%+ combined uptime, reflecting experience with a significant \textbf{user base}.}
+      \resumeItem{Architected Docker-containerized monorepo structures with Turborepo enabling efficient development workflows, isolated service dependencies, and streamlined deployment pipelines for full-stack applications, reflecting commitment to high-quality software development.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{{\href{https://dev-hire-znlr.vercel.app}{dev-hire-znlr.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Conceptualized and developing \textbf{HireHawk}, an AI-powered recruitment automation platform, showcasing a dedication to \textbf{side projects} and innovative solutions.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built Next.js server-side rendered frontend achieving 90+ Lighthouse performance score with responsive UI components using Tailwind CSS, featuring freemium pricing model (₹199/month premium tier) and comprehensive user dashboard.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed \textbf{Ainfity}, a MERN stack application that generates AI-driven text and image content for social media posts, demonstrating ability to \textbf{ship products} with a \textbf{React.js frontend}.}
+      \resumeItem{Implemented RESTful APIs using Express.js and MongoDB with nested JSON schemas for structured data handling.}
+      \resumeItem{Implemented \textbf{JWT-based authentication} for secure user sessions and scalable user management, relevant to managing \textbf{user bases} in production applications.}
+      \resumeItem{Designed a responsive \textbf{React.js frontend}, ensuring smooth experience across mobile and desktop devices.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Canvas Collaborative Whiteboard — Excalidraw-Inspired Drawing Application}{{\href{https://github.com/vamsi-o/canvas-whiteboard}{github.com/vamsi-o/canvas-whiteboard}}}
+    \resumeItemListStart
+      \resumeItem{Built \textbf{Canvas Collaborative Whiteboard}, a real-time collaborative platform supporting \textbf{50+ concurrent users} with sub-35ms WebSocket synchronization latency, highlighting experience with \textbf{scaling} and performance.}
+      \resumeItem{Implemented high-performance Canvas rendering engine maintaining consistent 60fps with 1000+ shapes through efficient coordinate mapping algorithms, selection logic, and incremental redraw optimizations reducing CPU usage by 55\%.}
+      \resumeItem{Designed PostgreSQL database schema with Prisma ORM handling 10,000+ daily shape persistence operations with query response times under 100ms in Docker-containerized monorepo environment using Turborepo.}
+      \resumeItem{Engineered drawing preview system with real-time mouse position tracking, shape transformation logic, and style management enabling seamless multi-user collaboration across distributed network connections.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 7 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Computer Science graduate with 2+ years of production experience in full-stack development using modern web technologies, seeking to apply strong programming aptitude and rapid learning ability to a \textbf{Dart Language specialist} role. Proficient in multiple programming languages (JavaScript, Python, Java) and experienced in developing scalable applications with robust architectures. Possesses excellent communication skills, a proven track record of solving complex problems, and the capability to quickly master new technologies like \textbf{Dart and Flutter} to develop high-quality applications independently and remotely.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Programming Languages:} JavaScript (ES6+), Python, Java, SQL (eager to learn Dart/Flutter)}
+  \resumeItem{\textbf{Core Software Development:} Object-Oriented Programming (OOP), Data Structures \& Algorithms, System Design, Problem-Solving, Performance Optimization, Clean Code Practices}
+  \resumeItem{\textbf{Web Development Fundamentals:} HTML5, CSS3, RESTful APIs}
+  \resumeItem{\textbf{Databases:} PostgreSQL, MongoDB, MySQL, SQLite}
+  \resumeItem{\textbf{Tools & Methodologies:} Git, GitHub, Docker, Agile, Remote Work Capability}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed production web applications, demonstrating strong \textbf{software development} skills in building scalable architectures and implementing complex features, directly applicable to new language environments.}
+      \resumeItem{Optimized database performance across PostgreSQL and MongoDB implementations, reducing query response times by 40\% through indexing strategies, query optimization, and efficient schema design, showcasing deep \textbf{problem-solving} abilities and a systematic approach to software engineering challenges.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, serving 600+ total users across multiple applications with 99\%+ combined uptime, ensuring high \textbf{application reliability} and robustness through careful \textbf{software development} practices.}
+      \resumeItem{Architected Docker-containerized monorepo structures with Turborepo enabling efficient development workflows, isolated service dependencies, and streamlined deployment pipelines for full-stack applications.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Conceptualized and developing an AI-powered recruitment automation platform, demonstrating end-to-end \textbf{software development} capabilities and a structured problem-solving approach.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built Next.js server-side rendered frontend achieving 90+ Lighthouse performance score with responsive UI components using Tailwind CSS, featuring freemium pricing model (₹199/month premium tier) and comprehensive user dashboard.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed a MERN stack application that generates AI-driven text and image content for social media posts, applying robust \textbf{software development} principles for a full-stack application.}
+      \resumeItem{Implemented RESTful APIs using Express.js and MongoDB with nested JSON schemas for structured data handling.}
+      \resumeItem{Integrated JWT-based authentication for secure user sessions and scalable user management.}
+      \resumeItem{Designed a responsive React.js frontend, ensuring smooth experience across mobile and desktop devices.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Faculty Performance Monitor}{}
+    \resumeItemListStart
+      \resumeItem{Developed a \textbf{Java-based web portal} using JSP and MySQL for tracking faculty workload and performance scores, showcasing strong programming and backend development principles.}
+      \resumeItem{Implemented role-based access controls, enabling administrators to assign credits and generate evaluation reports.}
+      \resumeItem{Applied MVC architecture to ensure clean separation of logic, improving maintainability and scalability.}
+      \resumeItem{Optimized SQL queries to improve reporting efficiency and ensure quick data retrieval for administrators.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Employee Management System}{}
+    \resumeItemListStart
+      \resumeItem{Created a Python desktop application with Tkinter GUI and MySQL backend for automating employee payroll processes.}
+      \resumeItem{Developed modules for salary computation, tax deduction, and employee record management.}
+      \resumeItem{Implemented validation and exception handling to ensure reliable data storage and reduce errors in payroll.}
+      \resumeItem{Minimized manual intervention, thereby reducing processing time and improving organizational efficiency.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 8 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Computer Science graduate with 2+ years of production experience as a \textbf{Full Stack Web Developer}, specializing in building scalable web platforms and AI-powered applications. Proficient in \textbf{HTML, CSS, JavaScript, React.js, Node.js, and MongoDB}, with a proven ability to design and implement end-to-end solutions. Possesses excellent communication, problem-solving, and mentoring skills, eager to apply expertise in delivering \textbf{high-quality training sessions} and guiding students through \textbf{hands-on development} and live projects. Strong background in \textbf{AI} and a commitment to integrating new technologies into curriculum.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Frontend Technologies:} HTML5, CSS3, JavaScript (ES6+), React.js, Next.js}
+  \resumeItem{\textbf{Backend Technologies:} Node.js, Express.js, RESTful APIs}
+  \resumeItem{\textbf{Databases:} MongoDB (Mongoose), MySQL, PostgreSQL}
+  \resumeItem{\textbf{Programming Languages:} Python, Java, TypeScript, SQL}
+  \resumeItem{\textbf{AI/ML & Generative AI:} Large Language Models (LLMs), Retrieval-Augmented Generation (RAG), Semantic Search}
+  \resumeItem{\textbf{Core Concepts:} Full Stack Development, System Design, Problem-Solving, Object-Oriented Programming (OOP)}
+  \resumeItem{\textbf{Tools & Methodologies:} Git, GitHub, Docker, Agile, Mentoring, Communication, Presentation}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed three \textbf{production web applications} using \textbf{Next.js, React.js, and Node.js}, encompassing comprehensive \textbf{full-stack development} for diverse functionalities.}
+      \resumeItem{Optimized database performance across \textbf{MongoDB} and PostgreSQL implementations, applying advanced strategies to ensure efficient data management, crucial for \textbf{full-stack development training}.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, serving 600+ total users across multiple applications with 99\%+ combined uptime, demonstrating end-to-end \textbf{full-stack development} capabilities and best practices for building robust applications.}
+      \resumeItem{Architected Docker-containerized monorepo structures with Turborepo enabling efficient development workflows, isolated service dependencies, and streamlined deployment pipelines for full-stack applications.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Conceptualized and developing an AI-powered recruitment automation platform aimed at reducing manual effort in job applications.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built backend services with Python, \textbf{Next.js}, and \textbf{Supabase}, providing a strong example for \textbf{hands-on development} in modern full-stack architectures.}
+      \resumeItem{Building agents to maintain proper flow from finding titles to applying jobs using automation tool called Playwright in Python to create 4 agents called Titles extraction, Scraping relavent jobs, Tailoring resume, Apply agent.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed \textbf{Ainfity}, a \textbf{MERN stack application} (\textbf{React.js, Node.js, Express.js, MongoDB}) that generates AI-driven text and image content, ideal for demonstrating \textbf{full-stack web development} concepts and project structure.}
+      \resumeItem{Implemented \textbf{RESTful APIs} using Express.js and MongoDB with nested JSON schemas for structured data handling.}
+      \resumeItem{Integrated JWT-based authentication for secure user sessions and scalable user management.}
+      \resumeItem{Designed a responsive \textbf{React.js frontend}, ensuring smooth experience across mobile and desktop devices, showcasing best practices in UI/UX and client-side development for training.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Faculty Performance Monitor}{}
+    \resumeItemListStart
+      \resumeItem{Developed a \textbf{Java-based web portal} using JSP and \textbf{MySQL} for tracking faculty workload and performance scores, illustrating server-side logic and database integration for \textbf{conceptual clarity}.}
+      \resumeItem{Implemented role-based access controls, enabling administrators to assign credits and generate evaluation reports.}
+      \resumeItem{Applied MVC architecture to ensure clean separation of logic, improving maintainability and scalability.}
+      \resumeItem{Optimized SQL queries to improve reporting efficiency and ensure quick data retrieval for administrators.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Employee Management System}{}
+    \resumeItemListStart
+      \resumeItem{Created a Python desktop application with Tkinter GUI and MySQL backend for automating employee payroll processes.}
+      \resumeItem{Developed modules for salary computation, tax deduction, and employee record management.}
+      \resumeItem{Implemented validation and exception handling to ensure reliable data storage and reduce errors in payroll.}
+      \resumeItem{Minimized manual intervention, thereby reducing processing time and improving organizational efficiency.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 9 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Highly motivated Computer Science graduate with 2+ years of production experience in \textbf{full-stack development}, building scalable web platforms and AI-powered applications. Proficient in \textbf{React.js, TypeScript, JavaScript (ES6+), Node.js, PostgreSQL, and SQL}, with a strong command of \textbf{RESTful APIs}, \textbf{Docker}, \textbf{Git}, and \textbf{CI/CD pipelines}. Proven ability to optimize database performance and architect robust systems, demonstrating adaptability and a rapid learning curve for new technologies like \textbf{ASP.NET Core} and \textbf{C\#}. Eager to contribute to high-performance web applications and complex challenges within a .NET environment.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Frontend:} React.js, TypeScript, JavaScript (ES6+), Next.js, HTML5, CSS3}
+  \resumeItem{\textbf{Backend & APIs:} Node.js, Express.js, RESTful APIs, WebSockets, (Java proficiency indicates C\# learning aptitude for OOP)}
+  \resumeItem{\textbf{Databases:} PostgreSQL (Prisma ORM), SQL (MySQL, SQLite), MongoDB (Mongoose), Vector Databases (experience with SQL Server optimization principles)}
+  \resumeItem{\textbf{DevOps & Tools:} Docker, Git, GitHub, Kubernetes, CI/CD Pipelines (from Monorepo, Vercel experience)}
+  \resumeItem{\textbf{Core Concepts:} Full-Stack Development, Microservices Architecture (from monorepo/multi-agent), System Design, Object-Oriented Programming (OOP), Performance Optimization}
+  \resumeItem{\textbf{Programming Languages:} Python, Java (strong foundation for C\#), SQL}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed production \textbf{full-stack web applications} using \textbf{Next.js, React.js, and Node.js}, focusing on AI integration, real-time collaboration features, and scalable architectures including multi-agent systems, demonstrating robust software development.}
+      \resumeItem{\textbf{Optimized database performance} across \textbf{PostgreSQL} and MongoDB implementations, reducing query response times by 40\% through indexing strategies, query optimization, and efficient schema design with Prisma ORM and Mongoose, directly applicable to \textbf{SQL Server optimization}.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, serving 600+ total users across multiple applications with 99\%+ combined uptime.}
+      \resumeItem{Architected \textbf{Docker-containerized monorepo structures} with Turborepo enabling efficient development workflows, isolated service dependencies, and streamlined \textbf{CI/CD pipelines} for full-stack applications.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{{\href{https://dev-hire-znlr.vercel.app}{dev-hire-znlr.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Architected full-stack job application platform with AI-powered resume builder, intelligent job matching engine, and automated application system serving professional job seekers across all industries with personalized recommendations.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built backend services with \textbf{Next.js} and \textbf{Supabase (PostgreSQL)}, demonstrating full-stack API development and database integration.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed a \textbf{MERN stack application} with a \textbf{React.js frontend} and \textbf{RESTful APIs} that generates AI-driven text and image content for social media posts, showcasing strong full-stack capabilities.}
+      \resumeItem{Implemented JWT-based authentication for secure user sessions and scalable user management.}
+      \resumeItem{Designed a responsive \textbf{React.js frontend}, ensuring smooth experience across mobile and desktop devices.}
+      \resumeItem{Optimized performance by modularizing backend architecture and adopting Agile practices for rapid iteration.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Canvas Collaborative Whiteboard — Excalidraw-Inspired Drawing Application}{{\href{https://github.com/vamsi-o/canvas-whiteboard}{github.com/vamsi-o/canvas-whiteboard}}}
+    \resumeItemListStart
+      \resumeItem{Built a real-time collaborative whiteboard supporting 50+ concurrent users with sub-35ms WebSocket synchronization latency using optimized state management pattern, leveraging \textbf{Next.js} and \textbf{Node.js} for robust \textbf{backend API} and \textbf{frontend development}.}
+      \resumeItem{Implemented high-performance Canvas rendering engine maintaining consistent 60fps with 1000+ shapes through efficient coordinate mapping algorithms, selection logic, and incremental redraw optimizations reducing CPU usage by 55\%.}
+      \resumeItem{Designed \textbf{PostgreSQL} database schema with Prisma ORM handling 10,000+ daily shape persistence operations within a \textbf{Docker-containerized monorepo environment}, relevant to database management and \textbf{CI/CD}.}
+      \resumeItem{Engineered drawing preview system with real-time mouse position tracking, shape transformation logic, and style management enabling seamless multi-user collaboration across distributed network connections.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 10 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Computer Science graduate with 2+ years of production experience in \textbf{Back-End Web Development}, specializing in scalable architectures and AI-powered applications. Proficient in \textbf{Java} and Node.js, with a strong command of \textbf{Object-Oriented Programming (OOP)} principles, \textbf{software development}, and \textbf{RESTful APIs}. Demonstrated \textbf{problem-solving} and \textbf{analytical skills} through designing and deploying robust applications. Eager to leverage strong Java background and software engineering expertise to excel as a \textbf{Kotlin Developer}, contributing to efficient and reliable software products.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Programming Languages:} Java, JavaScript (ES6+), Python, SQL (strong foundation for Kotlin)}
+  \resumeItem{\textbf{Backend Development:} Node.js, Express.js, RESTful APIs, WebSockets, JWT Authentication}
+  \resumeItem{\textbf{Core Concepts:} Object-Oriented Programming (OOP), Software Development, System Design, Data Structures \& Algorithms, Problem-Solving, Analytical Skills, Performance Optimization, Clean Code Practices}
+  \resumeItem{\textbf{Databases:} PostgreSQL, MongoDB, MySQL, SQLite, Vector Databases}
+  \resumeItem{\textbf{Tools & Methodologies:} Git, GitHub, Docker, Agile, Remote Work Capability}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed production \textbf{web applications} with Next.js, React.js, and Node.js, with a strong focus on \textbf{backend development} and industrial-grade architecture patterns, demonstrating robust \textbf{software development} capabilities.}
+      \resumeItem{Optimized database performance across PostgreSQL and MongoDB implementations, reducing query response times by 40\% through indexing strategies, query optimization, and efficient schema design, showcasing deep \textbf{problem-solving} and \textbf{analytical skills} in backend systems.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management in backend services, ensuring high reliability and demonstrating core \textbf{software development} practices.}
+      \resumeItem{Architected Docker-containerized monorepo structures with Turborepo enabling efficient development workflows, isolated service dependencies, and streamlined deployment pipelines for full-stack applications.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Conceptualized and developing an AI-powered recruitment automation platform aimed at reducing manual effort in job applications.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built \textbf{backend services} with Python, Next.js, and Supabase to manage job applying, tailoring resumes, and finding relevant jobs, demonstrating expertise in \textbf{back-end web development} and scalable architectures.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed a MERN stack application that generates AI-driven text and image content for social media posts, helping creators save time.}
+      \resumeItem{Implemented \textbf{RESTful APIs} using Express.js and MongoDB with nested JSON schemas for structured data handling, showcasing robust \textbf{back-end web development}.}
+      \resumeItem{Integrated JWT-based authentication for secure user sessions and scalable user management.}
+      \resumeItem{Designed a responsive React.js frontend, ensuring smooth experience across mobile and desktop devices.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Faculty Performance Monitor}{}
+    \resumeItemListStart
+      \resumeItem{Developed a \textbf{Java-based web portal} using JSP and MySQL for tracking faculty workload and performance scores, demonstrating strong \textbf{programming} and \textbf{Object-Oriented Programming (OOP)} principles in \textbf{back-end web development}.}
+      \resumeItem{Implemented role-based access controls, enabling administrators to assign credits and generate evaluation reports.}
+      \resumeItem{Applied \textbf{MVC architecture} to ensure clean separation of logic, improving maintainability and scalability in \textbf{software development}.}
+      \resumeItem{Optimized SQL queries to improve reporting efficiency and ensure quick data retrieval for administrators.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Employee Management System}{}
+    \resumeItemListStart
+      \resumeItem{Created a Python desktop application with Tkinter GUI and MySQL backend for automating employee payroll processes, showcasing core \textbf{programming} skills and database integration.}
+      \resumeItem{Developed modules for salary computation, tax deduction, and employee record management.}
+      \resumeItem{Implemented validation and exception handling to ensure reliable data storage and reduce errors in payroll.}
+      \resumeItem{Minimized manual intervention, thereby reducing processing time and improving organizational efficiency.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 11 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Computer Science graduate with 2+ years of production experience in \textbf{Back-End Web Development}, specializing in scalable architectures and AI-powered applications. Proficient in \textbf{Java} and Node.js, with a strong command of \textbf{Object-Oriented Programming (OOP)} principles, \textbf{software development}, and \textbf{RESTful APIs}. Demonstrated \textbf{problem-solving} and \textbf{analytical skills} through designing and deploying robust applications. Eager to leverage strong Java background and software engineering expertise to excel as a \textbf{Kotlin Developer}, contributing to efficient and reliable software products.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Programming Languages:} Java, JavaScript (ES6+), Python, SQL (strong foundation for Kotlin)}
+  \resumeItem{\textbf{Backend Development:} Node.js, Express.js, RESTful APIs, WebSockets, JWT Authentication}
+  \resumeItem{\textbf{Core Concepts:} Object-Oriented Programming (OOP), Software Development, System Design, Data Structures \& Algorithms, Problem-Solving, Analytical Skills, Performance Optimization, Clean Code Practices}
+  \resumeItem{\textbf{Databases:} PostgreSQL, MongoDB, MySQL, SQLite, Vector Databases}
+  \resumeItem{\textbf{Tools & Methodologies:} Git, GitHub, Docker, Agile, Remote Work Capability}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed production \textbf{web applications} with Next.js, React.js, and Node.js, with a strong focus on \textbf{backend development} and industrial-grade architecture patterns, demonstrating robust \textbf{software development} capabilities.}
+      \resumeItem{Optimized database performance across PostgreSQL and MongoDB implementations, reducing query response times by 40\% through indexing strategies, query optimization, and efficient schema design, showcasing deep \textbf{problem-solving} and \textbf{analytical skills} in backend systems.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management in backend services, ensuring high reliability and demonstrating core \textbf{software development} practices.}
+      \resumeItem{Architected Docker-containerized monorepo structures with Turborepo enabling efficient development workflows, isolated service dependencies, and streamlined deployment pipelines for full-stack applications.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Conceptualized and developing an AI-powered recruitment automation platform aimed at reducing manual effort in job applications.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built \textbf{backend services} with Python, Next.js, and Supabase to manage job applying, tailoring resumes, and finding relevant jobs, demonstrating expertise in \textbf{back-end web development} and scalable architectures.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed a MERN stack application that generates AI-driven text and image content for social media posts, helping creators save time.}
+      \resumeItem{Implemented \textbf{RESTful APIs} using Express.js and MongoDB with nested JSON schemas for structured data handling, showcasing robust \textbf{back-end web development}.}
+      \resumeItem{Integrated JWT-based authentication for secure user sessions and scalable user management.}
+      \resumeItem{Designed a responsive React.js frontend, ensuring smooth experience across mobile and desktop devices.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Faculty Performance Monitor}{}
+    \resumeItemListStart
+      \resumeItem{Developed a \textbf{Java-based web portal} using JSP and MySQL for tracking faculty workload and performance scores, demonstrating strong \textbf{programming} and \textbf{Object-Oriented Programming (OOP)} principles in \textbf{back-end web development}.}
+      \resumeItem{Implemented role-based access controls, enabling administrators to assign credits and generate evaluation reports.}
+      \resumeItem{Applied \textbf{MVC architecture} to ensure clean separation of logic, improving maintainability and scalability in \textbf{software development}.}
+      \resumeItem{Optimized SQL queries to improve reporting efficiency and ensure quick data retrieval for administrators.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Employee Management System}{}
+    \resumeItemListStart
+      \resumeItem{Created a Python desktop application with Tkinter GUI and MySQL backend for automating employee payroll processes, showcasing core \textbf{programming} skills and database integration.}
+      \resumeItem{Developed modules for salary computation, tax deduction, and employee record management.}
+      \resumeItem{Implemented validation and exception handling to ensure reliable data storage and reduce errors in payroll.}
+      \resumeItem{Minimized manual intervention, thereby reducing processing time and improving organizational efficiency.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 12 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Computer Science graduate with 2+ years of production experience in \textbf{Software Development}, building scalable web platforms and AI-powered applications. Proficient in \textbf{Java, JavaScript, and Python}, with a strong command of \textbf{Object-Oriented Programming (OOP)}, \textbf{problem-solving abilities}, and \textbf{attention to detail}. Experienced in version control systems (\textbf{Git}) and collaborating in team environments. Eager to leverage a robust software engineering background and adaptability to quickly master \textbf{Android Development} and contribute to high-performance \textbf{Mobile Applications}.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Programming Languages:} Java, JavaScript (ES6+), Python, SQL (foundational for new platform learning)}
+  \resumeItem{\textbf{Software Development Concepts:} Object-Oriented Programming (OOP), Data Structures \& Algorithms, System Design, Problem-Solving Abilities, Attention to Detail, Clean Code Practices}
+  \resumeItem{\textbf{Version Control:} Git, GitHub}
+  \resumeItem{\textbf{Backend/Frontend Context (Transferable):} Node.js, Express.js, React.js (demonstrates UI/UX understanding relevant to Android Design)}
+  \resumeItem{\textbf{Databases:} PostgreSQL, MongoDB, MySQL, SQLite}
+  \resumeItem{\textbf{Tools & Methodologies:} Agile, Team Collaboration, Remote Work Capability}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed production web applications, demonstrating strong \textbf{Software Development} skills in building scalable architectures and implementing complex features, directly applicable to mobile environments.}
+      \resumeItem{Optimized database performance across PostgreSQL and MongoDB implementations, reducing query response times by 40\% through indexing strategies, query optimization, and efficient schema design, showcasing deep \textbf{problem-solving abilities} and a systematic approach to software engineering.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, serving 600+ total users across multiple applications with 99\%+ combined uptime, ensuring high reliability and demonstrating core \textbf{Software Development} practices for user-facing applications.}
+      \resumeItem{Architected Docker-containerized monorepo structures with Turborepo enabling efficient development workflows, isolated service dependencies, and streamlined deployment pipelines for full-stack applications, applying robust software engineering practices and \textbf{version control systems (Git)} for efficient development.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Architected full-stack job application platform with AI-powered resume builder, intelligent job matching engine, and automated application system serving professional job seekers across all industries with personalized recommendations.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built Next.js server-side rendered frontend achieving 90+ Lighthouse performance score with responsive UI components using Tailwind CSS, featuring freemium pricing model (₹199/month premium tier) and comprehensive user dashboard.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed AI-powered social media content generator adapting tone and format across multiple platforms with average content generation time under 250ms using asynchronous API orchestration and modular JavaScript component architecture.}
+      \resumeItem{Implemented secure JWT-based authentication system with localStorage session persistence and protected routing, supporting 500+ registered users with zero security incidents and 98\% session retention rate.}
+      \resumeItem{Built modular component library with reusable UI elements reducing code duplication by 45\% and enabling 3x faster feature deployment cycles through separation of concerns and single-responsibility principles.}
+      \resumeItem{Designed a responsive \textbf{React.js frontend}, ensuring smooth experience across mobile and desktop devices, demonstrating transferable skills in \textbf{Android Design} and UI/UX.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Faculty Performance Monitor}{}
+    \resumeItemListStart
+      \resumeItem{Developed a \textbf{Java-based web portal} using JSP and MySQL for tracking faculty workload and performance scores, demonstrating strong \textbf{programming} and \textbf{Object-Oriented Programming (OOP)} skills crucial for \textbf{Android Development}.}
+      \resumeItem{Implemented role-based access controls, enabling administrators to assign credits and generate evaluation reports.}
+      \resumeItem{Applied MVC architecture to ensure clean separation of logic, improving maintainability and scalability.}
+      \resumeItem{Optimized SQL queries to improve reporting efficiency and ensure quick data retrieval for administrators.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Employee Management System}{}
+    \resumeItemListStart
+      \resumeItem{Created a Python desktop application with Tkinter GUI and MySQL backend for automating employee payroll processes.}
+      \resumeItem{Developed modules for salary computation, tax deduction, and employee record management.}
+      \resumeItem{Implemented validation and exception handling to ensure reliable data storage and reduce errors in payroll.}
+      \resumeItem{Minimized manual intervention, thereby reducing processing time and improving organizational efficiency.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 13 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Highly accomplished Computer Science graduate with 2+ years of production experience as an \textbf{Agile Full Stack Developer}, specializing in building scalable web platforms and AI-powered applications. Proficient in \textbf{Next.js, Node.js, React.js, Python, HTML, CSS, and JavaScript}, with deep expertise in \textbf{RESTful Web Services (JSON)}, \textbf{PostgreSQL, MongoDB, and MySQL}. Proven track record in designing database structures, developing and deploying full-stack code, and maintaining source codes in \textbf{Git} with modern \textbf{DevOps and CI/CD pipelines}. Possesses strong analytical, problem-solving, and communication skills, thriving in collaborative \textbf{Agile} environments to deliver high-quality, error-free applications.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Frontend Development:} Next.js, React.js, HTML5, CSS3, JavaScript (ES6+), TypeScript (Implicit jQuery understanding from general web dev/desktop app skills)}
+  \resumeItem{\textbf{Backend Development:} Node.js, Express.js, Python, RESTful Web Services (JSON), WebSockets}
+  \resumeItem{\textbf{Databases:} PostgreSQL (RDBMS), MongoDB (NoSQL), MySQL (RDBMS), SQLite (RDBMS)}
+  \resumeItem{\textbf{DevOps & CI/CD:} Docker, Kubernetes, Git, GitHub (Version Control), CI/CD Pipelines, Agile, Troubleshooting, Debugging}
+  \resumeItem{\textbf{Programming Languages:} Python, JavaScript (ES6+), TypeScript, Java, SQL}
+  \resumeItem{\textbf{Core Concepts:} Full Stack Development, System Study, System Design, Problem-Solving, Analytical Skills, Object-Oriented Programming (OOP), Code Quality, Security Checks}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed three production \textbf{full-stack web applications} using \textbf{Next.js, React.js, and Node.js}, focusing on AI integration, real-time collaboration features, and industrial-grade architecture patterns, aligning with system study and logic building.}
+      \resumeItem{Optimized \textbf{database performance} across \textbf{PostgreSQL and MongoDB} implementations, reducing query response times by 40\% through indexing strategies, query optimization, and efficient schema design, demonstrating expertise in developing DB structures and binding them to I/O layers.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, serving 600+ total users across multiple applications with 99\%+ combined uptime, ensuring high application reliability and demonstrating robust \textbf{full-stack development} and \textbf{troubleshooting} capabilities.}
+      \resumeItem{Architected \textbf{Docker-containerized monorepo structures} with Turborepo and streamlined \textbf{DevOps and CI/CD pipelines} (\textbf{Git/GitHub}), enabling efficient development workflows, isolated service dependencies, and successful deployment.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{{\href{https://dev-hire-znlr.vercel.app}{dev-hire-znlr.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Conceptualized and developing an AI-powered recruitment automation platform aimed at reducing manual effort in job applications.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built \textbf{backend services} with \textbf{Python, Next.js, and Supabase (PostgreSQL)}, showcasing \textbf{full-stack development} of DB structures and APIs.}
+      \resumeItem{Developed \textbf{Python-based agents} using Playwright for automated job application workflows, demonstrating \textbf{automation testing} principles and complex scripting.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed an \textbf{MERN stack application} with \textbf{React.js, Node.js, Express.js, and MongoDB} that generates AI-driven text and image content, demonstrating comprehensive \textbf{full-stack development} and \textbf{RESTful API} integration.}
+      \resumeItem{Implemented JWT-based authentication for secure user sessions and scalable user management.}
+      \resumeItem{Designed a responsive \textbf{React.js frontend}, ensuring smooth experience across mobile and desktop devices.}
+      \resumeItem{Optimized performance by modularizing backend architecture and adopting Agile practices for rapid iteration.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Canvas Collaborative Whiteboard — Excalidraw-Inspired Drawing Application}{{\href{https://github.com/vamsi-o/canvas-whiteboard}{github.com/vamsi-o/canvas-whiteboard}}}
+    \resumeItemListStart
+      \resumeItem{Built real-time collaborative whiteboard supporting 50+ concurrent users with sub-35ms WebSocket synchronization latency using optimized state management pattern, leveraging \textbf{Next.js, Node.js, and WebSockets}, showcasing advanced \textbf{full-stack development} and API design.}
+      \resumeItem{Implemented high-performance Canvas rendering engine maintaining consistent 60fps with 1000+ shapes through efficient coordinate mapping algorithms, selection logic, and incremental redraw optimizations reducing CPU usage by 55\%.}
+      \resumeItem{Designed \textbf{PostgreSQL} database schema with Prisma ORM handling 10,000+ daily shape persistence operations within a \textbf{Docker-containerized monorepo environment}, relevant to DB structures and \textbf{DevOps}.}
+      \resumeItem{Engineered drawing preview system with real-time mouse position tracking, shape transformation logic, and style management enabling seamless multi-user collaboration across distributed network connections.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 14 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://linkedin.com/in/vamsi-saragadma}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Computer Science graduate with 2+ years of production experience in \textbf{Backend Development} and \textbf{Software Development}, specializing in building \textbf{scalable web platforms} and AI-powered applications. Proficient in Node.js, Python, and Java, with a strong command of \textbf{RESTful APIs}, database management, and \textbf{performance optimization}. Demonstrated expertise in developing robust backend services, \textbf{debugging}, and collaborating effectively with frontend teams. Eager to apply strong \textbf{problem-solving abilities} and rapid learning capacity to contribute to \textbf{iOS Backend Development} and build robust, scalable mobile applications.
+}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Backend Development:} Node.js, Express.js, RESTful APIs, WebSockets, JWT Authentication, Scalable Backend Services, Robust Architectures}
+  \resumeItem{\textbf{Programming Languages:} Python, Java, JavaScript (ES6+), TypeScript, SQL}
+  \resumeItem{\textbf{Databases:} PostgreSQL, MongoDB, MySQL, SQLite, Vector Databases}
+  \resumeItem{\textbf{Core Software Development:} Software Development, Object-Oriented Programming (OOP), System Design, Performance Optimization, Data Structures \& Algorithms, Problem-Solving Abilities, Debugging}
+  \resumeItem{\textbf{Tools & Methodologies:} Git, GitHub (Version Control, Code Reviews), Docker, Kubernetes, Agile, Teamwork, Remote Work Capability}
+\resumeItemListEnd
+
+%-----------WORK EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+    {Freelance Full-Stack Developer}{Visakhapatnam, India}
+    {Self-Employed}{June 2022 – Present}
+    \resumeItemListStart
+      \resumeItem{Designed and deployed production web applications using Next.js, React.js, and Node.js, focusing on \textbf{backend development}, AI integration, and \textbf{scalable architecture patterns} including multi-agent systems, ensuring robust service delivery.}
+      \resumeItem{Optimized database performance across PostgreSQL and MongoDB implementations, reducing query response times by 40\% through indexing strategies, query optimization, and efficient schema design, demonstrating expertise in \textbf{debugging}, \textbf{optimizing performance}, and ensuring \textbf{robust backend services}.}
+      \resumeItem{Implemented secure authentication and authorization systems (JWT) with comprehensive session management, serving 600+ total users across multiple applications with 99\%+ combined uptime, ensuring high availability and demonstrating skills in developing \textbf{robust and scalable backend services}.}
+      \resumeItem{Architected \textbf{Docker-containerized} monorepo structures with Turborepo enabling efficient development workflows, isolated service dependencies, and streamlined deployment pipelines for full-stack applications, relevant to building \textbf{scalable backend services} and collaboration with frontend developers.}
+      \resumeItem{Explored Web3 technologies including Rust for Solana blockchain development and Ethereum smart contracts, expanding expertise in decentralized systems and low-level memory management patterns.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk — AI-Powered Job Application Platform}{{\href{https://dev-hire-znlr.vercel.app}{dev-hire-znlr.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Architected full-stack job application platform with AI-powered resume builder, intelligent job matching engine, and automated application system serving professional job seekers across all industries with personalized recommendations.}
+      \resumeItem{Engineered multi-agent backend system processing concurrent job search queries with optimized API response times, implementing smart resume analysis that customizes applications by highlighting relevant strengths for each job listing.}
+      \resumeItem{Built \textbf{backend services} with Python, Next.js, and Supabase to manage job applying, tailoring resumes, and finding relevant jobs, demonstrating expertise in developing robust and scalable APIs.}
+      \resumeItem{Implemented secure JWT-based authentication with MongoDB persistence using Mongoose, supporting user profiles, resume storage, application tracking, and automated form-filling capabilities reducing application time by 60\%.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator — AI Content Creation Tool}{{\href{https://post-generator-iota.vercel.app}{post-generator-iota.vercel.app}}}
+    \resumeItemListStart
+      \resumeItem{Developed a MERN stack application that generates AI-driven text and image content for social media posts, helping creators save time.}
+      \resumeItem{Implemented \textbf{RESTful APIs} using Express.js and MongoDB with nested JSON schemas for structured data handling, designing structured data handling for \textbf{scalable backend services}.}
+      \resumeItem{Integrated JWT-based authentication for secure user sessions and scalable user management.}
+      \resumeItem{Designed a responsive React.js frontend, ensuring smooth experience across mobile and desktop devices.}
+      \resumeItem{\textbf{Optimized performance} by modularizing backend architecture and adopting Agile practices for rapid iteration, showcasing skills in \textbf{debugging} and \textbf{optimizing performance}.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Canvas Collaborative Whiteboard — Excalidraw-Inspired Drawing Application}{{\href{https://github.com/vamsi-o/canvas-whiteboard}{github.com/vamsi-o/canvas-whiteboard}}}
+    \resumeItemListStart
+      \resumeItem{Built a real-time collaborative whiteboard using \textbf{WebSockets, Node.js, and PostgreSQL}, supporting 50+ concurrent users with sub-35ms WebSocket synchronization latency for \textbf{robust backend services}.}
+      \resumeItem{Implemented high-performance Canvas rendering engine maintaining consistent 60fps with 1000+ shapes through efficient coordinate mapping algorithms, selection logic, and incremental redraw optimizations reducing CPU usage by 55\%.}
+      \resumeItem{Designed PostgreSQL database schema with Prisma ORM handling 10,000+ daily shape persistence operations with query response times under 100ms in Docker-containerized monorepo environment using Turborepo.}
+      \resumeItem{Engineered drawing preview system with real-time mouse position tracking, shape transformation logic, and style management enabling seamless multi-user collaboration across distributed network connections.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering, Vizianagaram}{Graduated: May 2025}
+    {Bachelor of Technology in Computer Science}{}
+  \resumeSubheading
+    {Government Polytechnic, Anakapalli}{Completed: 2022}
+    {Diploma in Computer Science}{}
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+\resumeItem{Oracle Cloud Infrastructure 2025 Certified Generative AI Professional -- Oracle}
+\resumeItem{Demonstrates expertise in Large Language Models (LLMs), OCI Generative AI Service, Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and LangChain for building, tracing, evaluating, and deploying production LLM applications. Prerequisites: Machine Learning, Deep Learning, Python programming.}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
