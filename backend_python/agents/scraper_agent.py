@@ -3,17 +3,21 @@ import sys
 import tempfile
 import os
 from datetime import datetime
+import aiohttp
+from bs4 import BeautifulSoup
 
 # Windows Playwright fix - MUST be at the top
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 from playwright.async_api import async_playwright
-from concurrent.futures import ThreadPoolExecutor
+# from concurrent.futures import ThreadPoolExecutor
 import json
+
 from google import genai
 from google.genai import types
-from urllib.parse import urlparse
+
+# from urllib.parse import urlparse
 from config import GOOGLE_API, LINKEDIN_ID, LINKEDIN_PASSWORD
 
 # Color constants for enhanced debugging
@@ -33,7 +37,7 @@ class Colors:
 PLATFORMS = {
     "linkedin": {
         "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
-        "base_url": "https://in.linkedin.com",
+        "base_url": "https://www.linkedin.com",
         "login_url": "https://www.linkedin.com/login"
     },
 }
@@ -57,100 +61,6 @@ MODEL_NAME="gemini-2.5-flash"
 # ---------------------------------------------------------------------------
 # 1. ENHANCED LOGIN FUNCTIONALITY
 # ---------------------------------------------------------------------------
-
-
-# async def apply_forced_zoom(page):
-#     """Perfect page alignment + scrolling fix"""
-#     # await page.evaluate('''
-#     # () => {
-#     #     const style = document.createElement('style');
-#     #     style.textContent = `
-#     #     /* Remove all margins and padding */
-#     #     * { box-sizing: border-box !important; }
-        
-#     #     html, body {
-#     #         margin: 0 !important;
-#     #         padding: 0 !important;
-#     #         height: 100vh !important;
-#     #         overflow: hidden !important;
-#     #     }
-        
-#     #     /* Hide LinkedIn header to save space */
-#     #     .global-nav,
-#     #     .msg-overlay-list-bubble,
-#     #     .application-outlet > nav {
-#     #         display: none !important;
-#     #     }
-        
-#     #     /* Main app container full height */
-#     #     .application-outlet {
-#     #         height: 100vh !important;
-#     #         display: flex !important;
-#     #         flex-direction: column !important;
-#     #     }
-        
-#     #     /* Jobs page container */
-#     #     .jobs-search-page {
-#     #         flex: 1 !important;
-#     #         height: 100% !important;
-#     #         display: flex !important;
-#     #         flex-direction: column !important;
-#     #     }
-        
-#     #     /* Remove sidebar completely */
-#     #     .scaffold-layout__sidebar,
-#     #     .jobs-search-filters-panel {
-#     #         display: none !important;
-#     #     }
-        
-#     #     /* Main content area full width and height */
-#     #     .scaffold-layout__content {
-#     #         flex: 1 !important;
-#     #         width: 100% !important;
-#     #         display: flex !important;
-#     #     }
-        
-#     #     .scaffold-layout__main {
-#     #         width: 100% !important;
-#     #         height: 100% !important;
-#     #         flex: 1 !important;
-#     #         display: flex !important;
-#     #         flex-direction: column !important;
-#     #     }
-        
-#     #     /* Job results container - KEY FIX */
-#     #     .jobs-search-results-list,
-#     #     ul[data-view-name="jobs-search-results-list"] {
-#     #         flex: 1 !important;
-#     #         height: 100% !important;
-#     #         max-height: none !important;
-#     #         overflow-y: auto !important;
-#     #         padding: 2px !important;
-#     #         margin: 0 !important;
-#     #         list-style: none !important;
-#     #     }
-        
-#     #     /* Compact job cards */
-#     #     .job-card-container,
-#     #     .jobs-search-results__list-item {
-#     #         margin: 1px 0 !important;
-#     #         min-height: 70px !important;
-#     #         max-height: 80px !important;
-#     #     }
-        
-#     #     /* Hide pagination */
-#     #     .jobs-search-pagination {
-#     #         display: none !important;
-#     #     }
-#     #     `;
-#     #     document.head.appendChild(style);
-        
-#     #     // Apply 33% zoom
-#     #     //document.documentElement.style.zoom = '0.';
-        
-#     #     console.log('✅ Perfect alignment + zoom applied');
-#     # }
-#     # ''')
 
 
 async def debug_capture_page(page, step_name, job_title=""):
@@ -277,7 +187,7 @@ async def load_all_available_jobs_fixed(page):
         
         unique_job_urls = set()
         job_elements = []
-        max_pages = 5  # Limit pages for speed
+        max_pages = 2  # Limit pages for speed
         
         for page_num in range(max_pages):
             print(f"📄 Processing page {page_num + 1}/{max_pages}")
@@ -306,6 +216,7 @@ async def load_all_available_jobs_fixed(page):
             
             # Try to navigate to next page
             next_clicked = await click_next_page_and_wait(page)
+            # next_clicked = False
             if not next_clicked:
                 print(f"🛑 No next page available, stopping at page {page_num + 1}")
                 break
@@ -354,7 +265,7 @@ async def scroll_current_page(page):
 
             await debug_capture_page(page, "07_container_found")
             # Enhanced scrolling with multiple methods
-            for i in range(8):
+            for i in range(2):
                 scroll_result = await page.evaluate(f'''
                     () => {{
                         const jobList = document.querySelector('{working_selector}');
@@ -412,7 +323,7 @@ async def scroll_current_page(page):
                     }}
                 ''')
                 
-                print(f"📜 Scroll {i+1}/8: Top={scroll_result.get('scrollTop', 0)}, Window={scroll_result.get('windowScroll', 0)}, CanScroll={scroll_result.get('canScroll', False)}")
+                print(f"📜 Scroll {i+1}/2: Top={scroll_result.get('scrollTop', 0)}, Window={scroll_result.get('windowScroll', 0)}, CanScroll={scroll_result.get('canScroll', False)}")
                 
                 # Additional Playwright-native scrolling
                 try:
@@ -423,23 +334,23 @@ async def scroll_current_page(page):
                 except:
                     pass
                 
-                await asyncio.sleep(1.5)  # Longer wait for content loading
+                await asyncio.sleep(0.5)  # Longer wait for content loading
         else:
             await debug_capture_page(page, "07_no_container_found")
             # Fallback to page scrolling
             print("⚠️ No job list container found, using page scroll")
-            for i in range(6):
+            for i in range(3):
                 await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
                 await page.mouse.wheel(0, 500)
-                print(f"📜 Page scroll {i+1}/6")
-                await asyncio.sleep(1.5)
+                print(f"📜 Page scroll {i+1}/3")
+                await asyncio.sleep(0.5)
         
         print("✅ Enhanced scrolling completed")
         
         # Force additional job loading
         await page.evaluate('window.dispatchEvent(new Event("scroll"))')
         await debug_capture_page(page, "07_no_container_found")
-        await asyncio.sleep(2)
+        await asyncio.sleep(0.5)
         
     except Exception as e:
         print(f"❌ Enhanced scroll error: {e}")
@@ -536,7 +447,7 @@ async def wait_for_page_change(page, prev_job_count):
         
         if current_count != prev_job_count:
             print(f"✅ Page changed! Jobs: {prev_job_count} → {current_count}")
-            await asyncio.sleep(1)  # Extra wait for full load
+            await asyncio.sleep(0.5)  # Extra wait for full load
             return True
         
         await asyncio.sleep(0.5)
@@ -548,139 +459,175 @@ async def wait_for_page_change(page, prev_job_count):
 # 3. FIXED JOB DESCRIPTION - HANDLE "SEE MORE" BUTTON
 # ---------------------------------------------------------------------------
 
-async def extract_job_description_fixed(context, job_url):
-    """FIXED: Robust job description extraction with proper timeouts"""
-    detail_page = await context.new_page()
+# async def extract_job_description_fixed(context, job_url):
+#     """FIXED: Robust job description extraction with proper timeouts"""
+#     detail_page = await context.new_page()
     
-    try:
-        # INCREASED timeouts for LinkedIn's slow responses
-        detail_page.set_default_navigation_timeout(45000)  # Increased to 45 seconds
-        detail_page.set_default_timeout(30000)  # Increased to 30 seconds
+#     try:
+#         # INCREASED timeouts for LinkedIn's slow responses
+#         detail_page.set_default_navigation_timeout(45000)  # Increased to 45 seconds
+#         detail_page.set_default_timeout(30000)  # Increased to 30 seconds
         
-        print(f"🔍 Navigating to job page...")
+#         print(f"🔍 Navigating to job page...")
         
-        # Retry logic for navigation
-        max_retries = 2
-        for attempt in range(max_retries):
-            try:
-                await detail_page.goto(
-                    job_url, 
-                    wait_until="domcontentloaded",  # Faster than "load"
-                    timeout=45000  # 45 second timeout
-                )
-                print(f"✅ Navigation successful on attempt {attempt + 1}")
-                break
+#         # Retry logic for navigation
+#         max_retries = 2
+#         for attempt in range(max_retries):
+#             try:
+#                 await detail_page.goto(
+#                     job_url, 
+#                     wait_until="domcontentloaded",  # Faster than "load"
+#                     timeout=45000  # 45 second timeout
+#                 )
+#                 print(f"✅ Navigation successful on attempt {attempt + 1}")
+#                 break
                 
-            except Exception as nav_error:
-                if attempt < max_retries - 1:
-                    print(f"⚠️ Navigation attempt {attempt + 1} failed, retrying...")
-                    await asyncio.sleep(2)  # Wait before retry
-                    continue
-                else:
-                    # Final attempt failed
-                    await detail_page.close()
-                    return f"Navigation failed after {max_retries} attempts: {str(nav_error)[:100]}"
+#             except Exception as nav_error:
+#                 if attempt < max_retries - 1:
+#                     print(f"⚠️ Navigation attempt {attempt + 1} failed, retrying...")
+#                     await asyncio.sleep(2)  # Wait before retry
+#                     continue
+#                 else:
+#                     # Final attempt failed
+#                     await detail_page.close()
+#                     return f"Navigation failed after {max_retries} attempts: {str(nav_error)[:100]}"
         
-        # Minimal wait after navigation
-        await asyncio.sleep(6)
+#         # Minimal wait after navigation
+#         await asyncio.sleep(6)
         
-        # Click "See more" button to reveal full description
-        await click_see_more_button(detail_page)
+#         # Click "See more" button to reveal full description
+#         await click_see_more_button(detail_page)
         
-        # Try to get full description with updated selectors
-        description_selectors = [
-            'div.show-more-less-html__markup',          # Primary after "see more"
-            '.jobs-description__content',               # Full content container
-            '.job-details-jobs-unified-top-card__job-description',
-            '#job-details',                             
-            '.jobs-box__html-content',
-            '.jobs-description-content__text',
-            '.jobs-unified-top-card__content'           # Fallback selector
-        ]
+#         # Try to get full description with updated selectors
+#         description_selectors = [
+#             'div.show-more-less-html__markup',          # Primary after "see more"
+#             '.jobs-description__content',               # Full content container
+#             '.job-details-jobs-unified-top-card__job-description',
+#             '#job-details',                             
+#             '.jobs-box__html-content',
+#             '.jobs-description-content__text',
+#             '.jobs-unified-top-card__content'           # Fallback selector
+#         ]
         
-        for selector in description_selectors:
-            try:
-                desc_elem = await detail_page.wait_for_selector(selector, timeout=10000)  # 10s for element
-                if desc_elem:
-                    description = (await desc_elem.inner_text()).strip()
-                    if len(description) > 200:  # Ensure substantial content
-                        await detail_page.close()
-                        print(f"✅ Description extracted: {len(description)} chars")
-                        return description
-            except:
-                continue
+#         for selector in description_selectors:
+#             try:
+#                 desc_elem = await detail_page.wait_for_selector(selector, timeout=10000)  # 10s for element
+#                 if desc_elem:
+#                     description = (await desc_elem.inner_text()).strip()
+#                     if len(description) > 200:  # Ensure substantial content
+#                         await detail_page.close()
+#                         print(f"✅ Description extracted: {len(description)} chars")
+#                         return description
+#             except:
+#                 continue
         
-        # Fallback to any job content area
-        try:
-            fallback_content = await detail_page.query_selector('.jobs-unified-top-card, .job-view-layout, .jobs-details')
-            if fallback_content:
-                fallback_text = await fallback_content.inner_text()
-                if len(fallback_text) > 100:
-                    await detail_page.close()
-                    return fallback_text[:2000]  # Limit for performance
-        except:
-            pass
+#         # Fallback to any job content area
+#         try:
+#             fallback_content = await detail_page.query_selector('.jobs-unified-top-card, .job-view-layout, .jobs-details')
+#             if fallback_content:
+#                 fallback_text = await fallback_content.inner_text()
+#                 if len(fallback_text) > 100:
+#                     await detail_page.close()
+#                     return fallback_text[:2000]  # Limit for performance
+#         except:
+#             pass
         
-        await detail_page.close()
-        return "Description not found on page"
+#         await detail_page.close()
+#         return "Description not found on page"
                 
-    except Exception as e:
-        await detail_page.close()
-        return f"Error extracting description: {str(e)[:200]}"
+#     except Exception as e:
+#         await detail_page.close()
+#         return f"Error extracting description: {str(e)[:200]}"
 
-async def click_see_more_button(page):
-    """FIXED: Click 'See more' button to reveal full job description"""
+async def extract_job_description_fixed(session: aiohttp.ClientSession, url):
+    """
+    Fetches the HTML of a URL and then parses it to extract
+    the text content of the element with id='job-details'.
+    """
+    print(f"🚀 Fetching: {url}")
     try:
-        # Your specific "See more" button class and alternatives
-        see_more_selectors = [
-            'button.jobs-description__footer-button',
-            'button.jobs-description__footer-button.t-14.t-black--light.t-bold.artdeco-card__action.artdeco-button.artdeco-button--icon-right.artdeco-button--3.artdeco-button--fluid.artdeco-button--tertiary.ember-view',
-            # 'button[data-tracking-control-name*="see-more"]',
-            # 'button[aria-expanded="false"]',
-            # '.show-more-less-html__button--more',
-            # 'button:has-text("See more")',
-            # 'button:has-text("Show more")'
-        ]
-        
-        for selector in see_more_selectors:
-            try:
-                see_more_btn = await page.wait_for_selector(selector, timeout=2000)
-                if see_more_btn and await see_more_btn.is_visible():
-                    print("🔍 Clicking 'See more' button for full description... using ",selector)
-                    await see_more_btn.scroll_into_view_if_needed()
-                    await see_more_btn.click()
-                    await asyncio.sleep(1.5)  # Wait for content to expand
-                    print("✅ 'See more' clicked - full description should be visible")
-                    return True
-            except:
-                continue
-        
-        print("⚠️ No 'See more' button found - using available description")
-        return False
-        
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        async with session.get(url, headers=headers, timeout=15) as response:
+            if response.status == 200:
+                html_content = await response.text()
+                print("   ✅ HTML fetched successfully.")
+
+                # --- PARSING STEP ---
+                print("   🥣 Parsing HTML with Beautiful Soup...")
+                soup = BeautifulSoup(html_content, 'lxml')
+
+                # Find the specific element by its ID
+                # On LinkedIn, the job description is in a div with a class, not an ID.
+                # Let's use the class from your previous scraper for a real example.
+                job_details_div = soup.find('div', class_='show-more-less-html__markup')
+
+                if job_details_div:
+                    # Get all the text from the element, stripped of HTML tags
+                    job_text = job_details_div.get_text(separator=' ', strip=True)
+                    print("   ✅ Extracted content successfully!")
+                    return job_text
+                else:
+                    return "Failed: Could not find the job description element in the HTML."
+            else:
+                return  f"Failed: HTTP status {response.status}"
     except Exception as e:
-        print(f"❌ See more button error: {e}")
-        return False
+        return  f"Failed: An error occurred - {str(e)}"
+
+# async def click_see_more_button(page):
+#     """FIXED: Click 'See more' button to reveal full job description"""
+#     try:
+#         # Your specific "See more" button class and alternatives
+#         see_more_selectors = [
+#             'button.jobs-description__footer-button',
+#             'button.jobs-description__footer-button.t-14.t-black--light.t-bold.artdeco-card__action.artdeco-button.artdeco-button--icon-right.artdeco-button--3.artdeco-button--fluid.artdeco-button--tertiary.ember-view',
+#             # 'button[data-tracking-control-name*="see-more"]',
+#             # 'button[aria-expanded="false"]',
+#             # '.show-more-less-html__button--more',
+#             # 'button:has-text("See more")',
+#             # 'button:has-text("Show more")'
+#         ]
+        
+#         for selector in see_more_selectors:
+#             try:
+#                 see_more_btn = await page.wait_for_selector(selector, timeout=2000)
+#                 if see_more_btn and await see_more_btn.is_visible():
+#                     print("🔍 Clicking 'See more' button for full description... using ",selector)
+#                     await see_more_btn.scroll_into_view_if_needed()
+#                     await see_more_btn.click()
+#                     await asyncio.sleep(1.5)  # Wait for content to expand
+#                     print("✅ 'See more' clicked - full description should be visible")
+#                     return True
+#             except:
+#                 continue
+        
+#         print("⚠️ No 'See more' button found - using available description")
+#         return False
+        
+#     except Exception as e:
+#         print(f"❌ See more button error: {e}")
+#         return False
 
 # ---------------------------------------------------------------------------
 # 4. OPTIMIZED JOB PROCESSING - INCREASED SPEED
 # ---------------------------------------------------------------------------
 
-async def process_single_job_optimized(context, job_link, job_index, total_jobs):
-    """OPTIMIZED: Faster job processing with full descriptions"""
-    try:
-        print(f"⚡ Processing job {job_index + 1}/{total_jobs}")
+# async def process_single_job_optimized(context, job_link, job_index, total_jobs):
+#     """OPTIMIZED: Faster job processing with full descriptions"""
+#     try:
+#         print(f"⚡ Processing job {job_index + 1}/{total_jobs}")
         
-        job_description = await extract_job_description_fixed(context, job_link)
+#         job_description = await extract_job_description_fixed(context, job_link)
         
-        if job_description and len(job_description) > 50:
-            return job_link, job_description, "added"
-        else:
-            return job_link, job_description or "Minimal content", "added"
+#         if job_description and len(job_description) > 50:
+#             return job_link, job_description, "added"
+#         else:
+#             return job_link, job_description or "Minimal content", "added"
                     
-    except Exception as e:
-        print(f"❌ Error job {job_index + 1}: {e}")
-        return job_link, f"Processing error: {str(e)[:100]}", "added"
+#     except Exception as e:
+#         print(f"❌ Error job {job_index + 1}: {e}")
+#         return job_link, f"Processing error: {str(e)[:100]}", "added"
 
 async def scrape_platform_speed_optimized(browser, platform_name, config, job_title):
     """SPEED OPTIMIZED: More lenient filtering to process more jobs"""
@@ -731,34 +678,34 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
             try:
                 # Get text content
                 text_content = (await card.inner_text()).strip()
-                if len(text_content) < 5:  # Very minimal requirement
-                    text_failed += 1
-                    print(f"   Card {i+1}: No text content")
-                    continue
+                # if len(text_content) < 5:  # Very minimal requirement
+                #     text_failed += 1
+                #     print(f"   Card {i+1}: No text content")
+                #     continue
                 
-                print(f"   Card {i+1}: Text preview: '{text_content[:50]}...'")
+                # print(f"   Card {i+1}: Text preview: '{text_content[:50]}...'")
                 
-                # RELAXED keyword check - much more lenient
-                text_lower = text_content.lower()
+                # # RELAXED keyword check - much more lenient
+                # text_lower = text_content.lower()
                 
-                # Check for job title match first (most important)
-                title_match = job_title.lower().split() 
-                has_title_keywords = any(word in text_lower for word in title_match if len(word) > 2)
+                # # Check for job title match first (most important)
+                # title_match = job_title.lower().split() 
+                # has_title_keywords = any(word in text_lower for word in title_match if len(word) > 2)
                 
-                # Check for any technical keywords
-                has_tech_keywords = any(keyword.lower() in text_lower for keyword in FILTERING_KEYWORDS)
+                # # Check for any technical keywords
+                # has_tech_keywords = any(keyword.lower() in text_lower for keyword in FILTERING_KEYWORDS)
                 
-                # Check for common job-related words (very broad)
-                # common_job_words = ['developer', 'engineer', 'software', 'programming', 'coding', 'technical', 'technology', 'web', 'application', 'system']
-                # has_job_words = any(word in text_lower for word in common_job_words)
+                # # Check for common job-related words (very broad)
+                # # common_job_words = ['developer', 'engineer', 'software', 'programming', 'coding', 'technical', 'technology', 'web', 'application', 'system']
+                # # has_job_words = any(word in text_lower for word in common_job_words)
                 
-                # MUCH MORE LENIENT: Accept if ANY of these conditions are met
-                if has_title_keywords or has_tech_keywords:
-                    print(f"   ✅ Card {i+1}: Passed keyword filter")
-                else:
-                    keyword_filtered += 1
-                    print(f"   ❌ Card {i+1}: No relevant keywords found")
-                    continue
+                # # MUCH MORE LENIENT: Accept if ANY of these conditions are met
+                # if has_title_keywords or has_tech_keywords:
+                #     print(f"   ✅ Card {i+1}: Passed keyword filter")
+                # else:
+                #     keyword_filtered += 1
+                #     print(f"   ❌ Card {i+1}: No relevant keywords found")
+                #     continue
                 
                 # Extract job link with enhanced debugging
                 href = await card.get_attribute('href')
@@ -810,31 +757,38 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
         print(f"✅ {len(valid_job_links)} jobs ready for OPTIMIZED processing")
         
         # Continue with job processing...
+        # results=[]
         if valid_job_links:
-            tasks = [
-                process_single_job_optimized(context, job_link, i, len(valid_job_links))
-                for i, job_link in enumerate(valid_job_links)
-            ]
+            print(f"✅ {len(valid_job_links)} jobs ready for OPTIMIZED processing with aiohttp...")
             
-            semaphore = asyncio.Semaphore(5)
+            # Use aiohttp to fetch all descriptions in parallel
+            async with aiohttp.ClientSession() as session:
+                tasks = [
+                    extract_job_description_fixed(session, url) 
+                    for url in valid_job_links
+                ]
+                
+                results = await asyncio.gather(*tasks)
+
+            # with open(f"results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}", "w", encoding="utf-8") as f:
+            #     json.dump(results, f, indent=2, ensure_ascii=False)
             
-            async def bounded_task(task):
-                async with semaphore:
-                    return await task
+
+            processed_count = 0
+            # Pair the URLs with their fetched descriptions
+            for url, description in zip(valid_job_links, results):
+                if description and not description.startswith("Failed"):
+                    job_dict[url] = description
+                    processed_count += 1
+
+            print(f"✅ {processed_count} jobs processed with full descriptions")
+            # with open("scrapped_jobs", "w", encoding="utf-8") as f:
+            #     f.write(str(job_dict))
             
-            results = await asyncio.gather(*[bounded_task(task) for task in tasks], return_exceptions=True)
+                
+
             
-            processed_jobs = 0
-            for result in results:
-                if isinstance(result, Exception):
-                    continue
-                    
-                job_link, job_description, status = result
-                if status == "added":
-                    job_dict[job_link] = job_description
-                    processed_jobs += 1
             
-            print(f"✅ {processed_jobs} jobs processed with full descriptions")
         
         return job_dict
         
@@ -847,6 +801,91 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
 # ---------------------------------------------------------------------------
 # 5. GEMINI API PROCESSING FUNCTIONS (OPTIMIZED)
 # ---------------------------------------------------------------------------
+# genai.configure(api_key=GOOGLE_API)
+# model = genai.GenerativeModel("gemini-2.5-flash")
+RULES=f"""Decision rules:
+1. A job is **relevant** only if BOTH of the following are true:
+   a. The job's responsibilities or required skills clearly match at least one
+      of the candidate's core skills (synonyms and common variations count).
+   b. The job's role/title matches or is a close variant of at least one
+      target job title (e.g., “Software Engineer (Backend)” matches “Backend Developer”).
+2. Ignore jobs that primarily require unrelated stacks or roles, even if they
+   mention one matching keyword casually.
+3. Consider context in the description: if a skill appears only as an optional
+   “nice to have” but the core role is unrelated, treat it as NOT relevant.
+4. Return only the required format dont provide any other format this is mandatory"""
+
+
+def build_prompt(original: list[str], jobs: dict) -> str:
+    out = f"""You are an expert job-matching assistant.
+
+    Goal:
+    From the list of jobs below, identify which positions are truly relevant to the
+    candidate based on their skill set and desired job titles.
+
+    Candidate skills:
+    - skills: {original}     
+    \n\n{RULES}\n\n"""
+    out += f"Input format must follow:\n\n"
+    for i, (job_link, job_description) in enumerate(jobs.items(), 1):
+        out += f"=== JOB {i} ===\nURL: {job_link}\nDESCRIPTION: {job_description}\n\n"
+    out+="""Your task:
+    Return **only** the jobs that meet the rules above as a valid JSON array,
+    with each element having exactly these keys and values every pair should seperated by new line:
+    - "job_url":"job_description"
+
+
+    here is the example:
+    {
+        "https:..........":"about the job..............",
+        "https:..........":"about the job..............",
+    }
+    
+
+    Do not include any explanation, markdown, or additional text.
+    Your entire output must be a single complete valid JSON array.
+
+    Jobs to evaluate:
+    {json.dumps(job_batch, ensure_ascii=False)}
+    """
+    return out
+
+def parse_filtering(response_text, original_jobs:dict):
+    print("provided dictionary: ",original_jobs)
+    print("="*60)
+    print("responses from gemini: ",response_text)
+    print("="*60)
+    
+    try:
+        clean = response_text.strip()
+        if clean.startswith("```json"):
+            clean = clean[7:].lstrip()
+        elif clean.startswith("```"):
+            clean = clean[3:].lstrip()
+        if clean.endswith("```"):
+            clean = clean[:-3].rstrip()
+
+        data = json.loads(clean)
+        print("data json:", data)
+        print("="*60)
+        extracted_jobs={}
+        if not isinstance(data, list):
+            extracted_jobs = [data]
+        print("extracted jobs list/ dict: ",extracted_jobs)
+        # job_urls = list(original_jobs.keys())
+        extracted_jobs = {
+            url: desc 
+            for url, desc in data.items()
+        }
+                # keep the 'relavance' field if Gemini returned it
+                # job["relavance"] = job.get("relavance", "unknown")
+        print("extracted jobs list after parsing: ", extracted_jobs)
+        return extracted_jobs
+
+    except Exception as e:
+        print(f"❌ Error parsing response: {e}")
+        return []
+
 
 client = genai.Client(api_key=GOOGLE_API)
 
@@ -963,23 +1002,23 @@ async def extract_single_batch(batch_dict: dict) -> list:
                 - Following the prompt as it is and make sure data should align properly.
                 """
             response = client.models.generate_content(
-                model=MODEL_NAME,
+                model="gemini-2.5-flash-lite",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     temperature=0.3,
                 )
             )
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = f"gemini_scraper{timestamp}.txt"
+            # from datetime import datetime
+            # timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            # filename = f"gemini_scraper{timestamp}.txt"
             
-            with open(filename, "w", encoding="utf-8") as f:
-                f.write(response.text)
+            # with open(filename, "w", encoding="utf-8") as f:
+            #     f.write(response.text)
             return parse_bulk_response(response.text, batch_dict)
         except Exception as e:
             print(f"❌ Attempt {attempt +1} failed with error: {e}")
-            if attempt < max_tries - 1:
+            if attempt < 2 - 1:
                 await asyncio.sleep(delay)
                 delay *= 2  # exponential backoff
             else:
@@ -1068,7 +1107,46 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
                 else:
                     progress[user_id] += (75/len(job_titles))
                 print(f"📊 '{job_title}' complete. Total unique jobs: {len(all_jobs)}")
-            
+
+
+            # filtered_jobs = {}
+
+            # if len(all_jobs)<=0:
+            #     return {}
+            # skills = FILTERING_KEYWORDS+JOB_TITLES
+            # if len(all_jobs) > 50:
+            #     batch_size = len(all_jobs)//3
+            #     items = list(all_jobs.items())
+            #     for j in range(0, len(all_jobs), batch_size):
+            #         batch = dict(items[i : i + batch_size])
+            #         batch_num = (i // batch_size) + 1
+            #         print(f"🔄 Processing batch {batch_num}/{3}: {len(batch)} jobs")
+            #         prompt = build_prompt(skills,jobs=batch)
+                    
+            #         delay=0.5
+            #         for i in range(1,3):
+            #             try:
+            #                 print("gemini attempt for filteration: ",i)
+            #                 response = client.models.generate_content(
+            #                     model='gemini-2.5-flash-lite',
+            #                     contents=prompt,
+            #                     config=types.GenerateContentConfig(
+            #                         temperature=0.3,
+            #                     )
+            #                 )
+            #                 filename = f"gemini_scraper_filteration_batch_{j}.txt"
+                            
+            #                 with open(filename, "w", encoding="utf-8") as f:
+            #                     f.write(response.text)
+            #                 if(response.text):
+            #                     filtered_jobs.update(parse_filtering(response.text, batch))
+            #                     # return job_dict
+                        
+            #                 asyncio.sleep(delay)
+            #             except Exception as e:
+            #                 print("Gemini error: %s", str(e))
+                    
+                
         finally:
             if LOGGED_IN_CONTEXT:
                 await LOGGED_IN_CONTEXT.close()
@@ -1125,15 +1203,15 @@ async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=
     extracted = await extract_jobs_in_batches(all_jobs, batch_size=25)  # Larger batches
     
     # Save results
-    from datetime import datetime
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"linkedin_jobs_ALL_FIXES_{timestamp}.json"
+    # from datetime import datetime
+    # timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    # filename = f"linkedin_jobs_ALL_FIXES_{timestamp}.json"
     
     # with open(filename, "w", encoding="utf-8") as f:
     #     json.dump(extracted, f, indent=2, ensure_ascii=False)
     
-    print(f"✅ Successfully extracted data for {len(extracted)} jobs")
-    print(f"📁 Results saved to {filename}")
+    # print(f"✅ Successfully extracted data for {len(extracted)} jobs")
+    # print(f"📁 Results saved to {filename}")
     
     # Print summary
     total_skills = set()
@@ -1163,7 +1241,9 @@ async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=
     return extracted
 
 if __name__ == "__main__":
-    print("🚀 Starting SPEED-OPTIMIZED LinkedIn Job Scraper with ALL FIXES...")
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    print(f"🚀 Starting SPEED-OPTIMIZED LinkedIn Job Scraper with ALL FIXES at {timestamp}...")
     print(f"📋 Job Titles to search: {len(JOB_TITLES)}")
     print(f"🔍 Filtering keywords: {len(FILTERING_KEYWORDS)}")
     print(f"🔵 Easy Apply: ENABLED")
