@@ -784,12 +784,7 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
             print(f"✅ {processed_count} jobs processed with full descriptions")
             # with open("scrapped_jobs", "w", encoding="utf-8") as f:
             #     f.write(str(job_dict))
-            
-                
 
-            
-            
-        
         return job_dict
         
     except Exception as e:
@@ -803,88 +798,88 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
 # ---------------------------------------------------------------------------
 # genai.configure(api_key=GOOGLE_API)
 # model = genai.GenerativeModel("gemini-2.5-flash")
-RULES=f"""Decision rules:
-1. A job is **relevant** only if BOTH of the following are true:
-   a. The job's responsibilities or required skills clearly match at least one
-      of the candidate's core skills (synonyms and common variations count).
-   b. The job's role/title matches or is a close variant of at least one
-      target job title (e.g., “Software Engineer (Backend)” matches “Backend Developer”).
-2. Ignore jobs that primarily require unrelated stacks or roles, even if they
-   mention one matching keyword casually.
-3. Consider context in the description: if a skill appears only as an optional
-   “nice to have” but the core role is unrelated, treat it as NOT relevant.
-4. Return only the required format dont provide any other format this is mandatory"""
+# RULES=f"""Decision rules:
+# 1. A job is **relevant** only if BOTH of the following are true:
+#    a. The job's responsibilities or required skills clearly match at least one
+#       of the candidate's core skills (synonyms and common variations count).
+#    b. The job's role/title matches or is a close variant of at least one
+#       target job title (e.g., “Software Engineer (Backend)” matches “Backend Developer”).
+# 2. Ignore jobs that primarily require unrelated stacks or roles, even if they
+#    mention one matching keyword casually.
+# 3. Consider context in the description: if a skill appears only as an optional
+#    “nice to have” but the core role is unrelated, treat it as NOT relevant.
+# 4. Return only the required format dont provide any other format this is mandatory"""
 
 
-def build_prompt(original: list[str], jobs: dict) -> str:
-    out = f"""You are an expert job-matching assistant.
+# def build_prompt(original: list[str], jobs: dict) -> str:
+#     out = f"""You are an expert job-matching assistant.
 
-    Goal:
-    From the list of jobs below, identify which positions are truly relevant to the
-    candidate based on their skill set and desired job titles.
+#     Goal:
+#     From the list of jobs below, identify which positions are truly relevant to the
+#     candidate based on their skill set and desired job titles.
 
-    Candidate skills:
-    - skills: {original}     
-    \n\n{RULES}\n\n"""
-    out += f"Input format must follow:\n\n"
-    for i, (job_link, job_description) in enumerate(jobs.items(), 1):
-        out += f"=== JOB {i} ===\nURL: {job_link}\nDESCRIPTION: {job_description}\n\n"
-    out+="""Your task:
-    Return **only** the jobs that meet the rules above as a valid JSON array,
-    with each element having exactly these keys and values every pair should seperated by new line:
-    - "job_url":"job_description"
+#     Candidate skills:
+#     - skills: {original}     
+#     \n\n{RULES}\n\n"""
+#     out += f"Input format must follow:\n\n"
+#     for i, (job_link, job_description) in enumerate(jobs.items(), 1):
+#         out += f"=== JOB {i} ===\nURL: {job_link}\nDESCRIPTION: {job_description}\n\n"
+#     out+="""Your task:
+#     Return **only** the jobs that meet the rules above as a valid JSON array,
+#     with each element having exactly these keys and values every pair should seperated by new line:
+#     - "job_url":"job_description"
 
 
-    here is the example:
-    {
-        "https:..........":"about the job..............",
-        "https:..........":"about the job..............",
-    }
+#     here is the example:
+#     {
+#         "https:..........":"about the job..............",
+#         "https:..........":"about the job..............",
+#     }
     
 
-    Do not include any explanation, markdown, or additional text.
-    Your entire output must be a single complete valid JSON array.
+#     Do not include any explanation, markdown, or additional text.
+#     Your entire output must be a single complete valid JSON array.
 
-    Jobs to evaluate:
-    {json.dumps(job_batch, ensure_ascii=False)}
-    """
-    return out
+#     Jobs to evaluate:
+#     {json.dumps(job_batch, ensure_ascii=False)}
+#     """
+#     return out
 
-def parse_filtering(response_text, original_jobs:dict):
-    print("provided dictionary: ",original_jobs)
-    print("="*60)
-    print("responses from gemini: ",response_text)
-    print("="*60)
+# def parse_filtering(response_text, original_jobs:dict):
+#     print("provided dictionary: ",original_jobs)
+#     print("="*60)
+#     print("responses from gemini: ",response_text)
+#     print("="*60)
     
-    try:
-        clean = response_text.strip()
-        if clean.startswith("```json"):
-            clean = clean[7:].lstrip()
-        elif clean.startswith("```"):
-            clean = clean[3:].lstrip()
-        if clean.endswith("```"):
-            clean = clean[:-3].rstrip()
+#     try:
+#         clean = response_text.strip()
+#         if clean.startswith("```json"):
+#             clean = clean[7:].lstrip()
+#         elif clean.startswith("```"):
+#             clean = clean[3:].lstrip()
+#         if clean.endswith("```"):
+#             clean = clean[:-3].rstrip()
 
-        data = json.loads(clean)
-        print("data json:", data)
-        print("="*60)
-        extracted_jobs={}
-        if not isinstance(data, list):
-            extracted_jobs = [data]
-        print("extracted jobs list/ dict: ",extracted_jobs)
-        # job_urls = list(original_jobs.keys())
-        extracted_jobs = {
-            url: desc 
-            for url, desc in data.items()
-        }
-                # keep the 'relavance' field if Gemini returned it
-                # job["relavance"] = job.get("relavance", "unknown")
-        print("extracted jobs list after parsing: ", extracted_jobs)
-        return extracted_jobs
+#         data = json.loads(clean)
+#         print("data json:", data)
+#         print("="*60)
+#         extracted_jobs={}
+#         if not isinstance(data, list):
+#             extracted_jobs = [data]
+#         print("extracted jobs list/ dict: ",extracted_jobs)
+#         # job_urls = list(original_jobs.keys())
+#         extracted_jobs = {
+#             url: desc 
+#             for url, desc in data.items()
+#         }
+#                 # keep the 'relavance' field if Gemini returned it
+#                 # job["relavance"] = job.get("relavance", "unknown")
+#         print("extracted jobs list after parsing: ", extracted_jobs)
+#         return extracted_jobs
 
-    except Exception as e:
-        print(f"❌ Error parsing response: {e}")
-        return []
+#     except Exception as e:
+#         print(f"❌ Error parsing response: {e}")
+#         return []
 
 
 client = genai.Client(api_key=GOOGLE_API)

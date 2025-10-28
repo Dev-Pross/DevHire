@@ -17,4 +17,6 @@ routes
 playwright_stealth
 pydantic
 pdf2image
+aiohttp
+BeautifulSoup
 pytesseract
