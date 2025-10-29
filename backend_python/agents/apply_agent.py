@@ -108,6 +108,7 @@ class EasyApplyAgent:
         await asyncio.sleep(2)
 
         selectors = [
+            '#jobs-apply-button-id',
             'button[aria-label*="Easy Apply"]',
             'button:has-text("Easy Apply")',
             '.jobs-apply-button--top-card button:has-text("Apply")',
