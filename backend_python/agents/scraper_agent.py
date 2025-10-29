@@ -146,10 +146,14 @@ async def linkedin_login(browser):
 
         if "challenge" in current_url:
             print(f"{Colors.RED}❌ Login challenge detected! Please resolve manually.{Colors.END}")
-
+            asyncio.sleep(10)
+            return
+        
         if "feed" not in current_url:
              print(f"{Colors.RED}❌ Login Failed!{Colors.END}")
+             asyncio.sleep(10)
              return
+        
         
         await debug_capture_page(page, "03_after_login_click")
 
