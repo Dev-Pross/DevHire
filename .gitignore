@@ -3,6 +3,7 @@
 /backend-python/main/__pycache__
 node_modules/
 /backend_python/__pycache__
+/backend_python/data_dump/
 /backend_python/main/__pycache__
 /backend_python/database/__pycache__
 /backend_python/agents/__pycache__
@@ -21,3 +22,8 @@ backend_python/lib/poppler-25.07.0
 .vscode
 .idea
 *.log
+backend_python/data_dump/cookies.json
+backend_python/data_dump/localStorage.json
+backend_python/data_dump/cookies.json
+backend_python/data_dump/localStorage.json
+backend_python/data_dump/apply.py

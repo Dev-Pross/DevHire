@@ -6,6 +6,9 @@ from datetime import datetime
 import aiohttp
 from bs4 import BeautifulSoup
 
+from main.progress_dict import linkedin_login_context
+import main.progress_dict as progress_module
+
 # Windows Playwright fix - MUST be at the top
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -157,7 +160,7 @@ async def linkedin_login(browser):
         
         await debug_capture_page(page, "03_after_login_click")
 
-        LOGGED_IN_CONTEXT = context
+        # LOGGED_IN_CONTEXT = context
         await page.close()
         return context
             
@@ -171,14 +174,39 @@ async def ensure_logged_in(browser):
     """Ensure we have a valid logged-in context"""
     global LOGGED_IN_CONTEXT
     
-    if LOGGED_IN_CONTEXT is None:
-        print("🔄 No active login session, logging in...")
-        LOGGED_IN_CONTEXT = await linkedin_login(browser)
+    if progress_module.linkedin_login_context is not None:
+        print(f"♻️ FOUND STORAGE STATE IN progress_dict!")
+        print(f"✅ Creating new context with current browser using saved state!")
         
-        if LOGGED_IN_CONTEXT is None:
-            raise Exception("Failed to login to LinkedIn")
+        # Create NEW context with the CURRENT browser using saved storage_state
+        try:
+            context = await browser.new_context(storage_state=progress_module.linkedin_login_context)
+            print(f"✅ New context created successfully with saved state!")
+            return context
+        except Exception as e:
+            print(f"⚠️ Failed to restore context: {e}, logging in again...")
+            progress_module.linkedin_login_context = None
     
-    return LOGGED_IN_CONTEXT
+    # No saved state, perform login
+    print(f"🔐 No storage state in progress_dict, logging in...")
+    context = await linkedin_login(browser)
+    
+    if context:
+        # ✅ SAVE STORAGE STATE (not the context itself!)
+        storage_state = await context.storage_state()
+        progress_module.linkedin_login_context = storage_state
+        print(f"💾 Storage state saved to progress_dict for next request!")
+    
+    return context
+
+    # if LOGGED_IN_CONTEXT is None:
+    #     print("🔄 No active login session, logging in...")
+    #     LOGGED_IN_CONTEXT = await linkedin_login(browser)
+        
+    #     if LOGGED_IN_CONTEXT is None:
+    #         raise Exception("Failed to login to LinkedIn")
+    
+    # return LOGGED_IN_CONTEXT
 
 # ---------------------------------------------------------------------------
 # 2. FIXED PAGINATION - WAIT FOR JOBS AFTER EACH PAGE CLICK
@@ -191,7 +219,7 @@ async def load_all_available_jobs_fixed(page):
         
         unique_job_urls = set()
         job_elements = []
-        max_pages = 2  # Limit pages for speed
+        max_pages = 5  # Limit pages for speed
         
         for page_num in range(max_pages):
             print(f"📄 Processing page {page_num + 1}/{max_pages}")
@@ -680,38 +708,6 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
         
         for i, card in enumerate(job_cards):
             try:
-                # Get text content
-                text_content = (await card.inner_text()).strip()
-                # if len(text_content) < 5:  # Very minimal requirement
-                #     text_failed += 1
-                #     print(f"   Card {i+1}: No text content")
-                #     continue
-                
-                # print(f"   Card {i+1}: Text preview: '{text_content[:50]}...'")
-                
-                # # RELAXED keyword check - much more lenient
-                # text_lower = text_content.lower()
-                
-                # # Check for job title match first (most important)
-                # title_match = job_title.lower().split() 
-                # has_title_keywords = any(word in text_lower for word in title_match if len(word) > 2)
-                
-                # # Check for any technical keywords
-                # has_tech_keywords = any(keyword.lower() in text_lower for keyword in FILTERING_KEYWORDS)
-                
-                # # Check for common job-related words (very broad)
-                # # common_job_words = ['developer', 'engineer', 'software', 'programming', 'coding', 'technical', 'technology', 'web', 'application', 'system']
-                # # has_job_words = any(word in text_lower for word in common_job_words)
-                
-                # # MUCH MORE LENIENT: Accept if ANY of these conditions are met
-                # if has_title_keywords or has_tech_keywords:
-                #     print(f"   ✅ Card {i+1}: Passed keyword filter")
-                # else:
-                #     keyword_filtered += 1
-                #     print(f"   ❌ Card {i+1}: No relevant keywords found")
-                #     continue
-                
-                # Extract job link with enhanced debugging
                 href = await card.get_attribute('href')
                 if not href:
                     # Try multiple methods to find link
@@ -1073,7 +1069,7 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
         
         try:
             print("🔐 Performing LinkedIn login...")
-            login_context = await linkedin_login(browser)
+            login_context = await ensure_logged_in(browser)
             
             if login_context is None:
                 print("❌ Failed to login to LinkedIn. Exiting...")
@@ -1149,6 +1145,9 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
         finally:
             if LOGGED_IN_CONTEXT:
                 await LOGGED_IN_CONTEXT.close()
+                print("="*70)
+                print(f"context has been closed")
+                print("="*70)
             await browser.close()
     
     print(f"\n{'='*70}")

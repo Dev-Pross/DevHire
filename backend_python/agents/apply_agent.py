@@ -17,6 +17,8 @@ from playwright.async_api import (
     Page,
     TimeoutError as PlaywrightTimeoutError,
 )
+
+import main.progress_dict as progress_module
 from pdf2image import convert_from_bytes
 import pytesseract
 from playwright_stealth.stealth import Stealth
@@ -109,6 +111,8 @@ class EasyApplyAgent:
 
         selectors = [
             '#jobs-apply-button-id',
+            'a:has-text("Easy Apply")',
+            'a[data-view-name="job-apply-button"]',
             'button[aria-label*="Easy Apply"]',
             'button:has-text("Easy Apply")',
             '.jobs-apply-button--top-card button:has-text("Apply")',
@@ -118,6 +122,7 @@ class EasyApplyAgent:
             '.jobs-apply-button button[aria-label*="Apply"]',
             'button:has-text("Apply"):has-text("Easy")',
             'button:has-text("Apply")',
+            'has-text("Easy Apply")'
         ]
 
         for selector in selectors:
@@ -1186,11 +1191,17 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]        
                                        )
-    context = await browser.new_context()
-    page = await context.new_page()
-    await Stealth().apply_stealth_async(page)
 
     try:
+        if progress_module.linkedin_login_context:
+            print(f"♻️ FOUND STORAGE STATE IN progress_dict!")
+            print(f"✅ Creating new context with current browser using saved state!")
+            context = await browser.new_context(storage_state=progress_module.linkedin_login_context)
+        else:
+            context = await browser.new_context()
+        page = await context.new_page()
+        await Stealth().apply_stealth_async(page)
+
         if not await login(page, user_id, password):
             return
 
