@@ -6,6 +6,7 @@ from main.routes.cookie_receiver import router as cookie_router
 from main.routes.list_jobs import router as list_jobs
 from main.routes.apply_jobs import router as apply_jobs
 from main.routes.debug_routes import router as debug_router
+from main.routes.logout import logout_route
 from fastapi.middleware.cors import CORSMiddleware
 from main.routes.get_resume import router as tailor
 @asynccontextmanager
@@ -37,6 +38,7 @@ app.include_router(apply_jobs)
 app.include_router(progress_router)
 app.include_router(debug_router)
 app.include_router(tailor)
+app.include_router(logout_route)
 
 @app.get("/")
 def root():
