@@ -111,7 +111,7 @@ class EasyApplyAgent:
 
         selectors = [
             '#jobs-apply-button-id',
-            'a:has-text("Easy Apply")',
+            '.jobs-apply-button--top-card a:has-text("Easy Apply")',
             'a[data-view-name="job-apply-button"]',
             'button[aria-label*="Easy Apply"]',
             'button:has-text("Easy Apply")',
@@ -122,7 +122,7 @@ class EasyApplyAgent:
             '.jobs-apply-button button[aria-label*="Apply"]',
             'button:has-text("Apply"):has-text("Easy")',
             'button:has-text("Apply")',
-            'has-text("Easy Apply")'
+            ':has-text("Easy Apply")'
         ]
 
         for selector in selectors:
