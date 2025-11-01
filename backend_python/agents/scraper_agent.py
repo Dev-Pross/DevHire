@@ -149,11 +149,13 @@ async def linkedin_login(browser):
 
         if "challenge" in current_url:
             print(f"{Colors.RED}❌ Login challenge detected! Please resolve manually.{Colors.END}")
+            await debug_capture_page(page, "03_challenge_error")
             asyncio.sleep(10)
             return
         
         if "feed" not in current_url:
              print(f"{Colors.RED}❌ Login Failed!{Colors.END}")
+             await debug_capture_page(page, "03_Login_error")
              asyncio.sleep(10)
              return
         
@@ -219,7 +221,7 @@ async def load_all_available_jobs_fixed(page):
         
         unique_job_urls = set()
         job_elements = []
-        max_pages = 5  # Limit pages for speed
+        max_pages = 3  # Limit pages for speed
         
         for page_num in range(max_pages):
             print(f"📄 Processing page {page_num + 1}/{max_pages}")
