@@ -7,7 +7,7 @@ interface JobsData{
 
 async function sendUrl(url: string, user_id: string, password: string) {
 try {
-        const res = await axios.post("http://127.0.0.1:8000/get-jobs", {
+        const res = await axios.post("https://devhire-f6vi.onrender.com/get-jobs", {
             file_url: url,
             user_id: user_id,
             password: password
