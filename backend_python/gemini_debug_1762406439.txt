@@ -1,0 +1,754 @@
+=== JOB 1 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://www.linkedin.com/in/vam-si-b68b74372/}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Detail-oriented Computer Science graduate with a strong foundation in full-stack web development, specializing in building scalable backend systems and \textbf{RESTful APIs}. Proficient in \textbf{JavaScript}, Node.js, and \textbf{SQL databases like MySQL}, with hands-on experience in frontend frameworks such as \textbf{React.js}. Proven ability to design and implement secure authentication, manage database schemas, and integrate \textbf{third-party APIs}. Eager to apply strong problem-solving skills and knowledge of software engineering principles to a challenging web development role.
+}
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology in Computer Science}{May 2025}
+  \resumeSubheading
+    {Government Polytechnic}{Anakapalli, India}
+    {Diploma in Computer Science}{June 2022}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+    \resumeItem{\textbf{Languages:} JavaScript, Java, SQL}
+    \resumeItem{\textbf{Backend:} Node.js, Express.js, \textbf{RESTful APIs}, JWT Authentication}
+    \resumeItem{\textbf{Databases:} \textbf{MySQL}, PostgreSQL, MongoDB}
+    \resumeItem{\textbf{Frontend:} \textbf{React.js}, JavaScript (ES6+), \textbf{HTML5, CSS3, Bootstrap}}
+    \resumeItem{\textbf{DevOps \& Tools:} \textbf{Git}, GitHub, \textbf{Docker}, Linux}
+    \resumeItem{\textbf{Core Concepts:} System Design, Data Structures \& Algorithms, Performance Optimization}
+\resumeItemListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk – AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Architected a scalable full-stack application with a backend powered by Node.js and Express.js.}
+      \resumeItem{Engineered a robust backend with optimized \textbf{RESTful APIs} for job search and resume analysis.}
+      \resumeItem{Implemented secure \textbf{JWT authentication}, user profiles, resume storage, and application tracking, reducing application time by 60\%.}
+      \resumeItem{Developed a responsive and high-performance frontend with Next.js and Tailwind CSS, achieving a 90+ Lighthouse score.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator – AI Content Creation Tool}{}
+    \resumeItemListStart
+      \resumeItem{Developed an AI-powered social media content generator with an adaptive tone and format across various platforms.}
+      \resumeItem{Integrated \textbf{third-party APIs} (Grok API) with robust error handling and caching to ensure high availability.}
+      \resumeItem{Implemented secure \textbf{JWT-based authentication}, supporting over 500 users with zero security incidents and a 98\% session retention rate.}
+      \resumeItem{Built modular UI components in \textbf{React.js}, reducing code duplication by 45\% and enabling faster feature deployment.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+    \resumeItem{Oracle Cloud Infrastructure Certified Generative AI Professional}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 2 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://www.linkedin.com/in/vam-si-b68b74372/}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Proactive and skilled backend developer with a strong foundation in building robust, \textbf{scalable}, and secure \textbf{backend systems} using \textbf{Node.js, Express.js, and MongoDB/MySQL}. Proficient in designing and maintaining \textbf{RESTful APIs}, implementing \textbf{JWT authentication}, and integrating third-party services. Experienced with version control using \textbf{Git} and familiar with deployment concepts using \textbf{Docker}. Eager to contribute to a collaborative team and deliver high-performance web applications.
+}
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology in Computer Science}{May 2025}
+  \resumeSubheading
+    {Government Polytechnic}{Anakapalli, India}
+    {Diploma in Computer Science}{June 2022}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Backend:} \textbf{Node.js, Express.js, RESTful APIs, JWT Authentication}, WebSockets}
+  \resumeItem{\textbf{Databases:} \textbf{MongoDB} (Mongoose), \textbf{MySQL}, PostgreSQL (Prisma ORM)}
+  \resumeItem{\textbf{DevOps \& Deployment:} \textbf{Docker, Git}, GitHub, Vercel, Linux (Familiar with \textbf{AWS} concepts)}
+  \resumeItem{\textbf{Frontend:} \textbf{Next.js, React.js}, TypeScript, JavaScript, HTML5, CSS3}
+  \resumeItem{\textbf{AI/ML:} LangChain, LLM Integration (Gemini API, Grok API), RAG}
+  \resumeItem{\textbf{Core Concepts:} System Design, Data Structures \& Algorithms, \textbf{Agile Methodologies}, Performance Optimization}
+\resumeItemListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk – AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Architected a \textbf{scalable} full-stack application with a backend powered by \textbf{Node.js and Express.js}.}
+      \resumeItem{Developed and maintained optimized \textbf{RESTful APIs} to handle concurrent job searches and user data management.}
+      \resumeItem{Implemented robust \textbf{JWT authentication} and authorization to secure user profiles and application data.}
+      \resumeItem{Designed the database schema and managed data integrity using \textbf{MongoDB} with Mongoose.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator – AI Content Creation Tool}{}
+    \resumeItemListStart
+      \resumeItem{Built a \textbf{backend system} to support an AI-driven content generator, integrating \textbf{third-party APIs} (Grok API).}
+      \resumeItem{Ensured data integrity and secure sessions by implementing \textbf{JWT-based authentication} for over 500 users.}
+      \resumeItem{Collaborated with frontend teams to define API contracts and deliver a cohesive user experience.}
+      \resumeItem{Followed \textbf{Agile methodologies} to iterate on features and deliver updates in a fast-paced environment.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+    \resumeItem{Oracle Cloud Infrastructure Certified Generative AI Professional}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 3 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://www.linkedin.com/in/vam-si-b68b74372/}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Creative and results-driven \textbf{Frontend Developer} with a strong foundation in building \textbf{responsive web applications} using \textbf{JavaScript, HTML5, and CSS3}. Proficient in modern frameworks like React.js and Next.js, with a proven ability to \textbf{translate user and business needs into functional}, \textbf{reusable code}. Experienced in \textbf{Agile/Scrum} methodologies and passionate about crafting seamless user interfaces and optimizing for performance.
+}
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology in Computer Science}{May 2025}
+  \resumeSubheading
+    {Government Polytechnic}{Anakapalli, India}
+    {Diploma in Computer Science}{June 2022}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Frontend:} React.js, Next.js, TypeScript, \textbf{JavaScript (ES6+), HTML5, CSS3}, Tailwind CSS, Bootstrap}
+  \resumeItem{\textbf{Core Concepts:} UI/UX Principles, \textbf{Responsive Design}, \textbf{Reusable Components}, \textbf{Agile/Scrum Methodologies}}
+  \resumeItem{\textbf{Backend:} Node.js, Express.js, RESTful APIs}
+  \resumeItem{\textbf{Databases:} PostgreSQL, MongoDB, MySQL}
+  \resumeItem{\textbf{Tools \& Version Control:} Git, GitHub, Vercel, Docker}
+\resumeItemListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk – AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Designed and developed the \textbf{frontend UI} for an AI-powered job platform using Next.js and TypeScript to create a \textbf{responsive and intuitive user interface}.}
+      \resumeItem{Built a highly performant and \textbf{responsive UI} with Tailwind CSS, achieving a 90+ Lighthouse score and ensuring an optimal user experience across all devices.}
+      \resumeItem{Collaborated on implementing frontend logic for user authentication and profile management, accurately translating business needs into functional code.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator – AI Content Creation Tool}{}
+    \resumeItemListStart
+      \resumeItem{Developed the complete \textbf{frontend UI} for an AI content creation tool using React.js and React Router for seamless navigation.}
+      \resumeItem{Engineered \textbf{reusable UI code and libraries} in React, leading to a 45\% reduction in code duplication and accelerating future development cycles.}
+      \resumeItem{Applied \textbf{object-oriented JavaScript} principles to manage complex state and build a maintainable frontend architecture.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+    \resumeItem{Oracle Cloud Infrastructure Certified Generative AI Professional}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 4 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://www.linkedin.com/in/vam-si-b68b74372/}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+Technically proficient developer with a strong background in backend systems, \textbf{API integration}, and \textbf{automation}. Experienced in using \textbf{Node.js} to build and connect with various third-party APIs, handle secure data transfer, and create efficient workflows. Proven ability to quickly master new technologies and API specifications, with a deep understanding of \textbf{API calls}, permissions, and data syncing. Eager to develop innovative solutions for marketing \textbf{automation and lead capture}.
+}
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology in Computer Science}{May 2025}
+  \resumeSubheading
+    {Government Polytechnic}{Anakapalli, India}
+    {Diploma in Computer Science}{June 2022}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Backend \& Scripting:} \textbf{Node.js}, Express.js}
+  \resumeItem{\textbf{API Development:} \textbf{Third-Party API Integration}, RESTful APIs, JWT Authentication (Access Tokens), WebSockets}
+  \resumeItem{\textbf{Databases:} MongoDB, PostgreSQL, MySQL}
+  \resumeItem{\textbf{DevOps \& Tools:} Git, GitHub, Docker}
+  \resumeItem{\textbf{Concepts:} System Design, \textbf{Automation Workflows}, Data Structures}
+\resumeItemListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk – AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Architected a platform that heavily relies on \textbf{API integration} (Gemini 2.5 Pro API) for intelligent data processing and \textbf{automation}.}
+      \resumeItem{Engineered a \textbf{Node.js} backend to automate and manage complex workflows, demonstrating strong skills in building \textbf{automation scripts}.}
+      \resumeItem{Created systems for user data management, analogous to \textbf{lead capture} and syncing for reporting and user tracking.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator – AI Content Creation Tool}{}
+    \resumeItemListStart
+      \resumeItem{Successfully integrated the Grok \textbf{API}, managing authentication tokens, error handling, and data flow, showcasing expertise in connecting to and consuming external web services.}
+      \resumeItem{Created a tool that \textbf{automates} content creation by connecting a user interface with a powerful backend API, streamlining business processes.}
+      \resumeItem{Implemented secure access token (JWT) management to ensure only authenticated users could interact with the API.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+    \resumeItem{Oracle Cloud Infrastructure Certified Generative AI Professional}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 5 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://www.linkedin.com/in/vam-si-b68b74372/}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+A dedicated \textbf{Back-End Developer} with a strong aptitude for \textbf{Software Development} and building high-quality, \textbf{server-side applications}. Expertise in \textbf{Back-End Web Development} using Node.js, with a solid understanding of \textbf{Object-Oriented Programming (OOP)} principles from experience with Java. Proficient in \textbf{database management} (PostgreSQL, MongoDB, MySQL) and designing/implementing robust solutions for \textbf{API development}. A collaborative, \textbf{problem-solving} team player skilled in working with front-end developers.
+}
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology in Computer Science}{May 2025}
+  \resumeSubheading
+    {Government Polytechnic}{Anakapalli, India}
+    {Diploma in Computer Science}{June 2022}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+    \resumeItem{\textbf{Backend Development:} Node.js, Express.js, Java, RESTful APIs}
+    \resumeItem{\textbf{Databases \& Management:} PostgreSQL (Prisma ORM), MongoDB (Mongoose), MySQL}
+    \resumeItem{\textbf{Core Concepts:} \textbf{Object-Oriented Programming (OOP)}, System Design, Data Structures \& Algorithms}
+    \resumeItem{\textbf{Front-End Familiarity:} React.js, Next.js, TypeScript, JavaScript, HTML5, CSS3}
+    \resumeItem{\textbf{Tools \& DevOps:} Git, GitHub, Docker, Linux}
+\resumeItemListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk – AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Designed and developed the \textbf{server-side application} for a full-stack job platform using Node.js and Express.js.}
+      \resumeItem{Implemented complex backend logic and performant \textbf{APIs} to support core application features like intelligent job matching.}
+      \resumeItem{Handled \textbf{database integration} with MongoDB for efficient user data, resume storage, and application tracking.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator – AI Content Creation Tool}{}
+    \resumeItemListStart
+      \resumeItem{Built the backend for a content generation tool, focusing on \textbf{API development} and integration with external AI services (Grok API).}
+      \resumeItem{Applied \textbf{software development} best practices to implement secure authentication and ensure application reliability and scalability.}
+      \resumeItem{Collaborated with the \textbf{front-end} team to define API specifications and deliver a cohesive, fully functional product.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+    \resumeItem{Oracle Cloud Infrastructure Certified Generative AI Professional}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}
+=== JOB 6 ===
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjusted margins for proper whitespace
+\addtolength{\oddsidemargin}{-0.3in}
+\addtolength{\evensidemargin}{-0.3in}
+\addtolength{\textwidth}{0.6in}
+\addtolength{\topmargin}{-0.4in}
+\addtolength{\textheight}{0.8in}
+
+% Formatting for section titles
+\titleformat{\section}{%
+  \scshape\raggedright\large
+}{}{0em}{}[\titlerule]
+
+\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+
+% Subheading for education (4 args)
+\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracsep{\fill}}r}
+      {\bfseries #1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{2pt}
+}
+
+% Project heading (2 args)
+\newcommand{\resumeProjectHeading}[2]{\item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracsep{\fill}}r}
+    {\bfseries #1} & \textit{#2} \\
+  \end{tabular*}\vspace{2pt}
+}
+
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
+\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \bfseries VAMSHI SARAGADM} \\ \vspace{3pt}
+    Visakhapatnam, India $|$ +91 9381721427 $|$ \href{mailto:iamvamsi0@gmail.com}{iamvamsi0@gmail.com} \\
+    \href{https://www.linkedin.com/in/vam-si-b68b74372/}{LinkedIn} $|$ 
+    \href{https://github.com/vamsi-o}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\resumeSubHeadingListStart
+\resumeItem{
+A highly skilled Frontend Developer with extensive experience in converting design mockups into pixel-perfect, \textbf{responsive} web applications using \textbf{HTML, CSS, and JavaScript}. Proficient with modern frameworks like \textbf{React.js} and Next.js, demonstrating a strong command of component-based architecture and \textbf{UI/UX best practices}. A quick learner with a passion for e-commerce, ready to apply strong development skills to \textbf{Shopify theme development}.
+}
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Maharaj Vijayaram Gajapathi Raj College of Engineering}{Vizianagaram, India}
+    {Bachelor of Technology in Computer Science}{May 2025}
+  \resumeSubheading
+    {Government Polytechnic}{Anakapalli, India}
+    {Diploma in Computer Science}{June 2022}
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\resumeItemListStart
+  \resumeItem{\textbf{Frontend:} \textbf{React.js}, Next.js, \textbf{JavaScript} (ES6+), TypeScript, \textbf{HTML5, CSS3}, Tailwind CSS}
+  \resumeItem{\textbf{Design \& UI/UX:} \textbf{Responsive Design}, \textbf{UI/UX Best Practices}, (Proven ability to translate \textbf{Figma} designs into code)}
+  \resumeItem{\textbf{Version Control:} \textbf{Git}, GitHub}
+  \resumeItem{\textbf{Backend Familiarity:} Node.js, Express.js, RESTful APIs}
+  \resumeItem{\textbf{Core Concepts:} Data Structures, Performance Optimization}
+\resumeItemListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+    {HireHawk – AI-Powered Job Application Platform}{}
+    \resumeItemListStart
+      \resumeItem{Developed a highly performant and \textbf{responsive UI} using modern \textbf{CSS} (Tailwind CSS), demonstrating the ability to build interfaces that work seamlessly across all devices.}
+      \resumeItem{Translated complex application requirements and design mockups into a functional and intuitive user interface using Next.js and \textbf{React}, showcasing expertise in building modern frontend experiences.}
+    \resumeItemListEnd
+
+\resumeProjectHeading
+    {Social Media Post Generator – AI Content Creation Tool}{}
+    \resumeItemListStart
+      \resumeItem{Engineered a library of modular, reusable UI components in \textbf{React}, emphasizing clean code and efficient development practices.}
+      \resumeItem{Demonstrated a strong eye for detail and \textbf{UI/UX} by creating an adaptive interface that provides an excellent user experience, ensuring consistent and performant designs.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+    \resumeItem{Oracle Cloud Infrastructure Certified Generative AI Professional}
+\resumeSubHeadingListEnd
+
+%-----------LANGUAGES-----------
+\section{Languages}
+\resumeSubHeadingListStart
+  \resumeItem{\textbf{English:} Fluent}
+  \resumeItem{\textbf{Telugu:} Native}
+\resumeSubHeadingListEndNoSpace
+
+\end{document}

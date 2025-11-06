@@ -1,5 +1,4 @@
 pip install --upgrade pip
-python.exe -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install aiohttp
 apt install tesseract-ocr poppler-utils
