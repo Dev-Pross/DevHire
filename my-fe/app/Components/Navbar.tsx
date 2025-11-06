@@ -18,6 +18,7 @@ const Navbar = () => {
   const [resume, setResume] = useState<any | null>(null)
   const [top, setTop] = useState<number>(0)
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const router = useRouter()
 
@@ -133,8 +134,7 @@ const Navbar = () => {
     width: "100%",
     backdropFilter: "blur(10px)",
     zIndex: 50,
-    transition: " 0.3s ease",
-    height: "60px", // Increased height for better visibility
+    transition: "all 0.3s ease",
   };
 
   const navLinkStyle :CSSProperties= {
@@ -142,7 +142,7 @@ const Navbar = () => {
     textDecoration: "none",
     fontFamily: "'Poppins', sans-serif",
     fontWeight: 600,
-    textTransform: "uppercase",
+    textTransform: "uppercase" as const,
     letterSpacing: "1px",
     padding: "10px 15px",
     transition: "color 0.3s ease",
@@ -164,9 +164,10 @@ const Navbar = () => {
   }
 
   return (
-    <div className="navbar" style={navbarStyle} ref={ref}>
-      <nav className="flex justify-between items-center gap-6 p-4 h-full max-w-7xl mx-auto" style={navbarStyle}>
-        <div className="rounded-full overflow-hidden">
+    <div className="navbar min-h-[60px]" style={navbarStyle} ref={ref}>
+      <nav className="flex justify-between items-center px-4 py-3 lg:px-8 max-w-7xl mx-auto" style={navbarStyle}>
+        {/* Logo */}
+        <Link href="/" className="rounded-full overflow-hidden flex-shrink-0">
           <Image
             src="/logo.jpg"
             alt="Icon"
@@ -174,12 +175,13 @@ const Navbar = () => {
             height={50}
             className="object-cover"
           />
-        </div>
-        <div className="flex gap-6">
-          <Link 
+        </Link>
 
+        {/* Desktop Navigation */}
+        <div className="hidden lg:flex gap-6 items-center">
+          <Link 
             href="/"
-            className="hover:text-gray-300 font-bold"
+            className="hover:text-gray-300 font-bold transition-colors duration-300"
             style={navLinkStyle}
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
@@ -187,16 +189,13 @@ const Navbar = () => {
             onMouseLeave={(e) =>
               ((e.target as HTMLAnchorElement).style.color = color)
             }
-
           >
             Home
           </Link>
           <Link
             href="/pricing"
-            className="hover:text-gray-300 font-bold"
+            className="hover:text-gray-300 font-bold transition-colors duration-300"
             style={navLinkStyle}
-            
-
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
             }
@@ -208,7 +207,7 @@ const Navbar = () => {
           </Link>
           <Link
             href="/Jobs/tailor"
-            className="hover:text-gray-300 font-bold"
+            className="hover:text-gray-300 font-bold transition-colors duration-300"
             style={navLinkStyle}
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
@@ -221,60 +220,131 @@ const Navbar = () => {
           </Link>
           <Link
             href="/about"
-            className="hover:text-gray-300 font-bold"
+            className="hover:text-gray-300 font-bold transition-colors duration-300"
             style={navLinkStyle}
             onMouseEnter={(e) =>
               ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
             }
             onMouseLeave={(e) =>
               ((e.target as HTMLAnchorElement).style.color = color)
-              
             }
           >
             About us
           </Link>
         </div>
-        {!user ? (
-          <Link
-            href="/login"
-            className="cursor-pointer bg-gradient-to-r from-[#FFFF00] to-[#FFD700] font-[Poppins] text-black font-bold hover:bg-gradient-to-r hover:from-[#FF6B35] hover:to-[#F7931E] hover:text-white transition-all duration-300 hover:scale-110 hover:shadow-2xl  px-8 py-2 rounded-lg transition-colors"
-          // style={{ ...navLinkStyle, padding: "6px 12px" }}
-          >
-            Get Started
-          </Link>
-        ) : (
-          <div className={`bg-white w-20 rounded-4xl relative`}
-            ref={dropdownRef}>
-            <div className="rounded-full flex items-center pr-3 justify-between overflow-hidden relative"
-              onClick={() => setOpen(!open)}
-              onMouseEnter={() => setOpen(true)}
-            // onMouseLeave={() => setOpen(!open)}
-            >
-              <Image
-                src="/profile.svg"
-                alt="Profile Icon"
-                width={50}
-                height={50}
-                className="object-cover"
-              />
-              <p className={`text-black transform transition-transform ${open ? 'rotate-180' : ''}`}>
-                ⏷
-              </p>
-            </div>
-            <div className={`absolute top-16 left-1/2 transform -translate-x-1/2 p-3 w-50 bg-white/50 backdrop-blur rounded-lg shadow-lg z-50 transition-opacity duration-200 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-              onMouseEnter={() => setOpen(true)}
-              onMouseLeave={() => setOpen(false)}>
-              <ul className="">
-                <Link href={"/Jobs/profile"}>
-                  <li className="bg-transparent backdrop-blur hover:bg-gray-100 cursor-pointer rounded-lg text-center p-1 mb-2">Profile</li>
-                </Link>
-                <li className="bg-transparent backdrop-blur hover:bg-gray-100 cursor-pointer rounded-lg text-center p-1" onClick={logoutHandler}>Logout</li>
-              </ul>
-            </div>
-          </div>
-        )}
 
+        {/* Desktop User Actions */}
+        <div className="hidden lg:flex items-center">
+          {!user ? (
+            <Link
+              href="/login"
+              className="cursor-pointer bg-gradient-to-r from-[#FFFF00] to-[#FFD700] font-[Poppins] text-black font-bold hover:from-[#FF6B35] hover:to-[#F7931E] hover:text-white transition-all duration-300 hover:scale-110 hover:shadow-2xl px-8 py-2 rounded-lg"
+            >
+              Get Started
+            </Link>
+          ) : (
+            <div className={`bg-white w-20 rounded-4xl relative`} ref={dropdownRef}>
+              <div className="rounded-full flex items-center pr-3 justify-between overflow-hidden relative cursor-pointer"
+                onClick={() => setOpen(!open)}
+                onMouseEnter={() => setOpen(true)}
+              >
+                <Image
+                  src="/profile.svg"
+                  alt="Profile Icon"
+                  width={50}
+                  height={50}
+                  className="object-cover"
+                />
+                <p className={`text-black transform transition-transform ${open ? 'rotate-180' : ''}`}>
+                  ⏷
+                </p>
+              </div>
+              <div className={`absolute top-16 left-1/2 transform -translate-x-1/2 p-3 w-50 bg-white/50 backdrop-blur rounded-lg shadow-lg z-50 transition-opacity duration-200 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+                onMouseEnter={() => setOpen(true)}
+                onMouseLeave={() => setOpen(false)}>
+                <ul className="">
+                  <Link href={"/Jobs/profile"}>
+                    <li className="bg-transparent backdrop-blur hover:bg-gray-100 cursor-pointer rounded-lg text-center p-1 mb-2">Profile</li>
+                  </Link>
+                  <li className="bg-transparent backdrop-blur hover:bg-gray-100 cursor-pointer rounded-lg text-center p-1" onClick={logoutHandler}>Logout</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Hamburger Menu */}
+        <button
+          className="lg:hidden flex flex-col gap-1.5 p-2"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle mobile menu"
+        >
+          <span style={{backgroundColor: color}} className={`h-0.5 w-6 transition-all duration-300 ${mobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
+          <span style={{backgroundColor: color}} className={`h-0.5 w-6 transition-all duration-300 ${mobileMenuOpen ? 'opacity-0' : ''}`}></span>
+          <span style={{backgroundColor: color}} className={`h-0.5 w-6 transition-all duration-300 ${mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`}></span>
+        </button>
       </nav>
+
+      {/* Mobile Menu */}
+      <div className={`lg:hidden bg-black/95 backdrop-blur-lg transition-all duration-300 ${mobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+        <div className="flex flex-col gap-4 p-6">
+          <Link 
+            href="/"
+            className="text-white hover:text-[#00ffcc] font-bold text-lg transition-colors"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Home
+          </Link>
+          <Link
+            href="/pricing"
+            className="text-white hover:text-[#00ffcc] font-bold text-lg transition-colors"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Pricing
+          </Link>
+          <Link
+            href="/Jobs/tailor"
+            className="text-white hover:text-[#00ffcc] font-bold text-lg transition-colors"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Tailor Resume
+          </Link>
+          <Link
+            href="/about"
+            className="text-white hover:text-[#00ffcc] font-bold text-lg transition-colors"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            About us
+          </Link>
+          
+          {!user ? (
+            <Link
+              href="/login"
+              className="bg-gradient-to-r from-[#FFFF00] to-[#FFD700] text-black font-bold py-3 px-6 rounded-lg text-center hover:from-[#FF6B35] hover:to-[#F7931E] hover:text-white transition-all"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Get Started
+            </Link>
+          ) : (
+            <div className="flex flex-col gap-3 border-t border-white/20 pt-4">
+              <Link href={"/Jobs/profile"} onClick={() => setMobileMenuOpen(false)}>
+                <button className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-lg transition-all">
+                  Profile
+                </button>
+              </Link>
+              <button 
+                className="w-full bg-red-500/80 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg transition-all"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  logoutHandler();
+                }}
+              >
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
