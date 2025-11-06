@@ -108,7 +108,7 @@ async def linkedin_login(browser):
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/120.0.0.0 Safari/537.36"
         ),
-        viewport={"width": 1920, "height": 1080},
+        # viewport={"width": 1920, "height": 1080},
         # device_scale_factor=0.5,  # Keep this
         locale="en-US",
         timezone_id="Asia/Calcutta",
@@ -150,13 +150,13 @@ async def linkedin_login(browser):
         if "challenge" in current_url:
             print(f"{Colors.RED}❌ Login challenge detected! Please resolve manually.{Colors.END}")
             await debug_capture_page(page, "03_challenge_error")
-            asyncio.sleep(10)
+            await asyncio.sleep(6000)
             return
         
         if "feed" not in current_url:
              print(f"{Colors.RED}❌ Login Failed!{Colors.END}")
              await debug_capture_page(page, "03_Login_error")
-             asyncio.sleep(10)
+             await asyncio.sleep(1)
              return
         
         
