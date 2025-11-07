@@ -4,6 +4,7 @@ import { Apply_Jobs } from "../utiles/agentsCall";
 import CryptoJS from "crypto-js";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { API_URL } from "../utiles/api";
 
 interface jobsData {
   job_url: string;
@@ -85,7 +86,7 @@ const Apply: React.FC<ApplyProps> = () => {
     if (pdf) setUrl(pdf);
     else {
       toast.error("Resume not found. Please upload your resume")
-      router.push("/Jobs/LinkedinUserDetails")
+      router.push("/jobs/LinkedinUserDetails")
     }
 
     // fecthing jobs, user id
@@ -95,7 +96,7 @@ const Apply: React.FC<ApplyProps> = () => {
       setJobs(JSON.parse(job_data));
     } else {
       toast.error("No jobs found to proceed")
-      router.push("/Jobs")
+      router.push("/jobs")
     }
     if (id != null) {
       setUser(id);
@@ -109,7 +110,7 @@ const Apply: React.FC<ApplyProps> = () => {
     // fetching li_c
     async function fetchEncryptedCredentials() {
       try {
-        const res = await fetch("https://dev-hire-znlr.vercel.app/api/get-data", {
+  const res = await fetch("/api/get-data", {
           method: "GET",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -125,7 +126,7 @@ const Apply: React.FC<ApplyProps> = () => {
         } else {
           // console.error("No encryptedData in response");
           toast.error("Linkedin credentials not provided")
-          router.push("/Jobs/LinkedinUserDetails")
+          router.push("/jobs/LinkedinUserDetails")
         }
       } catch (error: any) {
         // console.error("Error fetching or decrypting credentials:", error);
@@ -207,7 +208,7 @@ const Apply: React.FC<ApplyProps> = () => {
       // console.log("all set to start apply");
 
       intervalRef.current = window.setInterval(() => {
-        fetch(`http://127.0.0.1:8000/apply/${userId}/progress`)
+  fetch(`${API_URL}/apply/${userId}/progress`)
           .then((res) => res.json())
           .then((data) => {
             // console.log("progress: ", data.progress);
@@ -234,8 +235,8 @@ const Apply: React.FC<ApplyProps> = () => {
         }
       };
     } else {
-      toast.error("Linkedin credentials not provided")
-      router.push("/Jobs/LinkedinUserDetails")
+  toast.error("Linkedin credentials not provided")
+  router.push("/jobs/LinkedinUserDetails")
     }
   }, [user, jobs, dbData]);
 

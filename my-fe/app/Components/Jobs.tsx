@@ -5,6 +5,7 @@ import {sendUrl} from '../utiles/agentsCall';
 import CryptoJS from 'crypto-js';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { API_URL } from '../utiles/api';
 
   const steps = [
     {
@@ -72,7 +73,7 @@ const Jobs = () => {
     }
     async function fetchEncryptedCredentials() {
       try {
-        const res = await fetch("https://dev-hire-znlr.vercel.app/api/get-data", {
+  const res = await fetch("/api/get-data", {
           method: "GET",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -137,7 +138,7 @@ const Jobs = () => {
     if(userId)
     {
       intervalRef.current = window.setInterval(()=>{
-    fetch(`https://devhire-f6vi.onrender.com/jobs/${userId}/progress`)
+  fetch(`${API_URL}/jobs/${userId}/progress`)
     .then((res)=>res.json())
     .then((data)=>{
       // console.log("progress: ",data.progress);
@@ -255,7 +256,7 @@ const Jobs = () => {
         {currentStep>100 ?
           (<JobCards jobs={jobs}/>):
           (
-          <span className="flex items-center justify-center h-[inherit] text-white items-center gap-2 flex-col mt-100">
+          <span className="flex items-center justify-center h-[inherit] text-white gap-2 flex-col mt-100">
             <svg
               className="animate-spin h-10 w-10 text-white"
               viewBox="0 0 24 24"

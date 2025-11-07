@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useResumeUpload } from '../utiles/useUploadResume';
 import toast from 'react-hot-toast';
+import { API_URL } from '../utiles/api';
 
 const Tailor_resume = () => {
     const resume = sessionStorage.getItem("resume")
@@ -48,7 +49,7 @@ const Tailor_resume = () => {
       }
       setLoading(true)
       try{
-        const response = await fetch('https://devhire-f6vi.onrender.com/tailor',{
+  const response = await fetch(`${API_URL}/tailor`,{
           method:"POST",
           headers: {"Content-Type":"application/json"},
           body:JSON.stringify({
@@ -161,7 +162,7 @@ const Tailor_resume = () => {
         <div className='w-[60%] h-full flex flex-col gap-10'>
           
           { loading ? (
-            <span className="flex items-center justify-center h-[inherit] text-white items-center gap-2 flex-col mt-1/2">
+            <span className="flex items-center justify-center h-[inherit] text-white gap-2 flex-col mt-1/2">
               <svg
                 className="animate-spin h-10 w-10 text-white"
                 viewBox="0 0 24 24"

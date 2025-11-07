@@ -1,26 +1,22 @@
 "use client";
-import { useEffect } from "react";
-import { supabase } from "../../utiles/supabaseClient";
-import { useState } from "react";
-import getLoginUser from "@/app/utiles/getUserData";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import toast from "react-hot-toast";
+
 export const HeroTalent = () => {
   const [id, setId] = useState<string | null>(null);
   const [resume, setResume] = useState<string | null>(null);
 
   useEffect(() => {
     const user = sessionStorage.getItem("id");
-    if (user != "undefined") setId(user);
-    else setId(null);
+    setId(user && user !== "undefined" ? user : null);
+
     const res = sessionStorage.getItem("resume");
-    if (res != "undefined") setResume(res);
-    else setResume(null);
-  }, [id, resume]);
+    setResume(res && res !== "undefined" ? res : null);
+  }, []);
+
   return (
-    <section className="hero w-full relative">
-      {/* Desktop/Laptop: preserve original layout exactly */}
+    <section className="w-full">
       <div className="hidden lg:flex h-screen w-full items-center px-30">
         <div className="flex-1.5 w-[50%] z-10 absolute">
           <motion.div
