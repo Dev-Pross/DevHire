@@ -23,6 +23,8 @@ from google.genai import types
 # from urllib.parse import urlparse
 from config import GOOGLE_API, LINKEDIN_ID, LINKEDIN_PASSWORD
 
+HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() != "false"
+
 # Color constants for enhanced debugging
 class Colors:
     RED = '\033[91m'
@@ -1063,7 +1065,7 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False,
+            headless=HEADLESS,
             args=[
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
             ]
