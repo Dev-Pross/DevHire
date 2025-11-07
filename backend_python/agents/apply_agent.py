@@ -9,7 +9,7 @@ LinkedIn Easy-Apply AUTO-APPLIER - ENHANCED VERSION
 """
 
 import io
-import asyncio, json, logging, base64, mimetypes, re
+import asyncio, json, logging, base64, mimetypes, re, os
 from pathlib import Path
 import fitz
 from playwright.async_api import (
@@ -27,6 +27,8 @@ from google import genai
 from config import GOOGLE_API
 import requests
 from config import LINKEDIN_ID, LINKEDIN_PASSWORD
+
+HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() != "false"
 
 # ────────────────────────── CONSTANTS ──────────────────────────
 
@@ -1186,7 +1188,7 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
 
     pw = await async_playwright().start()
     browser = await pw.chromium.launch(
-        headless=False,
+        headless=HEADLESS,
         args=[
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]        
