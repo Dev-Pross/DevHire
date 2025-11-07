@@ -6,7 +6,7 @@ const Jobs = dynamic(
   () => import('../Components/Jobs'),
   { ssr: false }
 );
-const Page = () => {
+const page = () => {
   return (
     <div className='page-section'>
     <Navbar/>
@@ -15,4 +15,4 @@ const Page = () => {
   )
 }
 
-export default Page
+export default page

@@ -3,7 +3,7 @@ import LinkedinUserDetailsPage from '@/app/Components/Linkedin'
 import Navbar from '@/app/Components/Navbar'
 import React from 'react'
 
-const Page = () => {
+const page = () => {
   return (
     <div className='page-section'>
       <Navbar/>
@@ -12,4 +12,4 @@ const Page = () => {
   )
 }
 
-export default Page
+export default page
