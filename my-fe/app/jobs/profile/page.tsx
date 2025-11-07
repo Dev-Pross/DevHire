@@ -9,12 +9,15 @@ import toast from "react-hot-toast";
 
 const ProfilePage = () => {
   const [data, setDbData] = useState< any | null>(null);
+  // const [resume, setPhone] = useState<string | null>(null)
   const [jobCount, setJobCount] = useState<string | null>(null)
+  // const id = sessionStorage.getItem("id");
   useEffect(() => {
     try {
       async function fetchData() {
         const userData = await getLoginUser();
         const id: any = userData?.data?.user     
+        // console.log("id", id);
         if (!id) return;
 
       
@@ -24,6 +27,7 @@ const ProfilePage = () => {
           credentials: "include",
         });
         const dataq = await res.json();
+        // console.log("mydata", dataq?.user);
         setDbData(dataq.user);
       }
       fetchData();
@@ -32,6 +36,7 @@ const ProfilePage = () => {
         if(jobs) setJobCount(jobs)
       }
       catch(e: any){
+        // toast.error("fetcing from sessionStorage failed: ",e);
         
       }
     } catch (error:any) {
@@ -53,8 +58,10 @@ const ProfilePage = () => {
     <div className="page-section">
       <Navbar />
       <div className="min-h-screen flex gap-8 items-center justify-center px-4 py-8">
+        {/* Profile Card */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
           <div className="flex flex-col items-center space-y-6">
+            {/* Profile Image */}
             <div className="relative group">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
               <div className="relative bg-slate-800 rounded-full p-2 border-2 border-white/20">
@@ -72,7 +79,11 @@ const ProfilePage = () => {
               </div>
             </div>
 
+            {/* Action Buttons */}
             <div className="flex flex-col gap-3 w-full">
+              {/* <button className="group relative overflow-hidden bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5">
+                <span className="relative z-10">Edit Profile</span>
+              </button> */}
               <button onClick={logoutHandler} className="bg-white/5 hover:bg-red border border-white/20 hover:border-white/30 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 backdrop-blur-sm hover:-translate-y-0.5">
                 Sign Out
               </button>
@@ -80,17 +91,26 @@ const ProfilePage = () => {
           </div>
         </div>
 
+        {/* Main Content */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl flex-1 max-w-3xl">
+          {/* Tab Header */}
           <div className="flex mb-8 bg-white/5 rounded-xl p-1">
             <div className="flex-1 relative">
               <button className="w-full py-3 px-6 text-white font-medium rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg transition-all duration-300">
                 Profile Info
               </button>
             </div>
+            {/* <div className="flex-1">
+              <button className="w-full py-3 px-6 text-white/70 font-medium rounded-lg hover:text-white hover:bg-white/5 transition-all duration-300">
+                Verification
+              </button>
+            </div>*/}
           </div> 
 
+          {/* Profile Information */}
           <div className="space-y-6">
             <div className="grid gap-6">
+              {/* User Name */}
               <div className="group p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
                 <div className="flex items-center justify-between">
                   <div>
@@ -119,6 +139,7 @@ const ProfilePage = () => {
                 </div>
               </div>
 
+              {/* Email */}
               <div className="group p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
                 <div className="flex items-center justify-between">
                   <div>
@@ -147,6 +168,7 @@ const ProfilePage = () => {
                 </div>
               </div>
 
+              {/* Phone */}
               <div className="group p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
                 <div className="flex items-center justify-between">
                   <div>
@@ -179,6 +201,7 @@ const ProfilePage = () => {
                 </div>
               </div>
 
+              {/* Jobs Applied */}
               <div className="group p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
                 <div className="flex items-center justify-between">
                   <div>
