@@ -6,8 +6,8 @@ from datetime import datetime
 import aiohttp
 from bs4 import BeautifulSoup
 
-from main.progress_dict import linkedin_login_context
 import main.progress_dict as progress_module
+from main.progress_dict import LINKEDIN_CONTEXT_OPTIONS
 
 # Windows Playwright fix - MUST be at the top
 if sys.platform == "win32":
@@ -104,17 +104,7 @@ async def linkedin_login(browser):
     
     print("🔐 Starting LinkedIn login...")
     
-    context = await browser.new_context(
-        user_agent=(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        ),
-        # viewport={"width": 1920, "height": 1080},
-        # device_scale_factor=0.5,  # Keep this
-        locale="en-US",
-        timezone_id="Asia/Calcutta",
-    )
+    context = await browser.new_context(**LINKEDIN_CONTEXT_OPTIONS)
     
     page = await context.new_page()
     
@@ -152,13 +142,13 @@ async def linkedin_login(browser):
         if "challenge" in current_url:
             print(f"{Colors.RED}❌ Login challenge detected! Please resolve manually.{Colors.END}")
             await debug_capture_page(page, "03_challenge_error")
-            await asyncio.sleep(6000)
+            await asyncio.sleep(10)
             return
         
         if "feed" not in current_url:
              print(f"{Colors.RED}❌ Login Failed!{Colors.END}")
              await debug_capture_page(page, "03_Login_error")
-             await asyncio.sleep(1)
+             await asyncio.sleep(10)
              return
         
         
@@ -184,7 +174,10 @@ async def ensure_logged_in(browser):
         
         # Create NEW context with the CURRENT browser using saved storage_state
         try:
-            context = await browser.new_context(storage_state=progress_module.linkedin_login_context)
+            context = await browser.new_context(
+                storage_state=progress_module.linkedin_login_context,
+                **LINKEDIN_CONTEXT_OPTIONS,
+            )
             print(f"✅ New context created successfully with saved state!")
             return context
         except Exception as e:
@@ -669,7 +662,13 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
     """SPEED OPTIMIZED: More lenient filtering to process more jobs"""
     global PROCESSED_JOB_URLS
     
+    context = None
+    page = None
+
     context = await ensure_logged_in(browser)
+    if context is None:
+        return {}
+
     page = await context.new_page()
     
     # Optimized timeouts for speed
@@ -795,7 +794,14 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
         print(f"❌ Error in speed-optimized search: {e}")
         return {}
     finally:
-        await page.close()
+        if page:
+            await page.close()
+        if context:
+            try:
+                progress_module.linkedin_login_context = await context.storage_state()
+            except Exception as e:
+                print(f"⚠️ Unable to persist storage state: {e}")
+            await context.close()
 
 # ---------------------------------------------------------------------------
 # 5. GEMINI API PROCESSING FUNCTIONS (OPTIMIZED)

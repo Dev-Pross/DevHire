@@ -19,6 +19,7 @@ from playwright.async_api import (
 )
 
 import main.progress_dict as progress_module
+from main.progress_dict import LINKEDIN_CONTEXT_OPTIONS
 from pdf2image import convert_from_bytes
 import pytesseract
 from playwright_stealth.stealth import Stealth
@@ -1198,14 +1199,22 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
         if progress_module.linkedin_login_context:
             print(f"♻️ FOUND STORAGE STATE IN progress_dict!")
             print(f"✅ Creating new context with current browser using saved state!")
-            context = await browser.new_context(storage_state=progress_module.linkedin_login_context)
+            context = await browser.new_context(
+                storage_state=progress_module.linkedin_login_context,
+                **LINKEDIN_CONTEXT_OPTIONS,
+            )
         else:
-            context = await browser.new_context()
+            context = await browser.new_context(**LINKEDIN_CONTEXT_OPTIONS)
         page = await context.new_page()
         await Stealth().apply_stealth_async(page)
 
         if not await login(page, user_id, password):
             return
+
+        try:
+            progress_module.linkedin_login_context = await context.storage_state()
+        except Exception as e:
+            log.warning(f"Could not persist LinkedIn storage state: {e}")
 
         agent = EasyApplyAgent(page)
         applied = []
@@ -1278,6 +1287,10 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
         return status
 
     finally:
+        try:
+            progress_module.linkedin_login_context = await context.storage_state()
+        except Exception as e:
+            log.warning(f"Could not persist LinkedIn storage state during cleanup: {e}")
         await context.close()
         await browser.close()
         await pw.stop()
