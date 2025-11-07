@@ -137,7 +137,7 @@ const Jobs = () => {
     if(userId)
     {
       intervalRef.current = window.setInterval(()=>{
-    fetch(`https://devhire-f6vi.onrender.com/jobs/${userId}/progress`)
+    fetch(`http://127.0.0.1:8000/jobs/${userId}/progress`)
     .then((res)=>res.json())
     .then((data)=>{
       // console.log("progress: ",data.progress);
