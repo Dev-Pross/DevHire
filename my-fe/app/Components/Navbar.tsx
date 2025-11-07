@@ -206,7 +206,7 @@ const Navbar = () => {
             Pricing
           </Link>
           <Link
-            href="/Jobs/tailor"
+            href="/jobs/tailor"
             className="hover:text-gray-300 font-bold transition-colors duration-300"
             style={navLinkStyle}
             onMouseEnter={(e) =>
@@ -263,7 +263,7 @@ const Navbar = () => {
                 onMouseEnter={() => setOpen(true)}
                 onMouseLeave={() => setOpen(false)}>
                 <ul className="">
-                  <Link href={"/Jobs/profile"}>
+                  <Link href={"/jobs/profile"}>
                     <li className="bg-transparent backdrop-blur hover:bg-gray-100 cursor-pointer rounded-lg text-center p-1 mb-2">Profile</li>
                   </Link>
                   <li className="bg-transparent backdrop-blur hover:bg-gray-100 cursor-pointer rounded-lg text-center p-1" onClick={logoutHandler}>Logout</li>
@@ -303,7 +303,7 @@ const Navbar = () => {
             Pricing
           </Link>
           <Link
-            href="/Jobs/tailor"
+            href="/jobs/tailor"
             className="text-white hover:text-[#00ffcc] font-bold text-lg transition-colors"
             onClick={() => setMobileMenuOpen(false)}
           >
@@ -327,7 +327,7 @@ const Navbar = () => {
             </Link>
           ) : (
             <div className="flex flex-col gap-3 border-t border-white/20 pt-4">
-              <Link href={"/Jobs/profile"} onClick={() => setMobileMenuOpen(false)}>
+              <Link href={"/jobs/profile"} onClick={() => setMobileMenuOpen(false)}>
                 <button className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-lg transition-all">
                   Profile
                 </button>

