@@ -21,7 +21,7 @@ const Features = () => {
                 transition={{ duration: 0.6 }}
                 whileHover={{ scale: 1.0125 }}
                 >
-                        <div className='flex flex-col md:flex-row px-6 md:px-32 py-10 gap-6 md:gap-10 justify-between shadow-black-500 shadow-lg'>
+                        <div className='flex flex-col md:flex-row px-6 lg:px-32 py-10 gap-6 md:gap-10 justify-between shadow-black-500 shadow-lg'>
                
                                 <div className='w-full h-48 md:size-64'>
                                     <img src={"/resume.jpg"} alt='tailor' className='w-full h-full object-cover rounded-lg'></img>
@@ -39,7 +39,7 @@ const Features = () => {
                 transition={{ duration: 0.6 }}
                 whileHover={{ scale: 1.01 }}
                 >
-            <div className='flex flex-col md:flex-row-reverse px-6 md:px-32 py-10 gap-6 md:gap-10 justify-between shadow-black-500 shadow-lg overflow-hidden'>
+            <div className='flex flex-col md:flex-row-reverse px-6  lg:px-32 py-10 gap-6 md:gap-10 justify-between shadow-black-500 shadow-lg overflow-hidden'>
                 <div className='flex-1 p-5 content-center text-center md:text-right'>
                     <h1 className='text-2xl font-bold'>Skill-to-Job Matching</h1>
                     <p className='text-lg md:text-xl mt-3'>HireHawk's intelligent matching engine analyzes your unique abilities and pairs you with roles where you'll truly excel. We spotlight your strengths for every opportunity—so you get noticed for the talents that matter most</p>
@@ -56,7 +56,7 @@ const Features = () => {
                 transition={{ duration: 0.6 }}
                 whileHover={{ scale: 1.01 }}
                 >
-                        <div className='flex flex-col md:flex-row px-6 md:px-32 py-10 gap-6 md:gap-10 justify-between shadow-black-500 shadow-lg'>
+                        <div className='flex flex-col md:flex-row px-6 lg:px-32 py-10 gap-6 md:gap-10 justify-between shadow-black-500 shadow-lg'>
                                 <div className='w-full h-48 md:size-64'>
                                     <img src={"/tailor.jpg"} alt='tailor' className='w-full h-full object-cover rounded-lg'></img>
                 </div>
@@ -74,7 +74,7 @@ const Features = () => {
             transition={{ duration: 0.6 }}
             whileHover={{ scale: 1.01 }}
             >
-            <div className='flex flex-col md:flex-row-reverse px-6 md:px-32 py-10 gap-6 md:gap-10 justify-between shadow-black-500 shadow-lg'>
+            <div className='flex flex-col md:flex-row-reverse px-6 lg:px-32 py-10 gap-6 md:gap-10 justify-between shadow-black-500 shadow-lg'>
                 <div className='flex-1 p-5 content-center text-center md:text-right'>
                     <h1 className='text-2xl font-bold'>The Smart Applier</h1>
                     <p className='text-lg md:text-xl mt-3'>Automate your applications with precision. Smart Applier fills out forms, attaches tailored documents, and keeps track of your progress — so you can focus on preparing for interviews.</p>

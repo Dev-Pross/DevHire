@@ -8,11 +8,7 @@ import About from "./Components/About";
 
 export default async  function Home() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-      }}
-    >
+    <div>
       <Navbar />
       <div style={{ }}>
 

@@ -106,7 +106,7 @@ const Tailor_resume = () => {
   } = useResumeUpload(userId)
 
   return (
-    <div className='h-screen overflow-hidden flex p-10 gap-5'>
+    <div className='h-screen lg:overflow-hidden flex flex-col lg:flex-row p-10 gap-5'>
         <div className='w-[40%] bg-white/10 h-full flex items-end justify-center gap-2 rounded-xl '>
           <div className='w-full h-full flex flex-col justify-between p-3'>
             <h1 className='text-white text-xl p-6 uppercase text-center'>Drop that dream job description here.<br/> Our AI will instantly highlight the keywords and skills you need to stand out from other applicants!</h1>
