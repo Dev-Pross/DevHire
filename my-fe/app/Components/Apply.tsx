@@ -47,7 +47,7 @@ const Apply: React.FC<ApplyProps> = () => {
     },
   ];
   const intervalRef = useRef<number | null>(null);
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(0); 
   const [response, setResponse] = useState<any>(null);
   const [jobs, setJobs] = useState<
     { job_url: string; job_description: string }[]
@@ -86,7 +86,7 @@ const Apply: React.FC<ApplyProps> = () => {
     if (pdf) setUrl(pdf);
     else {
       toast.error("Resume not found. Please upload your resume")
-      router.push("/jobs/LinkedinUserDetails")
+      router.push("/Jobs/LinkedinUserDetails")
     }
 
     // fecthing jobs, user id
@@ -96,7 +96,7 @@ const Apply: React.FC<ApplyProps> = () => {
       setJobs(JSON.parse(job_data));
     } else {
       toast.error("No jobs found to proceed")
-      router.push("/jobs")
+      router.push("/Jobs")
     }
     if (id != null) {
       setUser(id);
@@ -126,7 +126,7 @@ const Apply: React.FC<ApplyProps> = () => {
         } else {
           // console.error("No encryptedData in response");
           toast.error("Linkedin credentials not provided")
-          router.push("/jobs/LinkedinUserDetails")
+          router.push("/Jobs/LinkedinUserDetails")
         }
       } catch (error: any) {
         // console.error("Error fetching or decrypting credentials:", error);
@@ -236,14 +236,84 @@ const Apply: React.FC<ApplyProps> = () => {
       };
     } else {
   toast.error("Linkedin credentials not provided")
-  router.push("/jobs/LinkedinUserDetails")
+  router.push("/Jobs/LinkedinUserDetails")
     }
   }, [user, jobs, dbData]);
 
   return (
     <>
-      <div className="h-screen">
-        <div className="flex justify-center gap-0 bg-transparent p-18 py-20 shadow-lg shadow-[#052718]-500 w-full max-w-screen sticky top-15 mt-10  rounded-r-lg cursor-default">
+      <div className="w-full h-screen lg:w-full">
+        <div className='lg:hidden flex flex-col gap-0 bg-gradient-to-b from-[#244283] to-[#0e3661] p-4 md:p-6 lg:p-8 py-8 lg:py-20 shadow-lg shadow-[#052718]-500 w-full lg:w-auto lg:max-w-xs lg:sticky lg:top-15 lg:left-0 lg:h-screen rounded-b-lg lg:rounded-r-lg lg:rounded-b-none cursor-default'>
+          {steps.map((step, index) => (
+            <div className="flex items-start" key={step.label}>
+              {/* Connector Line & Circle Col */}
+              <div className="flex flex-col items-center mr-3 md:mr-4 h-fit">
+                {/* Circle */}
+                <div
+                  className={`
+                    w-5 h-5 md:w-6 md:h-6 rounded-full border-2 flex items-center justify-center transition-all duration-900 
+                    ${
+                      index < currentStep
+                        ? "bg-[#1ab5a9] border-[#1ab5a9]"
+                        : index === currentStep
+                        ? "border-[#1ab5a9] bg-white animate-bounce"
+                        : "border-gray-600 bg-[#13182c] animate-pulse"
+                    }
+                  `}
+                >
+                  {index < currentStep ? (
+                    <svg className="w-2.5 h-2.5 md:w-3 md:h-3" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="5" fill="#fff" /></svg>
+                  ) : index === currentStep ? (
+                    <div className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-[#1ab5a9] animate-spin" />
+                  ) : null}
+                </div>
+                {/* Vertical Line */}
+                {index < steps.length - 1 && (
+                  <div
+                    className={`
+                      w-0.5 md:w-1 h-8 md:h-10 pt-8 md:pt-14 transition-all duration-900
+                      ${
+                        index < currentStep - 1
+                          ? "bg-[#1ab5a9]"
+                          : index === currentStep - 1
+                          ? "bg-[#0f766e] animate-pulse"
+                          : "bg-gray-700 animate-pulse"
+                      }
+                    `}
+                  />
+                )}
+              </div>
+              {/* Texts */}
+              <div className="pb-2 md:pb-2">
+                <div
+                  className={`font-bold text-sm md:text-base transition-colors duration-900
+                    ${index === currentStep
+                      ? "text-blue-400"
+                      : index < currentStep
+                      ? "text-white"
+                      : "text-gray-500 animate-pulse"
+                    }`}
+                >
+                  {step.label}
+                </div>
+                <div
+                  className={`text-xs md:text-sm transition-colors duration-900
+                    ${
+                      index === currentStep
+                        ? "text-blue-300"
+                        : index < currentStep
+                        ? "text-gray-300"
+                        : "text-gray-600 animate-pulse hidden"
+                    }`}
+                >
+                  {step.description}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden lg:flex justify-center gap-0 bg-transparent p-18 py-20 shadow-lg shadow-[#052718]-500 w-full max-w-screen sticky top-15 mt-10  rounded-r-lg cursor-default">
           {steps.map((step, index) => (
             <div className="flex flex-col item-start" key={step.label}>
               <div className="flex  items-center mr-1 h-fit">

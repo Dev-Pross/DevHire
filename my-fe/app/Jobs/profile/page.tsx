@@ -57,22 +57,22 @@ const ProfilePage = () => {
   return (
     <div className="page-section">
       <Navbar />
-      <div className="min-h-screen flex gap-8 items-center justify-center px-4 py-8">
+      <div className="min-h-screen flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 items-center justify-center px-4 py-8">
         {/* Profile Card */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
-          <div className="flex flex-col items-center space-y-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl w-full max-w-sm lg:max-w-none lg:w-auto">
+          <div className="flex flex-col items-center space-y-4 md:space-y-6">
             {/* Profile Image */}
             <div className="relative group">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
               <div className="relative bg-slate-800 rounded-full p-2 border-2 border-white/20">
-                <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 p-1">
+                <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 p-1">
                   <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center">
                     <Image
                       src="/profile.svg"
                       alt="Profile"
-                      width={100}
-                      height={100}
-                      className="rounded-full"
+                      width={80}
+                      height={80}
+                      className="rounded-full md:w-[100px] md:h-[100px]"
                     />
                   </div>
                 </div>
@@ -92,11 +92,11 @@ const ProfilePage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl flex-1 max-w-3xl">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl flex-1 max-w-3xl w-full">
           {/* Tab Header */}
-          <div className="flex mb-8 bg-white/5 rounded-xl p-1">
+          <div className="flex mb-6 md:mb-8 bg-white/5 rounded-xl p-1">
             <div className="flex-1 relative">
-              <button className="w-full py-3 px-6 text-white font-medium rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg transition-all duration-300">
+              <button className="w-full py-2 md:py-3 px-4 md:px-6 text-white font-medium text-sm md:text-base rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg transition-all duration-300">
                 Profile Info
               </button>
             </div>
@@ -108,22 +108,22 @@ const ProfilePage = () => {
           </div> 
 
           {/* Profile Information */}
-          <div className="space-y-6">
-            <div className="grid gap-6">
+          <div className="space-y-4 md:space-y-6">
+            <div className="grid gap-4 md:gap-6">
               {/* User Name */}
-              <div className="group p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-2">
+              <div className="group p-4 md:p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
+                <div className="flex items-start sm:items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <h3 className="text-xs md:text-sm font-medium text-white/60 uppercase tracking-wider mb-2">
                       Full Name
                     </h3>
-                    <p className="text-xl font-semibold text-white">
-                      {data?.name ? (data?.name) : (<p className="w-40 h-10 bg-white/5 rounded-lg animate-pulse"></p>)}
-                    </p>
+                    <div className="text-md w-36 md:w-100 md:text-lg lg:text-xl font-semibold text-white break-all">
+                      {data?.name ? (data?.name) : (<div className="w-32 md:w-40 h-8 md:h-10 bg-white/5 rounded-lg animate-pulse"/>)}
+                    </div>
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500/20 to-purple-600/20 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500/20 to-purple-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <svg
-                      className="w-6 h-6 text-blue-400"
+                      className="w-5 h-5 md:w-6 md:h-6 text-blue-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -140,19 +140,19 @@ const ProfilePage = () => {
               </div>
 
               {/* Email */}
-              <div className="group p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-2">
+              <div className="group p-4 md:p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
+                <div className="flex items-start sm:items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xs md:text-sm font-medium text-white/60 uppercase tracking-wider mb-2">
                       Email Address
                     </h3>
-                    <p className="text-xl font-semibold text-white">
-                      {data?.email ? (data?.email) : (<p className="w-100 h-10 bg-white/5 rounded-lg animate-pulse"></p>)}
-                    </p>
+                    <div className="text-md md:text-lg lg:text-xl font-semibold text-white break-all">
+                      {data?.email ? (data?.email) : (<div className="w-36 md:w-100 h-8 md:h-10 bg-white/5 rounded-lg animate-pulse"/>)}
+                    </div>
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-lg inline-flex items-center justify-center flex-shrink-0">
                     <svg
-                      className="w-6 h-6 text-green-400"
+                      className="w-5 h-5 md:w-6 md:h-6 text-green-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -168,32 +168,32 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              {/* Phone */}
-              <div className="group p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-2">
+              {/* Resume */}
+              <div className="group p-4 md:p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
+                <div className="flex items-start sm:items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <h3 className="text-xs md:text-sm font-medium text-white/60 uppercase tracking-wider mb-2">
                     Resume
                     </h3>
                     {data?.resume_url ? (
-                      <>
-                        <a href={data?.resume_url? data?.resume_url : ""} target='_blank'>
-                        <span className="text-white font-semibold text-base truncate">
+                      <div className="space-y-2">
+                        <a href={data?.resume_url? data?.resume_url : ""} target='_blank' rel="noreferrer">
+                        <span className="text-white font-semibold text-sm md:text-base truncate hover:text-blue-400 transition-colors">
                           {data?.resume_url ? "resume.pdf" : 'No resume selected'}
                         </span>
                         </a>
                         
                         <div>
-                          <span className="ml-auto text-green-300 px-2 py-1 rounded bg-green-900/60 text-xs">
-                            Current Resume
+                          <span className="text-green-300 px-2 py-1 rounded bg-green-900/60 text-xs">
+                            Recent
                           </span>
                         </div>
-                      </>
-                      ) : (<p className="w-40 h-10 bg-white/5 rounded-lg animate-pulse"></p>)}
+                      </div>
+                      ) : (<p className="w-32 md:w-40 h-8 md:h-10 bg-white/5 rounded-lg animate-pulse"></p>)}
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
 
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="w-6 h-6 text-amber-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="w-5 h-5 md:w-6 md:h-6 text-amber-400">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
                       <path strokeLinecap="round" strokeLinejoin="round" d="M14 2v6h6" />
                     </svg>
@@ -202,21 +202,21 @@ const ProfilePage = () => {
               </div>
 
               {/* Jobs Applied */}
-              <div className="group p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-white/60 uppercase tracking-wider mb-2">
+              <div className="group p-4 md:p-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300">
+                <div className="flex items-start sm:items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <h3 className="text-xs md:text-sm font-medium text-white/60 uppercase tracking-wider mb-2">
                       Applications Submitted
                     </h3>
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-3xl font-bold text-white">{data?.applied_jobs ? (data?.applied_jobs.length) : (<p className="w-40 h-10 bg-white/5 rounded-lg animate-pulse"></p>)}</p>
-                      {data?.applied_jobs && (<span className="text-green-900 text-sm font-medium bg-green-400 px-2 py-1 rounded-full">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <p className="text-lg md:text-xl font-bold text-white">{data?.applied_jobs ? (data?.applied_jobs.length) : (<span className="inline-block w-32 md:w-40 h-8 md:h-10 bg-white/5 rounded-lg animate-pulse"></span>)}</p>
+                      {data?.applied_jobs && (<span className="text-green-900 text-xs md:text-sm font-medium bg-green-400 px-2 py-1 rounded-full">
                         {jobCount ?  (`+${jobCount} now`) :("0 added now")}
                       </span>)}
                     </div>
                   </div>
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-pink-600/20 rounded-lg flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" id="Briefcase-Light--Streamline-Phosphor"  className="w-6 h-6 text-purple-400">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-purple-500/20 to-pink-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" id="Briefcase-Light--Streamline-Phosphor"  className="w-5 h-5 md:w-6 md:h-6 text-purple-400">
                       <desc>
                         Briefcase Light Streamline Icon: https://streamlinehq.com
                       </desc>

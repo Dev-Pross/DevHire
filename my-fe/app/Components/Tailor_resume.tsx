@@ -105,20 +105,20 @@ const Tailor_resume = () => {
     onUploadClick,
   } = useResumeUpload(userId)
 
-  return (
-    <div className='h-screen lg:overflow-hidden flex flex-col lg:flex-row p-10 gap-5'>
-        <div className='w-[40%] bg-white/10 h-full flex items-end justify-center gap-2 rounded-xl '>
-          <div className='w-full h-full flex flex-col justify-between p-3'>
-            <h1 className='text-white text-xl p-6 uppercase text-center'>Drop that dream job description here.<br/> Our AI will instantly highlight the keywords and skills you need to stand out from other applicants!</h1>
-            <div className='w-full flex justify-center items-end gap-2 mb-10 p-3'>
+    return (
+    <div className='min-h-screen lg:h-screen lg:overflow-hidden flex flex-col md:flex-row p-6 md:p-10 gap-5'>
+        <div className='order-2 md:order-1 w-full md:w-1/2 lg:w-2/5 bg-white/10 h-auto md:h-[90dvh] flex items-end justify-center gap-2 rounded-xl p-4'>
+          <div className='w-full h-full flex flex-col xl:gap-16 justify-between p-3'>
+            <h1 className='text-white text-sm lg:text-md xl:text-lg px-6 py-4 uppercase text-center'>Drop that dream job description here.<br/> Our AI will instantly highlight the keywords and skills you need to stand out from other applicants!</h1>
+            <div className='w-full inline-flex h-full justify-center items-end gap-2  md:m-0 lg:mb-2  px-3 py-1'>
             <textarea name="job_description" rows={1} onChange={(e)=>{
               setDescription(e.target.value); 
               e.target.style.height = 'auto';
               e.target.style.height = e.target.scrollHeight + 'px';}} 
-            className='bg-[#183b70] text-white w-[90%] min-h-16 box-border block max-h-100 resize-none text-lg p-4 outline-none overflow-y-auto rounded-lg' placeholder='Enter your job description'></textarea>
+            className='bg-[#183b70] text-white w-full min-h-[4rem] max-h-[14rem] box-border block resize-none text-base text-sm md:text-md p-3 md:p-4 outline-none overflow-y-auto rounded-lg' placeholder='Enter your job description'></textarea>
             <button
                 onClick={tailorButton}
-                className="bg-blue-600 hover:bg-blue-800 transition w-16 h-16 text-black font-bold py-2 px-4 rounded-4xl focus:outline-none focus:shadow-outline"
+                className="bg-blue-600 hover:bg-blue-800 transition w-12 h-12 md:w-16 md:h-16 text-black font-bold py-2 px-3 md:px-4 rounded-full md:rounded-4xl flex items-center justify-center focus:outline-none focus:shadow-outline"
                 type="button"
               >
                 {loading ? (
@@ -159,7 +159,7 @@ const Tailor_resume = () => {
           style={{ display: "none" }}
         />
         </div>
-        <div className='w-[60%] h-full flex flex-col gap-10'>
+        <div className='order-1 md:order-2 w-full md:w-1/2 lg:w-3/5 h-auto md:h-full flex flex-col gap-6'>
           
           { loading ? (
             <span className="flex items-center justify-center h-[inherit] text-white gap-2 flex-col mt-1/2">
@@ -186,7 +186,7 @@ const Tailor_resume = () => {
             </span>
           ) : (
               tailoredUrl && (
-                <div className="w-full h-[90%] border rounded-md"
+                <div className="w-full h-[70vh] md:h-[90%] border rounded-md"
                 onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -221,7 +221,7 @@ const Tailor_resume = () => {
         </svg>
 
       </div>
-      <a href={resume? resume: ""} target='_blank'>
+      <a href={resume? resume: ""} target='_blank' rel="noreferrer">
       <span className="text-white font-semibold text-base truncate">
         {resume ? "resume.pdf" : 'No resume selected'}
       </span>
@@ -229,7 +229,7 @@ const Tailor_resume = () => {
       {resume ? (
         <div>
         <span className="ml-auto text-green-300 px-2 py-1 rounded bg-green-900/60 text-xs">
-          Current Resume
+          Recent
         </span>
         
           </div>
@@ -248,7 +248,7 @@ const Tailor_resume = () => {
     </div>
           {resume &&
           <>
-          <p className='text-white'>|</p>
+          <p className='text-white hidden sm:block'>|</p>
           <button
             onClick={()=>fileInputRef.current?.click()}
             className=" size-16 bg-blue-700 text-white justify-items-center rounded-lg p-3 hover:bg-blue-800 transition  font-semibold"
@@ -262,8 +262,8 @@ const Tailor_resume = () => {
           </div>
 
 
-          <div className='w-full h-full overflow-hidden'>
-            <div className='flex gap-8 w-full h-full px-4 overflow-x-auto scrollbar-hide' style={{scrollBehavior: 'smooth'}}>
+          <div className='w-full h-full md:h-[70vh] overflow-hidden'>
+            <div className='flex gap-6 w-full h-full px-4 overflow-x-auto scrollbar-hide' style={{scrollBehavior: 'smooth'}}>
                 {resumeTemplates.map((template, index) => (
                   <div 
                       key={template.id}
@@ -276,7 +276,7 @@ const Tailor_resume = () => {
                         },600)
                       }
                     }}
-                      className="min-w-[45%] h-full cursor-pointer relative rounded-lg overflow-hidden"
+            className="min-w-[45%] md:min-w-[60%] lg:min-w-[45%] xl:min-w-[40%] h-full cursor-pointer relative rounded-lg overflow-hidden"
                   >
                       <img 
                           src={template.preview}
@@ -294,8 +294,8 @@ const Tailor_resume = () => {
                       )}
                       
                       {/* Hover effect */}
-                      {selectedTemplate !== index && (
-                          <div className="absolute inset-0 bg-black/20 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+            {selectedTemplate !== index && (
+              <div className="absolute inset-0 bg-black/20 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
                               <div className="bg-white/90 px-4 py-2 rounded-lg">
                                   <p className="text-black font-semibold">Click to Select</p>
                               </div>

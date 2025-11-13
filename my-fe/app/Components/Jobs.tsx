@@ -182,16 +182,16 @@ const Jobs = () => {
  
 
   return (
-    <div className='flex jobs-section'>
-      <div className='flex flex-col gap-0 bg-gradient-to-b from-[#244283] to-[#0e3661] p-8 py-20 shadow-lg shadow-[#052718]-500 w-full max-w-xs size-max sticky top-15 left-0 h-screen rounded-r-lg cursor-default'>
+    <div className='flex flex-col lg:flex-row jobs-section min-h-screen'>
+      <div className='flex flex-col gap-0 bg-gradient-to-b from-[#244283] to-[#0e3661] p-4 md:p-6 lg:p-8 py-8 lg:py-20 shadow-lg shadow-[#052718]-500 w-full lg:w-auto lg:max-w-xs lg:sticky lg:top-15 lg:left-0 lg:h-screen rounded-b-lg lg:rounded-r-lg lg:rounded-b-none cursor-default'>
         {steps.map((step, index) => (
           <div className="flex items-start" key={step.label}>
             {/* Connector Line & Circle Col */}
-            <div className="flex flex-col items-center mr-4 h-fit">
+            <div className="flex flex-col items-center mr-3 md:mr-4 h-fit">
               {/* Circle */}
               <div
                 className={`
-                  w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-900 
+                  w-5 h-5 md:w-6 md:h-6 rounded-full border-2 flex items-center justify-center transition-all duration-900 
                   ${
                     index < currentStep
                       ? "bg-[#1ab5a9] border-[#1ab5a9]"
@@ -202,16 +202,16 @@ const Jobs = () => {
                 `}
               >
                 {index < currentStep ? (
-                  <svg width="11" height="11"><circle cx="5.5" cy="5.5" r="5" fill="#fff" /></svg>
+                  <svg className="w-2.5 h-2.5 md:w-3 md:h-3" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="5" fill="#fff" /></svg>
                 ) : index === currentStep ? (
-                  <div className="w-3.5 h-3.5 rounded-full bg-[#1ab5a9] animate-spin" />
+                  <div className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-[#1ab5a9] animate-spin" />
                 ) : null}
               </div>
               {/* Vertical Line */}
               {index < steps.length - 1 && (
                 <div
                   className={`
-                    w-1 h-10 pt-14 transition-all duration-900
+                    w-0.5 md:w-1 h-8 md:h-10 pt-8 md:pt-14 transition-all duration-900
                     ${
                       index < currentStep - 1
                         ? "bg-[#1ab5a9]"
@@ -224,9 +224,9 @@ const Jobs = () => {
               )}
             </div>
             {/* Texts */}
-            <div className="pb-8">
+            <div className="pb-2 md:pb-2">
               <div
-                className={`font-bold text-base transition-colors duration-900
+                className={`font-bold text-sm md:text-base transition-colors duration-900
                   ${index === currentStep
                     ? "text-blue-400"
                     : index < currentStep
@@ -237,7 +237,7 @@ const Jobs = () => {
                 {step.label}
               </div>
               <div
-                className={`text-sm transition-colors duration-900
+                className={`text-xs md:text-sm transition-colors duration-900
                   ${
                     index === currentStep
                       ? "text-blue-300"
@@ -252,13 +252,13 @@ const Jobs = () => {
           </div>
         ))}
       </div>
-      <div className='right-15 h-auto w-full'>
+      <div className='w-full h-auto p-4 md:p-6 lg:p-8'>
         {currentStep>100 ?
           (<JobCards jobs={jobs}/>):
           (
-          <span className="flex items-center justify-center h-[inherit] text-white gap-2 flex-col mt-100">
+          <span className="flex items-center justify-center min-h-[60vh] lg:min-h-[80vh] text-white gap-2 flex-col">
             <svg
-              className="animate-spin h-10 w-10 text-white"
+              className="animate-spin h-8 w-8 md:h-10 md:w-10 text-white"
               viewBox="0 0 24 24"
             >
               <circle
@@ -276,7 +276,7 @@ const Jobs = () => {
                 d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
               />
             </svg>
-            <p>loading jobs... </p>
+            <p className="text-sm md:text-base">loading jobs... </p>
           </span>
           )
         }
