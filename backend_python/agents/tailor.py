@@ -48,7 +48,7 @@ log = logging.getLogger("tailor")
 if not GOOGLE_API:
     raise ValueError("Set GOOGLE_API env var")
 genai.configure(api_key=GOOGLE_API)
-model = genai.GenerativeModel("gemini-2.5-pro") # gemini-2.5-flash-lite
+model = genai.GenerativeModel("gemini-2.5-flash") # gemini-2.5-flash-lite
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Resume-text helpers ────────────────────────────────────────╮
@@ -387,7 +387,7 @@ def ask_gemini(orig: str, jobs: List[str]) -> str:
             txt = model.generate_content(prompt).text.strip()
 
             # ADD THIS LINE TO SAVE GEMINI RESPONSE:
-            Path(f"gemini_debug_{int(time.time())}.txt").write_text(txt, encoding="utf-8")
+            # Path(f"gemini_debug_{int(time.time())}.txt").write_text(txt, encoding="utf-8")
 
             log.debug("Gemini preview: %s", txt[:300].replace("\n", " ↩ "))
             return txt

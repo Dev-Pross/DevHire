@@ -124,8 +124,7 @@ class EasyApplyAgent:
             'button[data-control-name="apply"]',
             '.jobs-apply-button button[aria-label*="Apply"]',
             'button:has-text("Apply"):has-text("Easy")',
-            'button:has-text("Apply")',
-            ':has-text("Easy Apply")'
+            'button:has-text("Apply")'
         ]
 
         for selector in selectors:
