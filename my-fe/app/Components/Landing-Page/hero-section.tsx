@@ -36,7 +36,7 @@ export const HeroTalent = () => {
   },[id, resume])
 
   return (
-    <section className="w-full h-full relative">
+    <section className="w-full h-screen relative">
       <div className="hidden lg:flex h-full w-full items-center lg:px-15 xl:px-30 mb-10">
         <div className="flex-1.5 w-[50%] z-10 absolute">
           <motion.div

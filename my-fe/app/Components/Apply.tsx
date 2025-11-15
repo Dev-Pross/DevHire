@@ -208,7 +208,7 @@ const Apply: React.FC<ApplyProps> = () => {
       // console.log("all set to start apply");
 
       intervalRef.current = window.setInterval(() => {
-  fetch(`${API_URL}/apply/${userId}/progress`)
+  fetch(`/apply/${userId}/progress`)
           .then((res) => res.json())
           .then((data) => {
             // console.log("progress: ", data.progress);

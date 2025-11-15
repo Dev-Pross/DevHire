@@ -271,6 +271,7 @@ const Tailor_resume = () => {
 
                         setSelectedTemplate(index)
                         console.log("pro members only");
+                        toast.error("Premium users only")
                         setTimeout(()=>{
                           setSelectedTemplate(0)
                         },600)

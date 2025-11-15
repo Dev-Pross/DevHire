@@ -1,5 +1,4 @@
 import axios from "axios";
-import { API_URL } from "./api";
 
 interface JobsData{
     "job_url":string,
@@ -8,7 +7,7 @@ interface JobsData{
 
 async function sendUrl(url: string, user_id: string, password: string) {
 try {
-    const res = await axios.post(`${API_URL}/get-jobs`, {
+    const res = await axios.post(`/get-jobs`, {
             file_url: url,
             user_id: user_id,
             password: password
@@ -25,7 +24,7 @@ try {
 
 async function Apply_Jobs(jobs: JobsData[], url: string, user_id: string, password: string) {
 try {
-    const res = await axios.post(`${API_URL}/apply-jobs`, {
+    const res = await axios.post(`/apply-jobs`, {
             user_id: user_id,
             password: password,
             resume_url: url,
