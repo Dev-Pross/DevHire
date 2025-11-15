@@ -138,7 +138,7 @@ const Jobs = () => {
     if(userId)
     {
       intervalRef.current = window.setInterval(()=>{
-  fetch(`/jobs/${userId}/progress`)
+  fetch(`http://localhost:8000/jobs/${userId}/progress`)
     .then((res)=>res.json())
     .then((data)=>{
       // console.log("progress: ",data.progress);

@@ -7,7 +7,7 @@ interface JobsData{
 
 async function sendUrl(url: string, user_id: string, password: string) {
 try {
-    const res = await axios.post(`/get-jobs`, {
+    const res = await axios.post(`http://localhost:8000/get-jobs`, {
             file_url: url,
             user_id: user_id,
             password: password
@@ -24,7 +24,7 @@ try {
 
 async function Apply_Jobs(jobs: JobsData[], url: string, user_id: string, password: string) {
 try {
-    const res = await axios.post(`/apply-jobs`, {
+    const res = await axios.post(`http://localhost:8000/apply-jobs`, {
             user_id: user_id,
             password: password,
             resume_url: url,
