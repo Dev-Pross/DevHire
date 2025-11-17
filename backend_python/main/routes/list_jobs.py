@@ -13,6 +13,7 @@ class JobRequest(BaseModel):
     user_id: str
     file_url: str
     password: str
+    progress_user: str
 
 class Job(BaseModel):
     title: Optional[str] = "Title not available"  # Allow None with default
@@ -56,7 +57,7 @@ async def getJobs(request: JobRequest):
 
 
         print(titles,"\n", keywords)
-        job_progress[request.user_id] = 10
+        job_progress[request.progress_user] = 10
          # Run scraper in separate thread with new event loop
         with ThreadPoolExecutor(max_workers=1) as executor:
             jobs = await asyncio.get_event_loop().run_in_executor(
@@ -66,7 +67,8 @@ async def getJobs(request: JobRequest):
                 keywords,  # Pass the string directly
                 job_progress,
                 request.user_id,
-                request.password
+                request.password,
+                request.progress_user
             )
         
         if not jobs:

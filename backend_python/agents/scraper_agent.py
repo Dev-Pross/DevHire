@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 
 import main.progress_dict as progress_module
 from main.progress_dict import LINKEDIN_CONTEXT_OPTIONS
+from database.linkedin_context import save_linkedin_context, get_linkedin_context, clear_linkedin_context
 
 # Windows Playwright fix - MUST be at the top
 if sys.platform == "win32":
@@ -155,6 +156,7 @@ async def linkedin_login(browser):
         await debug_capture_page(page, "03_after_login_click")
 
         # LOGGED_IN_CONTEXT = context
+
         await page.close()
         return context
             
@@ -164,28 +166,32 @@ async def linkedin_login(browser):
         await context.close()
         return None
 
-async def ensure_logged_in(browser):
+async def ensure_logged_in(browser, user_id):
     """Ensure we have a valid logged-in context"""
     global LOGGED_IN_CONTEXT
     
-    if progress_module.linkedin_login_context is not None:
-        print(f"♻️ FOUND STORAGE STATE IN progress_dict!")
+    db_context = get_linkedin_context(user_id)
+    # print("context from db", db_context)
+    print("HireHawk user", user_id)
+    if db_context:
+        print(f"♻️ FOUND STORAGE STATE IN DB!")
         print(f"✅ Creating new context with current browser using saved state!")
         
         # Create NEW context with the CURRENT browser using saved storage_state
         try:
             context = await browser.new_context(
-                storage_state=progress_module.linkedin_login_context,
+                storage_state=db_context,
                 **LINKEDIN_CONTEXT_OPTIONS,
             )
             print(f"✅ New context created successfully with saved state!")
             return context
         except Exception as e:
             print(f"⚠️ Failed to restore context: {e}, logging in again...")
-            progress_module.linkedin_login_context = None
+            clear_linkedin_context(user_id)
     
     # No saved state, perform login
     print(f"🔐 No storage state in progress_dict, logging in...")
+
     context = await linkedin_login(browser)
     
     if context:
@@ -193,17 +199,10 @@ async def ensure_logged_in(browser):
         storage_state = await context.storage_state()
         progress_module.linkedin_login_context = storage_state
         print(f"💾 Storage state saved to progress_dict for next request!")
-    
-    return context
 
-    # if LOGGED_IN_CONTEXT is None:
-    #     print("🔄 No active login session, logging in...")
-    #     LOGGED_IN_CONTEXT = await linkedin_login(browser)
-        
-    #     if LOGGED_IN_CONTEXT is None:
-    #         raise Exception("Failed to login to LinkedIn")
-    
-    # return LOGGED_IN_CONTEXT
+        save_linkedin_context(user_id,storage_state)
+        print(f"💾 Storage state saved to DB!")
+    return context
 
 # ---------------------------------------------------------------------------
 # 2. FIXED PAGINATION - WAIT FOR JOBS AFTER EACH PAGE CLICK
@@ -484,89 +483,6 @@ async def wait_for_page_change(page, prev_job_count):
     print("⚠️ Page may not have changed, continuing...")
     return True
 
-# ---------------------------------------------------------------------------
-# 3. FIXED JOB DESCRIPTION - HANDLE "SEE MORE" BUTTON
-# ---------------------------------------------------------------------------
-
-# async def extract_job_description_fixed(context, job_url):
-#     """FIXED: Robust job description extraction with proper timeouts"""
-#     detail_page = await context.new_page()
-    
-#     try:
-#         # INCREASED timeouts for LinkedIn's slow responses
-#         detail_page.set_default_navigation_timeout(45000)  # Increased to 45 seconds
-#         detail_page.set_default_timeout(30000)  # Increased to 30 seconds
-        
-#         print(f"🔍 Navigating to job page...")
-        
-#         # Retry logic for navigation
-#         max_retries = 2
-#         for attempt in range(max_retries):
-#             try:
-#                 await detail_page.goto(
-#                     job_url, 
-#                     wait_until="domcontentloaded",  # Faster than "load"
-#                     timeout=45000  # 45 second timeout
-#                 )
-#                 print(f"✅ Navigation successful on attempt {attempt + 1}")
-#                 break
-                
-#             except Exception as nav_error:
-#                 if attempt < max_retries - 1:
-#                     print(f"⚠️ Navigation attempt {attempt + 1} failed, retrying...")
-#                     await asyncio.sleep(2)  # Wait before retry
-#                     continue
-#                 else:
-#                     # Final attempt failed
-#                     await detail_page.close()
-#                     return f"Navigation failed after {max_retries} attempts: {str(nav_error)[:100]}"
-        
-#         # Minimal wait after navigation
-#         await asyncio.sleep(6)
-        
-#         # Click "See more" button to reveal full description
-#         await click_see_more_button(detail_page)
-        
-#         # Try to get full description with updated selectors
-#         description_selectors = [
-#             'div.show-more-less-html__markup',          # Primary after "see more"
-#             '.jobs-description__content',               # Full content container
-#             '.job-details-jobs-unified-top-card__job-description',
-#             '#job-details',                             
-#             '.jobs-box__html-content',
-#             '.jobs-description-content__text',
-#             '.jobs-unified-top-card__content'           # Fallback selector
-#         ]
-        
-#         for selector in description_selectors:
-#             try:
-#                 desc_elem = await detail_page.wait_for_selector(selector, timeout=10000)  # 10s for element
-#                 if desc_elem:
-#                     description = (await desc_elem.inner_text()).strip()
-#                     if len(description) > 200:  # Ensure substantial content
-#                         await detail_page.close()
-#                         print(f"✅ Description extracted: {len(description)} chars")
-#                         return description
-#             except:
-#                 continue
-        
-#         # Fallback to any job content area
-#         try:
-#             fallback_content = await detail_page.query_selector('.jobs-unified-top-card, .job-view-layout, .jobs-details')
-#             if fallback_content:
-#                 fallback_text = await fallback_content.inner_text()
-#                 if len(fallback_text) > 100:
-#                     await detail_page.close()
-#                     return fallback_text[:2000]  # Limit for performance
-#         except:
-#             pass
-        
-#         await detail_page.close()
-#         return "Description not found on page"
-                
-#     except Exception as e:
-#         await detail_page.close()
-#         return f"Error extracting description: {str(e)[:200]}"
 
 async def extract_job_description_fixed(session: aiohttp.ClientSession, url):
     """
@@ -604,68 +520,21 @@ async def extract_job_description_fixed(session: aiohttp.ClientSession, url):
     except Exception as e:
         return  f"Failed: An error occurred - {str(e)}"
 
-# async def click_see_more_button(page):
-#     """FIXED: Click 'See more' button to reveal full job description"""
-#     try:
-#         # Your specific "See more" button class and alternatives
-#         see_more_selectors = [
-#             'button.jobs-description__footer-button',
-#             'button.jobs-description__footer-button.t-14.t-black--light.t-bold.artdeco-card__action.artdeco-button.artdeco-button--icon-right.artdeco-button--3.artdeco-button--fluid.artdeco-button--tertiary.ember-view',
-#             # 'button[data-tracking-control-name*="see-more"]',
-#             # 'button[aria-expanded="false"]',
-#             # '.show-more-less-html__button--more',
-#             # 'button:has-text("See more")',
-#             # 'button:has-text("Show more")'
-#         ]
-        
-#         for selector in see_more_selectors:
-#             try:
-#                 see_more_btn = await page.wait_for_selector(selector, timeout=2000)
-#                 if see_more_btn and await see_more_btn.is_visible():
-#                     print("🔍 Clicking 'See more' button for full description... using ",selector)
-#                     await see_more_btn.scroll_into_view_if_needed()
-#                     await see_more_btn.click()
-#                     await asyncio.sleep(1.5)  # Wait for content to expand
-#                     print("✅ 'See more' clicked - full description should be visible")
-#                     return True
-#             except:
-#                 continue
-        
-#         print("⚠️ No 'See more' button found - using available description")
-#         return False
-        
-#     except Exception as e:
-#         print(f"❌ See more button error: {e}")
-#         return False
+
 
 # ---------------------------------------------------------------------------
 # 4. OPTIMIZED JOB PROCESSING - INCREASED SPEED
 # ---------------------------------------------------------------------------
 
-# async def process_single_job_optimized(context, job_link, job_index, total_jobs):
-#     """OPTIMIZED: Faster job processing with full descriptions"""
-#     try:
-#         print(f"⚡ Processing job {job_index + 1}/{total_jobs}")
-        
-#         job_description = await extract_job_description_fixed(context, job_link)
-        
-#         if job_description and len(job_description) > 50:
-#             return job_link, job_description, "added"
-#         else:
-#             return job_link, job_description or "Minimal content", "added"
-                    
-#     except Exception as e:
-#         print(f"❌ Error job {job_index + 1}: {e}")
-#         return job_link, f"Processing error: {str(e)[:100]}", "added"
 
-async def scrape_platform_speed_optimized(browser, platform_name, config, job_title):
+async def scrape_platform_speed_optimized(browser, platform_name, config, job_title, user_id):
     """SPEED OPTIMIZED: More lenient filtering to process more jobs"""
     global PROCESSED_JOB_URLS
     
     context = None
     page = None
 
-    context = await ensure_logged_in(browser)
+    context = await ensure_logged_in(browser, user_id)
     if context is None:
         return {}
 
@@ -1079,7 +948,7 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
         
         try:
             print("🔐 Performing LinkedIn login...")
-            login_context = await ensure_logged_in(browser)
+            login_context = await ensure_logged_in(browser, user_id)
             
             if login_context is None:
                 print("❌ Failed to login to LinkedIn. Exiting...")
@@ -1098,7 +967,7 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
                 for platform_name in platforms:
                     try:
                         result = await scrape_platform_speed_optimized(
-                            browser, platform_name, PLATFORMS[platform_name], job_title
+                            browser, platform_name, PLATFORMS[platform_name], job_title, user_id
                         )
                         all_jobs.update(result)
                         print(f"📈 Jobs from '{job_title}': {len(result)}")
@@ -1114,44 +983,7 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
                 print(f"📊 '{job_title}' complete. Total unique jobs: {len(all_jobs)}")
 
 
-            # filtered_jobs = {}
-
-            # if len(all_jobs)<=0:
-            #     return {}
-            # skills = FILTERING_KEYWORDS+JOB_TITLES
-            # if len(all_jobs) > 50:
-            #     batch_size = len(all_jobs)//3
-            #     items = list(all_jobs.items())
-            #     for j in range(0, len(all_jobs), batch_size):
-            #         batch = dict(items[i : i + batch_size])
-            #         batch_num = (i // batch_size) + 1
-            #         print(f"🔄 Processing batch {batch_num}/{3}: {len(batch)} jobs")
-            #         prompt = build_prompt(skills,jobs=batch)
-                    
-            #         delay=0.5
-            #         for i in range(1,3):
-            #             try:
-            #                 print("gemini attempt for filteration: ",i)
-            #                 response = client.models.generate_content(
-            #                     model='gemini-2.5-flash-lite',
-            #                     contents=prompt,
-            #                     config=types.GenerateContentConfig(
-            #                         temperature=0.3,
-            #                     )
-            #                 )
-            #                 filename = f"gemini_scraper_filteration_batch_{j}.txt"
-                            
-            #                 with open(filename, "w", encoding="utf-8") as f:
-            #                     f.write(response.text)
-            #                 if(response.text):
-            #                     filtered_jobs.update(parse_filtering(response.text, batch))
-            #                     # return job_dict
-                        
-            #                 asyncio.sleep(delay)
-            #             except Exception as e:
-            #                 print("Gemini error: %s", str(e))
-                    
-                
+            
         finally:
             if LOGGED_IN_CONTEXT:
                 await LOGGED_IN_CONTEXT.close()
@@ -1172,14 +1004,14 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
     
     return all_jobs
 
-def run_scraper_in_new_loop(titles, keywords, job_progress, user_id, password):
+def run_scraper_in_new_loop(titles, keywords, job_progress, user_id, password, progress_user):
     """Run scraper in a fresh event loop - Production Ready"""
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
         try:
-            result = loop.run_until_complete(main(titles, keywords,job_progress, user_id, password))
+            result = loop.run_until_complete(main(titles, keywords,job_progress, user_id, password, progress_user))
             return result
         finally:
             loop.close()
@@ -1187,7 +1019,7 @@ def run_scraper_in_new_loop(titles, keywords, job_progress, user_id, password):
         print(f"Scraper error: {e}")
         return []
 
-async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=None, password=None ):
+async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=None, password=None, progress_user=None ):
     global JOB_TITLES, FILTERING_KEYWORDS, LINKEDIN_ID, LINKEDIN_PASSWORD
     if parsed_titles:
         JOB_TITLES = parsed_titles
@@ -1200,11 +1032,11 @@ async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=
 
     print("🧠 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
 
-    all_jobs = await search_by_job_titles_speed_optimized(JOB_TITLES,progress=progress, user_id=user_id)
+    all_jobs = await search_by_job_titles_speed_optimized(JOB_TITLES,progress=progress, user_id=progress_user)
     
     if len(all_jobs) == 0:
         print("❌ No jobs found to analyze...")
-        progress[user_id] = 100
+        progress[progress_user] = 100
         return
     
     print(f"🧠 Sending {len(all_jobs)} jobs to Gemini for extraction...")
@@ -1231,10 +1063,10 @@ async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=
         if job.get("company_name") and job["company_name"] != "Not extracted":
             companies.add(job["company_name"])
     
-    if(progress[user_id] == 85):
-        progress[user_id] += 15
+    if(progress[progress_user] == 85):
+        progress[progress_user] += 15
     else:
-        progress[user_id] += (100-progress[user_id])
+        progress[progress_user] += (100-progress[progress_user])
 
     print(f"\n📊 FINAL SUMMARY:")
     print(f" 🏢 Companies: {len(companies)}")
@@ -1244,7 +1076,7 @@ async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=
     print(f" 🔧 All fixes applied: YES")
     print(f" 🔵 Easy Apply enabled: YES")
     print(f" 🔐 Authenticated scraping: YES")
-    print(f" Progress: {progress[user_id]}%")
+    print(f" Progress: {progress[progress_user]}%")
 
     return extracted
 

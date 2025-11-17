@@ -6,6 +6,7 @@ import CryptoJS from 'crypto-js';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { API_URL } from '../utiles/api';
+import getLoginUser from '../utiles/getUserData';
 
   const steps = [
     {
@@ -43,6 +44,8 @@ const Jobs = () => {
   const [url, setUrl] = useState<string>("");
   const [userId, setUserId]  =useState<string>("")
   const [password, setPassword] = useState<string>("")
+  const [Progress_userId, setProgress_UserId]  =useState<string>("")
+
   const router = useRouter()
 
   // let jwt=""
@@ -61,10 +64,25 @@ const Jobs = () => {
     });
   return decrypted.toString(CryptoJS.enc.Utf8);
 }
-
+  useEffect(()=>{
+    async function user() {
+      const email = sessionStorage.getItem("email");
+     
+      if (email){
+        console.log(email)
+        setProgress_UserId(email);
+      }else{
+        console.log("no email found");
+        
+      }
+    }
+    user()
+  },[])
 
    useEffect(() => {
+    
     const pdf = sessionStorage.getItem("resume")
+    const context = sessionStorage.getItem("Lcontext")
     if(pdf)
       setUrl(pdf)
     else{
@@ -99,7 +117,14 @@ const Jobs = () => {
       }
     }
 
-    fetchEncryptedCredentials();
+    if(context != "true"){
+      console.log("no context present in session storage");
+      fetchEncryptedCredentials();
+    }
+    else{
+      console.log("context present in session storage");
+      
+    }
   }, []);
 
   // console.log("encrypted data: ", jwt)
@@ -135,10 +160,10 @@ const Jobs = () => {
     }
 
     fetchJobs()
-    if(userId)
+    if(Progress_userId)
     {
       intervalRef.current = window.setInterval(()=>{
-  fetch(`http://localhost:8000/jobs/${userId}/progress`)
+  fetch(`http://localhost:8000/jobs/${Progress_userId}/progress`)
     .then((res)=>res.json())
     .then((data)=>{
       // console.log("progress: ",data.progress);
@@ -169,11 +194,11 @@ const Jobs = () => {
     };
     }
     else{
-      // console.log("user id not provided");
+      console.log("user id not provided");
       
     }
 
-  },[userId,password])
+  },[userId,password, Progress_userId])
 
  
 

@@ -5,6 +5,7 @@ import CryptoJS from "crypto-js";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { API_URL } from "../utiles/api";
+import getLoginUser from "../utiles/getUserData";
 
 interface jobsData {
   job_url: string;
@@ -49,6 +50,8 @@ const Apply: React.FC<ApplyProps> = () => {
   const intervalRef = useRef<number | null>(null);
   const [currentStep, setCurrentStep] = useState(0); 
   const [response, setResponse] = useState<any>(null);
+  const [Progress_userId, setProgress_UserId]  =useState<string>("")
+  
   const [jobs, setJobs] = useState<
     { job_url: string; job_description: string }[]
   >([]);
@@ -83,6 +86,7 @@ const Apply: React.FC<ApplyProps> = () => {
   useEffect(() => {
     // fecthing resume
     const pdf = sessionStorage.getItem("resume");
+    const context = sessionStorage.getItem("Lcontext")
     if (pdf) setUrl(pdf);
     else {
       toast.error("Resume not found. Please upload your resume")
@@ -133,9 +137,14 @@ const Apply: React.FC<ApplyProps> = () => {
         toast.error("Error caused by: ", error.message)
       }
     }
-
-    fetchEncryptedCredentials();
-
+    if(context != "true"){
+      console.log("no context present in session storage");
+      fetchEncryptedCredentials();
+    }
+    else{
+      console.log("context present in session storage");
+      
+    }
     // fecthing applied jobs from database
     async function getAppliedJobs() {
       const res = await fetch(`/api/User?id=${user}`, {
@@ -152,6 +161,15 @@ const Apply: React.FC<ApplyProps> = () => {
     if (user) getAppliedJobs();
   }, [user, router]);
 
+  useEffect(()=>{
+      async function user() {
+        const { data, error } = await getLoginUser();
+        if (data?.user){
+          setProgress_UserId(data.user.user_metadata.email);
+        }
+      }
+      user();
+    },[])
   // Applying jobs
   useEffect(() => {
     // console.log("apply called");
@@ -204,11 +222,11 @@ const Apply: React.FC<ApplyProps> = () => {
 
     apply();
 
-    if (userId) {
+    if (Progress_userId) {
       // console.log("all set to start apply");
 
       intervalRef.current = window.setInterval(() => {
-  fetch(`http://localhost:8000/apply/${userId}/progress`)
+  fetch(`http://localhost:8000/apply/${Progress_userId}/progress`)
           .then((res) => res.json())
           .then((data) => {
             // console.log("progress: ", data.progress);
@@ -238,7 +256,7 @@ const Apply: React.FC<ApplyProps> = () => {
   toast.error("Linkedin credentials not provided")
   router.push("/Jobs/LinkedinUserDetails")
     }
-  }, [user, jobs, dbData]);
+  }, [user, jobs, dbData, Progress_userId]);
 
   return (
     <>

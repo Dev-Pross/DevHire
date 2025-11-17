@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Text, Integer, DateTime, ForeignKey, Table, Index
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -17,4 +17,6 @@ class User(Base):
     name = Column(Text)
     resume_url = Column(Text)
     applied_jobs = Column(Text)
+    linkedin_context = Column(JSON, nullable=True)  # Stores LinkedIn login session state
+    context_updated_at = Column(DateTime, nullable=True)  # Track when context was last updated
 

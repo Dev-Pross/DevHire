@@ -25,6 +25,7 @@ class ApplyJobRequest(BaseModel):
     password: str
     resume_url: HttpUrl
     jobs: List[JobApplication]
+    progress_user: str
 
 class ApplyJobResponse(BaseModel):
     success: bool
@@ -35,13 +36,13 @@ class ApplyJobResponse(BaseModel):
 
 router = APIRouter()
 
-def run_applier_in_new_loop(applications, user_id=None, password=None,resum_url=None):
+def run_applier_in_new_loop(applications, user_id=None, password=None,resum_url=None, progress_user=None):
     """Run applier in a new event loop - same pattern as your list_jobs.py"""
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(applier_main(applications,user_id,password,resum_url))
+            result = loop.run_until_complete(applier_main(applications,user_id,password,resum_url, progress_user))
             return result
         finally:
             loop.close()
@@ -56,7 +57,7 @@ async def apply_jobs_route(request: ApplyJobRequest):
     """
     
     try:
-        logging.info(f"Processing {len(request.jobs)} job applications for user {request.user_id}")
+        logging.info(f"Processing {len(request.jobs)} job applications for user {request.progress_user}")
         
         # Step 1: Prepare jobs data for resume tailoring
         jobs_data = []
@@ -71,7 +72,7 @@ async def apply_jobs_route(request: ApplyJobRequest):
         total_applied = []
         total_failed = []
 
-        apply_progress[request.user_id] = 0
+        apply_progress[request.progress_user] = 0
         batches = math.ceil(len(request.jobs) / batch_size)
         queue = asyncio.Queue()
 
@@ -106,6 +107,7 @@ async def apply_jobs_route(request: ApplyJobRequest):
                         request.user_id,
                         request.password,
                         str(request.resume_url),
+                        request.progress_user
                     )
                 if isinstance(batch_results, dict):
                     total_applied.extend(batch_results.get('applied', []))
@@ -119,8 +121,8 @@ async def apply_jobs_route(request: ApplyJobRequest):
                     total_failed.extend([None]*(len(tailored_batch) - applied_count))
                     logging.info(f"Batch {batch_idx // batch_size +1} results: {applied_count} applied")
                 
-                apply_progress[request.user_id] += (100 / batches)
-                logging.info(f"Progress: {apply_progress[request.user_id]:.2f}%")
+                apply_progress[request.progress_user] += (100 / batches)
+                logging.info(f"Progress: {apply_progress[request.progress_user]:.2f}%")
                 queue.task_done()
 
         # Run producer and consumer concurrently

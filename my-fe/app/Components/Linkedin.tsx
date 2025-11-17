@@ -45,8 +45,20 @@ export default function LinkedinUserDetailsPage() {
   async function handleLogin(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
     // console.log("Logging in with:", data);
-
-    await sendCredentials(data);
+     const res = await fetch(`/api/User?id=${userId}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        const DBdata = await res.json()
+        if(DBdata.user.linkedin_context){
+          console.log("login context avaliable")
+        }
+        else{
+          console.log("sending to store data");
+          
+          await sendCredentials(data);
+        }
 
     router.push("/");
   }

@@ -18,6 +18,7 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
+from database.linkedin_context import get_linkedin_context, save_linkedin_context
 import main.progress_dict as progress_module
 from main.progress_dict import LINKEDIN_CONTEXT_OPTIONS
 from pdf2image import convert_from_bytes
@@ -1082,7 +1083,7 @@ def gemini_prompt_builder(resume_text):
 
 
 # ─────────────────────────── MAIN ──────────────────────────
-async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, password: str | None = None, resume_url: str | None = None):
+async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, password: str | None = None, resume_url: str | None = None, progress_user: str | None = None):
     status=dict()
 
     global RESUME_FILENAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, MY_GENERAL_EXPERIENCE, MY_KNOWN_TECH_EXPERIENCE, MY_UNKNOWN_TECH_EXPERIENCE, MY_CURRENT_CTC, MY_EXPECTED_CTC, MY_NOTICE_PERIOD, MY_CURRENT_CITY, MY_CURRENT_STATE, MY_CURRENT_COUNTRY, MY_FULL_LOCATION ,KNOWN_TECHNOLOGIES
@@ -1195,11 +1196,12 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
                                        )
 
     try:
-        if progress_module.linkedin_login_context:
+        db_context = get_linkedin_context(progress_user)
+        if db_context:
             print(f"♻️ FOUND STORAGE STATE IN progress_dict!")
             print(f"✅ Creating new context with current browser using saved state!")
             context = await browser.new_context(
-                storage_state=progress_module.linkedin_login_context,
+                storage_state=db_context,
                 **LINKEDIN_CONTEXT_OPTIONS,
             )
         else:
@@ -1211,7 +1213,7 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
             return
 
         try:
-            progress_module.linkedin_login_context = await context.storage_state()
+            save_linkedin_context(progress_user,await context.storage_state())
         except Exception as e:
             log.warning(f"Could not persist LinkedIn storage state: {e}")
 
