@@ -186,7 +186,7 @@ const Tailor_resume = () => {
             </span>
           ) : (
               tailoredUrl && (
-                <div className="w-full h-[70vh] md:h-[90%] border rounded-md"
+                <div className="w-full h-full md:h-[90%] border rounded-md flex flex-col gap-3"
                 onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -194,17 +194,25 @@ const Tailor_resume = () => {
                 }}
                 style={{
                   userSelect: 'none',
-                  // webkitUserSelect: 'none',
-                  // mozUserSelect: 'none',
                   msUserSelect: 'none'
                 }}>
-                  {/* Try embed first */}
-                  <embed
-                    src={tailoredUrl}
-                    type="application/pdf"
+                  {/* Mobile-friendly PDF viewer with fallback */}
+                  <iframe
+                    src={`${tailoredUrl}`}
                     width="100%"
                     height="100%"
+                    className="rounded-md"
+                    title="Tailored Resume PDF"
                   />
+                  
+                  {/* Download button for mobile fallback */}
+                  <a 
+                    href={tailoredUrl} 
+                    download="tailored_resume.pdf"
+                    className="md:hidden bg-blue-600 text-white px-4 py-2 rounded-lg text-center hover:bg-blue-700 transition"
+                  >
+                    📥 Download Resume
+                  </a>
                 
                 </div>
               )
