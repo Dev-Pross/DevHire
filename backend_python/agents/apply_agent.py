@@ -411,7 +411,7 @@ class EasyApplyAgent:
     def _get_smart_answer(self, question_text: str, field_type: str = "text") -> str:
         """Smart answering with technology-specific experience and location handling"""
         q = question_text.lower()
-
+        print(f"Question : '{q}'")
         # Location/Geography questions
         if any(word in q for word in [
             "city", "location", "where do you live", "current location",
@@ -715,7 +715,7 @@ class EasyApplyAgent:
                     self.collected_questions.append({"type": "dropdown", "text": question})
                     smart_answer = self._get_smart_answer(question, "select")
 
-                    log.info(f"🔽 Processing dropdown: '{question[:50]}...' - Answer: '{smart_answer}'")
+                    log.info(f"🔽 Processing dropdown: '{question}...' - Answer: '{smart_answer}'")
 
                     # Evaluate if the smart_answer matches any option value/text
                     options = await root.locator("option").all()
@@ -1266,8 +1266,8 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
             # Show questions captured
             if agent.collected_questions:
                 print(f"\n📝 Questions captured for Job {idx}:")
-                for q in agent.collected_questions[-5:]:
-                    print(f"  • [{q['type']}] {q['text'][:80]}...")
+                for q in agent.collected_questions:
+                    print(f"  • [{q['type']}] {q['text']}...")
 
             await asyncio.sleep(3)
 

@@ -9,6 +9,7 @@ export default function LinkedinUserDetailsPage() {
   const [data, setData] = useState({ username: "", password: "" });
   const [ userId, setUserId]  = useState<string>("")
   const [showPassword, setShowPassword] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState(false)
 
   async function sendCredentials(data: { username: string; password: string }) {
     try {
@@ -19,7 +20,7 @@ export default function LinkedinUserDetailsPage() {
         credentials: "include",
       });
       const json = await res.json();
-      if (res.ok) {
+      if (res.ok || uploadStatus) {
         toast.success("Successfully submitted your data");
       } else {
         console.log("error", json.message);
@@ -66,6 +67,7 @@ export default function LinkedinUserDetailsPage() {
   // File upload handlers
   const handleFileButtonClick = () => {
     fileInputRef.current?.click();
+    setUploadStatus(true)
   };
 
 

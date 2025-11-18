@@ -44,7 +44,9 @@ const Jobs = () => {
   const [url, setUrl] = useState<string>("");
   const [userId, setUserId]  =useState<string>("")
   const [password, setPassword] = useState<string>("")
-  const [Progress_userId, setProgress_UserId]  =useState<string>("")
+  const [Progress_userId, setProgress_UserId] = useState<string>("")
+  const [linkedin_context, setLinkedin_context] = useState<any>()
+  const [callAgent, setCallAgent] = useState<boolean>(false);
 
   const router = useRouter()
 
@@ -105,6 +107,7 @@ const Jobs = () => {
           const credentials = JSON.parse(decrypted);
           setUserId(credentials.username);
           setPassword(credentials.password);
+          setCallAgent(true)
           // console.log("Decrypted user credentials:", userId," ",password);
         } else {
           // console.error("No encryptedData in response");
@@ -125,26 +128,18 @@ const Jobs = () => {
       console.log("context present in session storage");
       
     }
+    setLinkedin_context(context)
   }, []);
 
   // console.log("encrypted data: ", jwt)
   
   useEffect(()=>{
     const fetchJobs = async()=>{
-      if(url==="" &&  userId==="" && password===""){
-        // console.log("all parameters are empty")
-
-        return
-      }else if(userId===""){
-        // console.log("userid is empty")
-        return
-      }
-      else if(password===""){
-        // console.log("password is empty")
-        return
-      }
-      else if(url === ""){
-        // console.log("file url is empty")
+      if(callAgent){
+      if(url==="" || linkedin_context ===""){
+        console.log("all parameters are empty")
+        console.log("url: ", url)
+        console.log("LC: ", linkedin_context)
         return
       }
       else{
@@ -157,6 +152,7 @@ const Jobs = () => {
           // console.log("error from fetching jobs ",error);
 
       }
+    }
     }
 
     fetchJobs()
@@ -198,7 +194,7 @@ const Jobs = () => {
       
     }
 
-  },[userId,password, Progress_userId])
+  },[url,linkedin_context, Progress_userId, callAgent, userId, password ])
 
  
 

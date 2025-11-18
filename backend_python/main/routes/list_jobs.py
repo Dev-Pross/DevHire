@@ -10,9 +10,9 @@ import os
 import json
 
 class JobRequest(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None
     file_url: str
-    password: str
+    password: Optional[str] = None
     progress_user: str
 
 class Job(BaseModel):
@@ -21,7 +21,7 @@ class Job(BaseModel):
     company_name: Optional[str] = None
     location: Optional[str] = None
     experience: Optional[str] = None
-    salary: Optional[str] = None
+    salary: Optional[str | int | float] = None
     key_skills: List[str] = []                     # Default to empty list
     job_url: HttpUrl
     posted_at: Optional[str] = None
@@ -43,10 +43,7 @@ async def getJobs(request: JobRequest):
 
         title_keywords = parse_agent.main(request.user_id, request.file_url)
         if not title_keywords or not all(title_keywords):
-            return ResponseJob(
-                content={"jobs": [], "total": 0},
-                status_code=200
-    )
+            return ResponseJob(jobs=[], total=0)
         
         titles_string = title_keywords[0]
         keywords_string = title_keywords[1]

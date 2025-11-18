@@ -297,8 +297,8 @@ const JobCards: React.FC<JobCardsProps> = ({jobs=[] }) => {
     }
   return (
     <>
-        <div className='w-full   p-4 flex justify-between items-center sticky top-15 backdrop-blur-xl z-5 '>
-            <div className='flex px-5 items-center '>
+        <div className='w-full  p-4 flex justify-between items-center sticky top-15 backdrop-blur-xl z-5 '>
+            <div className='flex md:px-5 items-center '>
                 <p className='text-white font-sm font-light'>Selected jobs: {selectedIds.length}</p>
                 <button className='text-white font-sm font-light p-5 rounded-2xl border-1 px-6 py-2 mx-3' onClick={selectAllHandler}>select all</button>
             </div>
@@ -306,11 +306,11 @@ const JobCards: React.FC<JobCardsProps> = ({jobs=[] }) => {
                 <button className='rounded-2xl border-2 px-6 py-2 curser-pointer text-white hover:bg-black' onClick={ApplierHandler}>Apply all</button>
             </div>
             </div>
-        <div className='flex flex-wrap w-full'>
+        <div className='flex flex-wrap w-full justify-center'>
         {jobs.map(job => (
             <label
                 key={job.job_id}
-                className={`m-5 ml-8 mr-8 ml-4 rounded-xl h-100 cursor-pointer min-w-sm max-w-sm bg-[#183b70] shadow-lg shadow-[#052718]-500 relative 
+                className={`m-5 xl:ml-8 xl:mr-8 ml-4 rounded-xl h-100 cursor-pointer min-w-2xs max-w-2xs lg:min-w-sm lg:max-w-sm bg-[#183b70] shadow-lg shadow-[#052718]-500 relative 
                             ${selectedIds.some(selectedJob => selectedJob.job_id === job.job_id) ? 'border border-white shadow-white/50' : 'border border-transparent'} `}
                 onClick={(e) => cardHandler(e, { job_id: job.job_id, job_url: job.job_url, job_description: job.job_description })}
             >

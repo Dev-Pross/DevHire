@@ -52,7 +52,14 @@ const Navbar = () => {
         console.log("mydata", resume_data.user.linkedin_context);
         if (!resume_url) {
           sessionStorage.setItem("resume", resume_data.user.resume_url);
-          if(resume_data.user.linkedin_context){
+          
+          setResume(resume_data.user.resume_url);
+          console.log(resume_data.user.resume_url);
+          
+        }
+        
+        else setResume(resume_url)
+        if(resume_data.user.linkedin_context){
             sessionStorage.setItem("Lcontext", "true")
             console.log("context created - true")
           }
@@ -60,11 +67,6 @@ const Navbar = () => {
             sessionStorage.setItem("Lcontext", "false")
             console.log("context created - true")
           }
-          setResume(resume_data.user.resume_url);
-          console.log(resume_data.user.resume_url);
-          
-        }
-        else setResume(resume_url)
       }
     }
     getResume();

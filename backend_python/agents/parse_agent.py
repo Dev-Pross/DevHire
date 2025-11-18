@@ -32,8 +32,8 @@ def parse_pdf(url : str):
 
 def main(user, url):
 
-    userID = user
-    if userID:
+    # userID = user
+    if url:
         # UploadedResume = session.query(UploadedResume.file_url,UploadedResume.id).filter(UploadedResume.users_id== userID).first()
             resume_text = (parse_pdf(url))
             system_instruction = """

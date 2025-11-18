@@ -46,7 +46,7 @@ def get_linkedin_context(user_id: str):
         result = cursor.fetchone()
         
         if result and result[0]:
-            print("context:",result)
+            # print("context:",result)
             return result[0]  # Return only the context data
         return None
     except Exception as e:

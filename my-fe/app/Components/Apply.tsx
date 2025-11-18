@@ -177,7 +177,7 @@ const Apply: React.FC<ApplyProps> = () => {
     if (!jobs || jobs.length === 0) return;
     if (!user) return;
     if (!dbData) return;
-    if (!userId) return;
+    if (!Progress_userId) return;
 
     async function apply() {
       try {
@@ -260,7 +260,7 @@ const Apply: React.FC<ApplyProps> = () => {
 
   return (
     <>
-      <div className="w-full h-screen lg:w-full">
+      <div className="w-screen h-full ">
         <div className='lg:hidden flex flex-col gap-0 bg-gradient-to-b from-[#244283] to-[#0e3661] p-4 md:p-6 lg:p-8 py-8 lg:py-20 shadow-lg shadow-[#052718]-500 w-full lg:w-auto lg:max-w-xs lg:sticky lg:top-15 lg:left-0 lg:h-screen rounded-b-lg lg:rounded-r-lg lg:rounded-b-none cursor-default'>
           {steps.map((step, index) => (
             <div className="flex items-start" key={step.label}>
@@ -331,7 +331,7 @@ const Apply: React.FC<ApplyProps> = () => {
           ))}
         </div>
 
-        <div className="hidden lg:flex justify-center gap-0 bg-transparent p-18 py-20 shadow-lg shadow-[#052718]-500 w-full max-w-screen sticky top-15 mt-10  rounded-r-lg cursor-default">
+        <div className="hidden lg:flex justify-center gap-0 bg-transparent p-18 py-20 shadow-lg shadow-[#052718]-500 w-screen max-w-screen sticky top-15 mt-10  rounded-r-lg cursor-default">
           {steps.map((step, index) => (
             <div className="flex flex-col item-start" key={step.label}>
               <div className="flex  items-center mr-1 h-fit">
@@ -362,7 +362,7 @@ const Apply: React.FC<ApplyProps> = () => {
                 {index < steps.length - 1 && (
                   <div
                     className={`
-                              w-60 h-2 transition-all duration-900
+                              lg:w-30 xl:w-50 h-2 transition-all duration-900
                               ${index < currentStep - 1
                         ? "bg-blue-600"
                         : index === currentStep - 1
@@ -404,29 +404,29 @@ const Apply: React.FC<ApplyProps> = () => {
         </div>
         {response && currentStep > 100 && (
           <>
-            <div className="flex p-16 px-32 justify-between">
-              <div className="flex justify-around">
-                <p className="text-white font-bold text-3xl ">Total: </p>
-                <p className="text-white font-lg px-2 text-3xl">
+            <div className="flex md:flex-row flex-col p-16 md:px-32 justify-between">
+              <div className="flex md:justify-around">
+                <p className="text-white font-bold text-2xl ">Total: </p>
+                <p className="text-white font-lg px-2 text-2xl">
                   {response.total_jobs}{" "}
                 </p>
               </div>
               <div className="flex ">
-                <p className="text-white font-bold text-3xl">Success:</p>
-                <p className="text-white font-lg px-2 text-3xl">
+                <p className="text-white font-bold text-2xl">Success:</p>
+                <p className="text-white font-lg px-2 text-2xl">
                   {response.successful_applications.flat(Infinity).length}{" "}
                 </p>
               </div>
               <div className="flex ">
-                <p className="text-white font-bold text-3xl">Failed: </p>
-                <p className="text-white font-lg px-2 text-3xl">
+                <p className="text-white font-bold text-2xl">Failed: </p>
+                <p className="text-white font-lg px-2 text-2xl">
                   {response.failed_applications.flat(Infinity).length}{" "}
                 </p>
               </div>
             </div>
-            <div>
+            <div className="">
               <a href="https://www.linkedin.com/my-items/saved-jobs/?cardType=APPLIED">
-                <h1 className="text-white text-5xl text-center">
+                <h1 className="text-white text-2xl md:text-5xl text-center py-4">
                   Track your application here
                 </h1>
               </a>

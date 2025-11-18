@@ -16,8 +16,8 @@ async function sendUrl(url: string, user_id: string, password: string) {
 try {
     const res = await axios.post(`http://localhost:8000/get-jobs`, {
             file_url: url,
-            user_id: user_id,
-            password: password,
+            user_id: user_id ? user_id : "",
+            password: password ? password : "",
             progress_user: progress_user ? progress_user : user_id
         });
         console.log(url)
@@ -39,8 +39,8 @@ async function Apply_Jobs(jobs: JobsData[], url: string, user_id: string, passwo
     else progress_user = null
     try {
     const res = await axios.post(`http://localhost:8000/apply-jobs`, {
-            user_id: user_id,
-            password: password,
+            user_id: user_id ? user_id : "",
+            password: password ? password : "",
             resume_url: url,
             jobs:jobs,
             progress_user: progress_user ? progress_user : user_id

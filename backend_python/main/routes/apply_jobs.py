@@ -1,7 +1,7 @@
 import math
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import asyncio
 import json
 import time
@@ -21,8 +21,8 @@ class JobApplication(BaseModel):
     job_description: str
 
 class ApplyJobRequest(BaseModel):
-    user_id: str
-    password: str
+    user_id: Optional[str] = None
+    password: Optional[str] = None
     resume_url: HttpUrl
     jobs: List[JobApplication]
     progress_user: str
