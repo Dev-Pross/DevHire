@@ -113,6 +113,7 @@ export const HeroTalent = () => {
               />
               <div className="absolute -top-4 -right-4 w-24 h-24 bg-blue-500 rounded-full opacity-20"></div>
             </motion.div>
+            
           </div>
         </div>
 {/* Tailor resume part */}
