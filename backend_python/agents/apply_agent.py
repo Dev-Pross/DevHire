@@ -155,66 +155,76 @@ class EasyApplyAgent:
                             # Multiple click strategies for anchor tags
                             click_success = False
                             
-                            
-                                # Strategy 1: Click with delay and no wait
+                            # Strategy 1: Click with delay and no wait
                             try:
                                 await btn.click(delay=100, no_wait_after=True, timeout=3000)
                                 click_success = True
                                 log.info("✅ Clicked with delay")
                             except Exception as e2:
                                 log.debug(f"Delay click failed: {e2}")
-                                    
+                            
                             # Strategy 2: JavaScript click
-                            try:
-                                await self.page.evaluate("(b)=>b.click()", btn)
-                                click_success = True
-                                log.info("✅ Clicked with JavaScript")
-                            except Exception as e3:
-                                log.debug(f"JS click failed: {e3}")
-                                        
+                            if not click_success:
+                                try:
+                                    await self.page.evaluate("(b)=>b.click()", btn)
+                                    click_success = True
+                                    log.info("✅ Clicked with JavaScript")
+                                except Exception as e3:
+                                    log.debug(f"JS click failed: {e3}")
+                            
                             # Strategy 3: Direct click with force
-                            # try:
-                            #     await btn.click(force=True, timeout=3000)
-                            #     click_success = True
-                            #     log.info("✅ Clicked with force=True")
-                            # except Exception as e1:
-                            #     log.debug(f"Force click failed: {e1}")
-                                
-                                        # Strategy 4: Navigate to href directly (for anchor tags)
-                                        # try:
-                                        #     href = await btn.get_attribute("href")
-                                        #     if href and href.startswith("http"):
-                                        #         await self.page.goto(href, wait_until="domcontentloaded")
-                                        #         click_success = True
-                                        #         log.info(f"✅ Navigated to href: {href}")
-                                        # except Exception as e4:
-                                        #     log.error(f"All click strategies failed: {e4}")
+                            # if not click_success:
+                            #     try:
+                            #         await btn.click(force=True, timeout=3000)
+                            #         click_success = True
+                            #         log.info("✅ Clicked with force=True")
+                            #     except Exception as e1:
+                            #         log.debug(f"Force click failed: {e1}")
 
                             if not click_success:
                                 log.warning("❌ Could not click Easy Apply button")
                                 continue
                             
-                            await asyncio.sleep(1.5)
+                            # Wait longer for modal to appear after click
+                            log.info("⏳ Waiting for modal to appear...")
+                            await asyncio.sleep(3)
 
-                            for attempt in range(3):
-                                try:
-                                    await self.page.wait_for_selector(
-                                        ".artdeco-modal-overlay.artdeco-modal-overlay--layer-default",
-                                        ".artdeco-modal-overlay--is-top-layer",
-                                        ".artdeco-modal.jobs-easy-apply-modal", 
-                                        "div[role='dialog'].jobs-easy-apply-modal",
-                                        "div.artdeco-modal",
-                                        "[aria-labelledby*='apply']",
-                                         ".artdeco-modal--layer-default",  timeout=5000
-                                    )
-                                    log.info("🪟 Easy-Apply modal opened successfully")
+                            # Check for modal with multiple attempts
+                            modal_selectors = [
+                                ".artdeco-modal-overlay.artdeco-modal-overlay--layer-default",
+                                ".artdeco-modal-overlay--is-top-layer",
+                                ".artdeco-modal.jobs-easy-apply-modal", 
+                                "div[role='dialog'].jobs-easy-apply-modal",
+                                "div.artdeco-modal",
+                                "[aria-labelledby*='apply']",
+                                ".artdeco-modal--layer-default"
+                            ]
+                            
+                            modal_found = False
+                            for attempt in range(5):
+                                for modal_sel in modal_selectors:
+                                    try:
+                                        modal = await self.page.wait_for_selector(modal_sel, timeout=2000)
+                                        if modal and await modal.is_visible():
+                                            log.info(f"🪟 Easy-Apply modal found with: {modal_sel}")
+                                            modal_found = True
+                                            break
+                                    except:
+                                        continue
+                                
+                                if modal_found:
+                                    log.info("✅ Modal opened successfully!")
                                     return True
-                                except PlaywrightTimeoutError:
-                                    if attempt < 2:
-                                        log.warning(f"Modal not found, retry {attempt + 1}")
-                                        await asyncio.sleep(1)
-                                    else:
-                                        log.warning("Modal did not appear after 3 attempts")
+                                
+                                if attempt < 4:
+                                    log.warning(f"Modal not visible yet, waiting... (attempt {attempt + 1}/5)")
+                                    await asyncio.sleep(2)
+                            
+                            if not modal_found:
+                                log.warning("⚠️ Modal did not appear after click, trying next selector")
+                                continue
+                            
+                            return True
 
                     except Exception as e:
                         log.debug(f"Error with button {idx}: {e}")
@@ -698,35 +708,65 @@ class EasyApplyAgent:
         async def safe_click_modal_button():
             """Safely click Next/Submit buttons within modal only"""
             button_selectors = [
-                ".artdeco-modal.jobs-easy-apply-modal button:has-text('Next'):not([disabled])",
-                ".artdeco-modal.jobs-easy-apply-modal button:has-text('Submit'):not([disabled])",
-                ".artdeco-modal.jobs-easy-apply-modal button:has-text('Continue'):not([disabled])",
-                self.NEXT_BTN_SEL,
-                ".jobs-easy-apply-modal ",
-                self.PRIMARY_BTN_SEL,
-                ".jobs-easy-apply-modal button.artdeco-button--primary:not([disabled])"
-
+                # Most specific selectors first
+                "button[aria-label='Submit application']:not([disabled])",
+                "button[aria-label='Review your application']:not([disabled])",
+                "button[aria-label*='Continue to next step']:not([disabled])",
+                "button[aria-label*='Continue applying']:not([disabled])",
+                
+                # Text-based selectors with exact matches
+                ".artdeco-modal button:has-text('Submit application'):not([disabled])",
+                ".artdeco-modal button:has-text('Review'):not([disabled])",
+                ".artdeco-modal button:has-text('Next'):not([disabled])",
+                ".artdeco-modal button:has-text('Continue'):not([disabled])",
+                
+                # Fallback to primary buttons only
+                ".artdeco-modal button.artdeco-button--primary:not([disabled])"
             ]
             
             for selector in button_selectors:
                 try:
                     btn = self.page.locator(selector).first
-                    if await btn.is_visible() and await btn.is_enabled():
-                        await btn.scroll_into_view_if_needed()
-                        await asyncio.sleep(0.5)
+                    
+                    # Check if button exists and is visible
+                    if not await btn.count():
+                        continue
                         
-                        label = (await btn.text_content() or "").strip().lower()
-                        log.info(f"➡️ Clicking: '{label}'")
-                        
-                        try:
-                            await btn.click(timeout=5000)
-                        except:
-                            await btn.evaluate("el => el.click()")
-                        
-                        await asyncio.sleep(2)
-                        return label, True
-                except:
+                    if not await btn.is_visible():
+                        continue
+                    
+                    # Get the actual button text (not the whole dialog)
+                    label = (await btn.text_content() or "").strip()
+                    
+                    # Skip if the text is too long (likely grabbed dialog content)
+                    if len(label) > 50:
+                        log.debug(f"Skipping - text too long: {label[:50]}...")
+                        continue
+                    
+                    # Skip if text contains unwanted content
+                    if any(x in label.lower() for x in ["dialog content", "current value", "additional questions", "application powered"]):
+                        log.debug(f"Skipping - contains dialog content")
+                        continue
+                    
+                    log.info(f"➡️ Found button: '{label}' with selector: {selector}")
+                    
+                    await btn.scroll_into_view_if_needed()
+                    await asyncio.sleep(0.5)
+                    
+                    log.info(f"➡️ Clicking: '{label}'")
+                    
+                    try:
+                        await btn.click(timeout=5000)
+                    except:
+                        await btn.evaluate("el => el.click()")
+                    
+                    await asyncio.sleep(2)
+                    return label.lower(), True
+                except Exception as e:
+                    log.debug(f"Error with selector {selector}: {e}")
                     continue
+            
+            log.warning("⚠️ No valid Next/Submit/Review button found")
             return "", False
 
         for step in range(max_steps):
@@ -994,8 +1034,15 @@ class EasyApplyAgent:
             # Check for save dialog after clicking
             await self._handle_save_dialog()
 
-            if any(k in label for k in ("submit", "finish", "done")):
+            # Only mark as success if "Submit application" was clicked (final submission)
+            if "submit application" in label:
                 log.info("🎉 Application submitted successfully!")
+                await asyncio.sleep(2)  # Wait to ensure submission completes
+                return True
+            
+            # If just "Submit" or other buttons, continue to next step
+            if any(k in label for k in ("finish", "done")):
+                log.info("🎉 Application completed!")
                 return True
 
         log.error("❌ Wizard limit reached without submission")
