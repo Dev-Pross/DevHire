@@ -292,10 +292,17 @@ class EasyApplyAgent:
             log.info(f"Typing city: {city_only}")
             
             # Type character by character to ensure it's registered
+            await input_element.press("Control+A")
+            await asyncio.sleep(0.1)
+            await input_element.press("Delete")
+            await asyncio.sleep(0.1)
+            await input_element.press("Backspace")
+            await asyncio.sleep(0.1)
+            
             for char in city_only:
                 await input_element.type(char, delay=100)
             
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(0.5)
 
             # Look for suggestion dropdown
             suggestion_selectors = [
@@ -974,6 +981,36 @@ class EasyApplyAgent:
                     else:
                         answer = self._get_smart_answer(question, "text")
                         await inp.fill(answer)
+
+                        await asyncio.sleep(0.3)  # Wait for validation
+            
+                        # Check for validation error
+                        if any(word in question.lower() for word in ["salary", "ctc", "compensation", "pay"]):
+                            try:
+                                # Look for validation error message
+                                error_found = False
+                                error_selectors = [
+                                    "span:has-text('minimum')",
+                                    "span:has-text('must be')",
+                                    "[role='alert']",
+                                    ".error-message",
+                                    ".validation-error"
+                                ]
+                                
+                                for err_sel in error_selectors:
+                                    if await self.page.locator(err_sel).count() > 0:
+                                        error_found = True
+                                        break
+                                
+                                # If validation error, retry with 100
+                                if error_found or (answer == "0" and typ == "number"):
+                                    log.warning(f"⚠️ Salary validation failed with '{answer}', retrying with 100")
+                                    await inp.fill("100")
+                                    await asyncio.sleep(0.3)
+                                    log.info("✅ Filled salary with minimum value: 100")
+                                    
+                            except Exception:
+                                pass
 
                 except Exception as e:
                     log.debug(f"Text input error: {e}")
