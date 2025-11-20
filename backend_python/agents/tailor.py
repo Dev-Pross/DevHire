@@ -21,7 +21,8 @@ import fitz
 import requests                       # PyMuPDF / HTTP
 from pdf2image import convert_from_bytes
 import pytesseract
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from google.api_core import exceptions as g_exc
 from config import GOOGLE_API
 
@@ -47,8 +48,8 @@ log = logging.getLogger("tailor")
 # ╭── Gemini setup ───────────────────────────────────────────────╮
 if not GOOGLE_API:
     raise ValueError("Set GOOGLE_API env var")
-genai.configure(api_key=GOOGLE_API)
-model = genai.GenerativeModel("gemini-2.5-flash") # gemini-2.5-flash-lite
+client = genai.Client(api_key=GOOGLE_API)
+model = "gemini-2.5-flash-lite" # gemini-2.5-flash-lite
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Resume-text helpers ────────────────────────────────────────╮
@@ -384,16 +385,20 @@ def ask_gemini(orig: str, jobs: List[str]) -> str:
     for attempt, delay in zip(range(1, 4), (0, 20, 40)):
         try:
             log.info("Gemini attempt %d/3", attempt)
-            txt = model.generate_content(prompt).text.strip()
+            txt = client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.2)
+        ).text
 
             # ADD THIS LINE TO SAVE GEMINI RESPONSE:
             # Path(f"gemini_debug_{int(time.time())}.txt").write_text(txt, encoding="utf-8")
 
             log.debug("Gemini preview: %s", txt[:300].replace("\n", " ↩ "))
             return txt
-        except g_exc.ResourceExhausted:
-            log.warning("Rate-limited – sleep %ss", delay)
-            time.sleep(delay)
+        # except g_exc.ResourceExhausted:
+        #     log.warning("Rate-limited – sleep %ss", delay)
+        #     time.sleep(delay)
         except Exception as e:
             log.error("Gemini error: %s", str(e))
             break

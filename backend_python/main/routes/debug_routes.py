@@ -240,7 +240,7 @@ def clear_debug_files(older_than_hours: int = Query(1, description="Delete files
     """Clear old debug files"""
     temp_dir = tempfile.gettempdir()
     deleted_files = []
-    cutoff_time = datetime.now().timestamp() - (older_than_hours * 3600)
+    cutoff_time = datetime.now().timestamp() - (older_than_hours * 604800) #week
     
     try:
         for filename in os.listdir(temp_dir):

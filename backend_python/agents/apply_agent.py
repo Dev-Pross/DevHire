@@ -91,11 +91,13 @@ log = logging.getLogger("EasyApply")
 # ╭─────────────────── EasyApplyAgent ───────────────────╮
 class EasyApplyAgent:
     NEXT_BTN_SEL = (
+        ".artdeco-modal.jobs-easy-apply-modal "
         ".jobs-easy-apply-modal "
         "button.artdeco-button--2.artdeco-button--primary.ember-view:not([disabled])"
     )
     PRIMARY_BTN_SEL = (
         ".jobs-easy-apply-modal button.artdeco-button--primary:not([disabled])"
+        ".artdeco-modal.jobs-easy-apply-modal button.artdeco-button--primary:not([disabled])"
     )
 
     def __init__(self, page: Page):
@@ -114,17 +116,19 @@ class EasyApplyAgent:
         await asyncio.sleep(2)
 
         selectors = [
+            'a[data-view-name="job-apply-button"]:has-text("Easy Apply")',
+            'a[data-view-name="job-apply-button"]',
+            '[data-view-name="job-apply-button"]',
             '#jobs-apply-button-id',
             '.jobs-apply-button--top-card a:has-text("Easy Apply")',
-            'a[data-view-name="job-apply-button"]',
             'button[aria-label*="Easy Apply"]',
-            'button:has-text("Easy Apply")',
             '.jobs-apply-button--top-card button:has-text("Apply")',
             '.jobs-s-apply button:has-text("Apply")',
             '.jobs-apply-button button:has-text("Easy Apply")',
             'button[data-control-name="apply"]',
             '.jobs-apply-button button[aria-label*="Apply"]',
             'button:has-text("Apply"):has-text("Easy")',
+            'button:has-text("Easy Apply")',
             'button:has-text("Apply")'
         ]
 
@@ -146,17 +150,62 @@ class EasyApplyAgent:
                         if "easy apply" in text.lower() or (selector == 'button:has-text("Apply")' and "apply" in text.lower()):
                             log.info(f"Clicking Easy Apply button: '{text}'")
                             await btn.scroll_into_view_if_needed()
-                            await self.page.wait_for_timeout(500)
+                            await asyncio.sleep(0.8)
 
+                            # Multiple click strategies for anchor tags
+                            click_success = False
+                            
+                            
+                                # Strategy 1: Click with delay and no wait
                             try:
-                                await btn.click()
-                            except Exception:
+                                await btn.click(delay=100, no_wait_after=True, timeout=3000)
+                                click_success = True
+                                log.info("✅ Clicked with delay")
+                            except Exception as e2:
+                                log.debug(f"Delay click failed: {e2}")
+                                    
+                            # Strategy 2: JavaScript click
+                            try:
                                 await self.page.evaluate("(b)=>b.click()", btn)
+                                click_success = True
+                                log.info("✅ Clicked with JavaScript")
+                            except Exception as e3:
+                                log.debug(f"JS click failed: {e3}")
+                                        
+                            # Strategy 3: Direct click with force
+                            # try:
+                            #     await btn.click(force=True, timeout=3000)
+                            #     click_success = True
+                            #     log.info("✅ Clicked with force=True")
+                            # except Exception as e1:
+                            #     log.debug(f"Force click failed: {e1}")
+                                
+                                        # Strategy 4: Navigate to href directly (for anchor tags)
+                                        # try:
+                                        #     href = await btn.get_attribute("href")
+                                        #     if href and href.startswith("http"):
+                                        #         await self.page.goto(href, wait_until="domcontentloaded")
+                                        #         click_success = True
+                                        #         log.info(f"✅ Navigated to href: {href}")
+                                        # except Exception as e4:
+                                        #     log.error(f"All click strategies failed: {e4}")
+
+                            if not click_success:
+                                log.warning("❌ Could not click Easy Apply button")
+                                continue
+                            
+                            await asyncio.sleep(1.5)
 
                             for attempt in range(3):
                                 try:
                                     await self.page.wait_for_selector(
-                                        ".jobs-easy-apply-modal", timeout=5000
+                                        ".artdeco-modal-overlay.artdeco-modal-overlay--layer-default",
+                                        ".artdeco-modal-overlay--is-top-layer",
+                                        ".artdeco-modal.jobs-easy-apply-modal", 
+                                        "div[role='dialog'].jobs-easy-apply-modal",
+                                        "div.artdeco-modal",
+                                        "[aria-labelledby*='apply']",
+                                         ".artdeco-modal--layer-default",  timeout=5000
                                     )
                                     log.info("🪟 Easy-Apply modal opened successfully")
                                     return True
@@ -186,7 +235,7 @@ class EasyApplyAgent:
         await self.page.evaluate(
             """
             () => {
-                const modal = document.querySelector('.jobs-easy-apply-modal');
+                const modal = document.querySelector('.artdeco-modal.jobs-easy-apply-modal');
                 if (!modal) return;
                 const walker = document.createTreeWalker(modal, NodeFilter.SHOW_ELEMENT);
                 let box = null;
@@ -304,7 +353,7 @@ class EasyApplyAgent:
             # Click on a neutral area to dismiss overlays
             try:
                 # Try to click on modal background
-                await self.page.click(".jobs-easy-apply-modal", timeout=1000)
+                await self.page.click(".artdeco-modal.jobs-easy-apply-modal", timeout=1000)
             except:
                 # Fallback: click on body
                 await self.page.click("body", timeout=1000)
@@ -649,11 +698,14 @@ class EasyApplyAgent:
         async def safe_click_modal_button():
             """Safely click Next/Submit buttons within modal only"""
             button_selectors = [
-                ".jobs-easy-apply-modal button:has-text('Next'):not([disabled])",
-                ".jobs-easy-apply-modal button:has-text('Submit'):not([disabled])",
-                ".jobs-easy-apply-modal button:has-text('Continue'):not([disabled])",
+                ".artdeco-modal.jobs-easy-apply-modal button:has-text('Next'):not([disabled])",
+                ".artdeco-modal.jobs-easy-apply-modal button:has-text('Submit'):not([disabled])",
+                ".artdeco-modal.jobs-easy-apply-modal button:has-text('Continue'):not([disabled])",
                 self.NEXT_BTN_SEL,
-                self.PRIMARY_BTN_SEL
+                ".jobs-easy-apply-modal ",
+                self.PRIMARY_BTN_SEL,
+                ".jobs-easy-apply-modal button.artdeco-button--primary:not([disabled])"
+
             ]
             
             for selector in button_selectors:
@@ -689,8 +741,8 @@ class EasyApplyAgent:
 
             # Handle selects and comboboxes FIRST (before text inputs)
             dropdown_roots = await self.page.locator(
-                ".jobs-easy-apply-modal select, "
-                ".jobs-easy-apply-modal [role='combobox']"
+                ".artdeco-modal.jobs-easy-apply-modal select, "
+                ".artdeco-modal.jobs-easy-apply-modal [role='combobox']"
             ).all()
 
             for root in dropdown_roots:
@@ -802,8 +854,8 @@ class EasyApplyAgent:
                 await asyncio.sleep(0.5)
                 
                 all_text_inputs = await self.page.locator(
-                    ".jobs-easy-apply-modal input[type='text'], "
-                    ".jobs-easy-apply-modal textarea"
+                    ".artdeco-modal.jobs-easy-apply-modal input[type='text'], "
+                    ".artdeco-modal.jobs-easy-apply-modal textarea"
                 ).all()
                 
                 for fu in all_text_inputs:
@@ -819,12 +871,12 @@ class EasyApplyAgent:
 
             # Fill text inputs
             text_inputs = await self.page.locator(
-                ".jobs-easy-apply-modal input[type='text'], "
-                ".jobs-easy-apply-modal input[type='number'], "
-                ".jobs-easy-apply-modal input[type='email'], "
-                ".jobs-easy-apply-modal input[type='tel'], "
-                ".jobs-easy-apply-modal input:not([type]), "
-                ".jobs-easy-apply-modal textarea"
+                ".artdeco-modal.jobs-easy-apply-modal input[type='text'], "
+                ".artdeco-modal.jobs-easy-apply-modal input[type='number'], "
+                ".artdeco-modal.jobs-easy-apply-modal input[type='email'], "
+                ".artdeco-modal.jobs-easy-apply-modal input[type='tel'], "
+                ".artdeco-modal.jobs-easy-apply-modal input:not([type]), "
+                ".artdeco-modal.jobs-easy-apply-modal textarea"
             ).all()
 
             for inp in text_inputs:
@@ -896,7 +948,7 @@ class EasyApplyAgent:
 
 
             # Handle radio buttons
-            radios = await self.page.locator(".jobs-easy-apply-modal input[type='radio']").all()
+            radios = await self.page.locator(".artdeco-modal.jobs-easy-apply-modal input[type='radio']").all()
             seen_groups = set()
 
             for radio in radios:
@@ -1189,7 +1241,7 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
 
     pw = await async_playwright().start()
     browser = await pw.chromium.launch(
-        headless=HEADLESS,
+        headless=False,
         args=[
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]        

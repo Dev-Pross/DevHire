@@ -484,41 +484,67 @@ async def wait_for_page_change(page, prev_job_count):
     return True
 
 
-async def extract_job_description_fixed(session: aiohttp.ClientSession, url):
+async def extract_job_description_fixed(session: aiohttp.ClientSession, url, max_retries=3):
     """
     Fetches the HTML of a URL and then parses it to extract
     the text content of the element with id='job-details'.
+    Includes retry logic for failed requests.
     """
     print(f"🚀 Fetching: {url}")
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
-        async with session.get(url, headers=headers, timeout=15) as response:
-            if response.status == 200:
-                html_content = await response.text()
-                print("   ✅ HTML fetched successfully.")
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    
+    for attempt in range(max_retries):
+        try:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                if response.status == 200:
+                    html_content = await response.text()
+                    print(f"   ✅ HTML fetched successfully (attempt {attempt + 1})")
 
-                # --- PARSING STEP ---
-                print("   🥣 Parsing HTML with Beautiful Soup...")
-                soup = BeautifulSoup(html_content, 'lxml')
+                    # --- PARSING STEP ---
+                    print("   🥣 Parsing HTML with Beautiful Soup...")
+                    soup = BeautifulSoup(html_content, 'lxml')
 
-                # Find the specific element by its ID
-                # On LinkedIn, the job description is in a div with a class, not an ID.
-                # Let's use the class from your previous scraper for a real example.
-                job_details_div = soup.find('div', class_='show-more-less-html__markup')
+                    # Find the specific element by its ID
+                    # On LinkedIn, the job description is in a div with a class, not an ID.
+                    # Let's use the class from your previous scraper for a real example.
+                    job_details_div = soup.find('div', class_='show-more-less-html__markup')
 
-                if job_details_div:
-                    # Get all the text from the element, stripped of HTML tags
-                    job_text = job_details_div.get_text(separator=' ', strip=True)
-                    print("   ✅ Extracted content successfully!")
-                    return job_text
+                    if job_details_div:
+                        # Get all the text from the element, stripped of HTML tags
+                        job_text = job_details_div.get_text(separator=' ', strip=True)
+                        print("   ✅ Extracted content successfully!")
+                        return job_text
+                    else:
+                        print(f"   ⚠️ Job description element not found (attempt {attempt + 1})")
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(2)  # Wait before retry
+                            continue
+                        return "Failed: Could not find the job description element in the HTML."
                 else:
-                    return "Failed: Could not find the job description element in the HTML."
-            else:
-                return  f"Failed: HTTP status {response.status}"
-    except Exception as e:
-        return  f"Failed: An error occurred - {str(e)}"
+                    print(f"   ⚠️ HTTP {response.status} (attempt {attempt + 1}/{max_retries})")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(2)  # Wait before retry
+                        continue
+                    return f"Failed: HTTP status {response.status}"
+                    
+        except asyncio.TimeoutError:
+            print(f"   ⏱️ Timeout (attempt {attempt + 1}/{max_retries})")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(3)  # Longer wait after timeout
+                continue
+            return "Failed: Request timeout after retries"
+            
+        except Exception as e:
+            print(f"   ❌ Error (attempt {attempt + 1}/{max_retries}): {str(e)[:100]}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2)
+                continue
+            return f"Failed: {str(e)[:100]}"
+    
+    return "Failed: Max retries exceeded"
 
 
 
@@ -647,13 +673,24 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
             
 
             processed_count = 0
+            failed_count = 0
+            failed_urls = []
+            
             # Pair the URLs with their fetched descriptions
             for url, description in zip(valid_job_links, results):
                 if description and not description.startswith("Failed"):
                     job_dict[url] = description
                     processed_count += 1
+                else:
+                    failed_count += 1
+                    failed_urls.append(url)
+                    print(f"   ❌ Failed to fetch: {url[:80]}... - Reason: {description[:50] if description else 'No response'}")
 
-            print(f"✅ {processed_count} jobs processed with full descriptions")
+            print(f"\n📊 EXTRACTION SUMMARY:")
+            print(f"   ✅ Successfully processed: {processed_count}/{len(valid_job_links)}")
+            print(f"   ❌ Failed: {failed_count}/{len(valid_job_links)}")
+            if failed_urls:
+                print(f"   ⚠️ Failed URLs saved for debugging")
             # with open("scrapped_jobs", "w", encoding="utf-8") as f:
             #     f.write(str(job_dict))
 

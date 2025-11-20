@@ -110,11 +110,20 @@ async def apply_jobs_route(request: ApplyJobRequest):
                         request.progress_user
                     )
                 if isinstance(batch_results, dict):
-                    total_applied.extend(batch_results.get('applied', []))
-                    total_failed.extend(batch_results.get('failed', []))
+                    applied_list = batch_results.get('applied', [])
+                    failed_list = batch_results.get('failed', [])
+                    
+                    # Ensure they are lists, not integers
+                    if not isinstance(applied_list, list):
+                        applied_list = []
+                    if not isinstance(failed_list, list):
+                        failed_list = []
+                    
+                    total_applied.extend(applied_list)
+                    total_failed.extend(failed_list)
                     logging.info(f"Batch {batch_idx // batch_size +1} results: "
-                                 f"{len(batch_results.get('applied', []))} applied, "
-                                 f"{len(batch_results.get('failed', []))} failed")
+                                 f"{len(applied_list)} applied, "
+                                 f"{len(failed_list)} failed")
                 else:
                     applied_count = batch_results or 0
                     total_applied.extend([None]*applied_count)  # or capture details if possible
