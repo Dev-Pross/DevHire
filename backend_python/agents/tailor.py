@@ -49,7 +49,7 @@ log = logging.getLogger("tailor")
 if not GOOGLE_API:
     raise ValueError("Set GOOGLE_API env var")
 client = genai.Client(api_key=GOOGLE_API)
-model = "gemini-2.5-flash-lite" # gemini-2.5-flash-lite
+model = "gemini-2.5-flash" # gemini-2.5-flash-lite
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Resume-text helpers ────────────────────────────────────────╮
