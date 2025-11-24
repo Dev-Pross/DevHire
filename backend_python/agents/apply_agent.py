@@ -298,7 +298,7 @@ class EasyApplyAgent:
             await asyncio.sleep(0.1)
             await input_element.press("Backspace")
             await asyncio.sleep(0.1)
-            
+
             for char in city_only:
                 await input_element.type(char, delay=100)
             
@@ -1325,7 +1325,7 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
 
     pw = await async_playwright().start()
     browser = await pw.chromium.launch(
-        headless=False,
+        headless=True,
         args=[
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]        

@@ -42,7 +42,7 @@ class Colors:
 # Configuration
 PLATFORMS = {
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
+        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r172800&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
         "base_url": "https://www.linkedin.com",
         "login_url": "https://www.linkedin.com/login"
     },
@@ -187,7 +187,7 @@ async def ensure_logged_in(browser, user_id):
             return context
         except Exception as e:
             print(f"⚠️ Failed to restore context: {e}, logging in again...")
-            clear_linkedin_context(user_id)
+            # clear_linkedin_context(user_id)
     
     # No saved state, perform login
     print(f"🔐 No storage state in progress_dict, logging in...")
@@ -221,7 +221,8 @@ async def load_all_available_jobs_fixed(page):
             print(f"📄 Processing page {page_num + 1}/{max_pages}")
             
             # First, load all jobs on current page by scrolling
-            await scroll_current_page(page)
+            
+            # await scroll_current_page(page)
             
             # Collect jobs from current page
             current_page_jobs = await collect_jobs_from_current_page(page)
@@ -272,6 +273,9 @@ async def scroll_current_page(page):
             '.jobs-search-two-pane__results ul',
             '.jobs-search-results',
             'ul[role="list"]',
+            'li[data-occludable-job-id]'
+            '.display-flex .job-card-container',
+            '.display-flex .job-card-container .relative .job-card-list'
         ]
         
         job_list_element = None
@@ -409,52 +413,129 @@ async def force_layout_fix(page):
 
 async def collect_jobs_from_current_page(page):
     """Collect all job elements from current page"""
+
+    # Set a huge viewport to force everything to fit
+    await page.set_viewport_size({'width': 7680, 'height': 4320})  # 4K * 2
     selectors = [
+        # '.job-card-container a[href*="/jobs/search/?currentJobId"]',
+        'a[href*="/jobs/view"]',
+        # 'a[href*="/jobs/search/?currentJobId"]',
+        # 'a.job-card-list__title--link',
         'a.job-card-container__link',
         'a[class*="job-card-container__link"]',
-        '.job-card-container a[href*="/jobs/view"]',
-        'li[data-job-id] a[href*="/jobs/view"]'
+        # 'li[data-job-id] a[href*="/jobs/view"] a[href*="/jobs/search/?currentJobId"]'
     ]
     
     all_elements = []
     for selector in selectors:
         try:
+            print(f"using selector: {selector} to find job cards")
             elements = await page.query_selector_all(selector)
-            all_elements.extend(elements)
+            if elements:
+                print("found jobs: ",len(elements))
+                all_elements.extend(elements)
+            
+            else:
+                print(f"❌ jobs not found using this selector {selector}")
         except:
+            print(f"❌ expection jobs not found using this selector {selector}")
             continue
     
     return all_elements
 
 async def click_next_page_and_wait(page):
     """FIXED: Click next page and wait for new jobs to load"""
+    print("moving to next page, if available")
     try:
-        # Your specific next button selectors
+       
+        
+        # Priority selector based on your HTML: aria-label="View next page"
         next_selectors = [
-            'button.jobs-search-pagination__button--next:not([disabled])',
-            'button.artdeco-button.jobs-search-pagination__button--next:not([disabled])',
-            '.jobs-search-pagination__button--next:not([disabled])',
-            'button[aria-label*="Go to next page"]:not([disabled])'
+            'button[aria-label="View next page"]',
+            'button.jobs-search-pagination__button--next',
+            'button:has-text("Next")',
+            'button[aria-label*="next" i]',  # Case-insensitive partial match
+            'button.artdeco-button.jobs-search-pagination__button',
+            '.jobs-search-pagination__button--next',
         ]
         
         for selector in next_selectors:
             try:
-                next_button = await page.wait_for_selector(selector, timeout=2000)
-                if next_button and await next_button.is_visible() and await next_button.is_enabled():
-                    # Get current job count before clicking
-                    current_jobs = await page.query_selector_all('a[href*="/jobs/view"]')
-                    prev_count = len(current_jobs)
-                    
-                    print(f"🔄 Clicking next page button: {selector}")
-                    await next_button.scroll_into_view_if_needed()
-                    await next_button.click()
-                    
-                    # FIXED: Wait for new page to load with new jobs
-                    await wait_for_page_change(page, prev_count)
-                    return True
-            except:
+                print(f"🔍 Trying selector: {selector}")
+                
+                # Don't wait, just check if exists
+                buttons = await page.locator(selector).all()
+                
+                if len(buttons) == 0:
+                    print(f"  ❌ No buttons found with selector: {selector}")
+                    continue
+                
+                print(f"  ✅ Found {len(buttons)} button(s) with selector: {selector}")
+
+                for idx, btn in enumerate(buttons):
+                    try:
+                        is_visible = await btn.is_visible()
+                        is_enabled = await btn.is_enabled()
+                        
+                        if not is_visible or not is_enabled:
+                            print(f"  ⚠️ Button {idx+1}: visible={is_visible}, enabled={is_enabled}")
+                            continue
+
+                        text = (await btn.text_content() or "").strip()
+                        print(f"  ✅ Button {idx+1}: visible, enabled, text='{text}'")
+
+                        # Get current job count before clicking
+                        current_jobs = await page.query_selector_all('a[href*="/jobs/view"]')
+                        prev_count = len(current_jobs)
+
+                        # Multiple click strategies
+                        click_success = False
+                        
+                        # Strategy 1: Standard click
+                        try:
+                            await btn.scroll_into_view_if_needed()
+                            await asyncio.sleep(0.5)
+                            await btn.click(timeout=5000)
+                            click_success = True
+                            print(f"  🎯 Clicked next button successfully")
+                        except Exception as e1:
+                            print(f"  ⚠️ Standard click failed: {e1}")
+                        
+                        # Strategy 2: JavaScript click
+                        if not click_success:
+                            try:
+                                await page.evaluate("(element) => element.click()", btn)
+                                click_success = True
+                                print(f"  🎯 Clicked with JavaScript")
+                            except Exception as e2:
+                                print(f"  ⚠️ JS click failed: {e2}")
+                        
+                        # Strategy 3: Force click
+                        if not click_success:
+                            try:
+                                await btn.click(force=True, timeout=5000)
+                                click_success = True
+                                print(f"  🎯 Clicked with force=True")
+                            except Exception as e3:
+                                print(f"  ⚠️ Force click failed: {e3}")
+
+                        if click_success:
+                            # Wait for new page to load
+                            await wait_for_page_change(page, prev_count)
+                            return True
+                        else:
+                            print(f"  ❌ All click strategies failed for button {idx+1}")
+                            continue
+
+                    except Exception as e:
+                        print(f"  ❌ Error with button {idx+1}: {e}")
+                        continue
+                        
+            except Exception as e:
+                print(f"  ❌ Selector exception: {e}")
                 continue
         
+        print("🛑 No clickable next button found with any selector")
         return False
         
     except Exception as e:
