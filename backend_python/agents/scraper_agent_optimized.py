@@ -12,6 +12,7 @@ async def fetch_and_parse_job_details(session: aiohttp.ClientSession, url: str):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
+        await asyncio.sleep(1)
         async with session.get(url, headers=headers, timeout=15) as response:
             if response.status == 200:
                 html_content = await response.text()
@@ -41,9 +42,11 @@ async def fetch_and_parse_job_details(session: aiohttp.ClientSession, url: str):
 # --- MAIN ORCHESTRATOR ---
 async def main():
     job_urls_to_process = [
-        "https://www.linkedin.com/jobs/view/4318073630/",
-        'https://www.linkedin.com/jobs/view/4319141548/',
-        'https://www.linkedin.com/jobs/view/4319282947/',
+         "https://www.linkedin.com/jobs/view/4324551743/",
+"https://www.linkedin.com/jobs/view/4338946156/",
+ "https://www.linkedin.com/jobs/view/4339135883/",
+ "https://www.linkedin.com/jobs/view/4324561648/",
+" https://www.linkedin.com/jobs/view/4324444847/"
     ]
 
     async with aiohttp.ClientSession() as session:

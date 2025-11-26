@@ -42,7 +42,7 @@ class Colors:
 # Configuration
 PLATFORMS = {
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r172800&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
+        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
         "base_url": "https://www.linkedin.com",
         "login_url": "https://www.linkedin.com/login"
     },
@@ -421,8 +421,8 @@ async def collect_jobs_from_current_page(page):
         'a[href*="/jobs/view"]',
         # 'a[href*="/jobs/search/?currentJobId"]',
         # 'a.job-card-list__title--link',
-        'a.job-card-container__link',
-        'a[class*="job-card-container__link"]',
+        # 'a.job-card-container__link',
+        # 'a[class*="job-card-container__link"]',
         # 'li[data-job-id] a[href*="/jobs/view"] a[href*="/jobs/search/?currentJobId"]'
     ]
     
@@ -574,8 +574,10 @@ async def extract_job_description_fixed(session: aiohttp.ClientSession, url, max
     print(f"🚀 Fetching: {url}")
     
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+    
+    await asyncio.sleep(1.5)
     
     for attempt in range(max_retries):
         try:
@@ -740,14 +742,57 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
         if valid_job_links:
             print(f"✅ {len(valid_job_links)} jobs ready for OPTIMIZED processing with aiohttp...")
             
-            # Use aiohttp to fetch all descriptions in parallel
-            async with aiohttp.ClientSession() as session:
-                tasks = [
-                    extract_job_description_fixed(session, url) 
-                    for url in valid_job_links
-                ]
+            # cookies = await context.cookies()
+            
+            # # Filter out cookies with invalid characters for aiohttp
+            # valid_cookies = []
+            # for cookie in cookies:
+            #     cookie_name = cookie['name']
+            #     # Skip cookies with brackets or other special chars that aiohttp doesn't like
+            #     if '[' not in cookie_name and ']' not in cookie_name:
+            #         valid_cookies.append(cookie)
+            #     else:
+            #         print(f"   ⚠️ Skipping invalid cookie: {cookie_name}")
+            
+            # print(f"   ✅ Using {len(valid_cookies)}/{len(cookies)} valid cookies for authentication")
+            
+            # Use aiohttp to fetch descriptions in controlled batches
+            connector = aiohttp.TCPConnector(limit=3)  # Only 3 concurrent connections
+            async with aiohttp.ClientSession(connector=connector) as session:
+                # Add valid cookies to session
+                # for cookie in valid_cookies:
+                #     try:
+                #         session.cookie_jar.update_cookies(
+                #             {cookie['name']: cookie['value']},
+                #             response_url=aiohttp.client.URL(config["base_url"])
+                #         )
+                #     except Exception as e:
+                #         print(f"   ⚠️ Could not add cookie {cookie['name']}: {e}")
+    
+                # Process in small batches with delays to avoid rate limiting
+                results = []
+                batch_size = 20  # Only 5 jobs at a time
                 
-                results = await asyncio.gather(*tasks)
+                for i in range(0, len(valid_job_links), batch_size):
+                    batch_urls = valid_job_links[i:i + batch_size]
+                    batch_num = (i // batch_size) + 1
+                    total_batches = (len(valid_job_links) + batch_size - 1) // batch_size
+                    
+                    print(f"   📦 Processing batch {batch_num}/{total_batches} ({len(batch_urls)} jobs)...")
+                    
+                    batch_tasks = [
+                        extract_job_description_fixed(session, url) 
+                        for url in batch_urls
+                    ]
+                    
+                    batch_results = await asyncio.gather(*batch_tasks)
+                    results.extend(batch_results)
+                    
+                    # Add delay between batches (except for the last batch)
+                    if i + batch_size < len(valid_job_links):
+                        delay = 2  # 5 second delay between batches
+                        print(f"   ⏳ Waiting {delay}s before next batch to avoid rate limiting...")
+                        await asyncio.sleep(delay)
 
             # with open(f"results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}", "w", encoding="utf-8") as f:
             #     json.dump(results, f, indent=2, ensure_ascii=False)
