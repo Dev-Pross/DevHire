@@ -209,49 +209,37 @@ async def ensure_logged_in(browser, user_id):
 # ---------------------------------------------------------------------------
 
 async def load_all_available_jobs_fixed(page):
-    """FIXED: Proper pagination with page-by-page job loading"""
+    """FIXED: Proper pagination with page-by-page job loading - returns unique URLs"""
     try:
         print("🔄 Starting FIXED pagination job loading...")
         
         unique_job_urls = set()
-        job_elements = []
         max_pages = 3  # Limit pages for speed
         
         for page_num in range(max_pages):
             print(f"📄 Processing page {page_num + 1}/{max_pages}")
             
-            # First, load all jobs on current page by scrolling
-            
-            # await scroll_current_page(page)
-            
-            # Collect jobs from current page
-            current_page_jobs = await collect_jobs_from_current_page(page)
+            # Collect job URLs from current page
+            current_page_urls = await collect_jobs_from_current_page(page)
             
             # Add new unique jobs
             new_jobs_count = 0
-            for element in current_page_jobs:
-                try:
-                    href = await element.get_attribute('href')
-                    if href:
-                        clean_href = href.split('?')[0].strip()
-                        if clean_href not in unique_job_urls:
-                            unique_job_urls.add(clean_href)
-                            job_elements.append(element)
-                            new_jobs_count += 1
-                except:
-                    continue
+            for url in current_page_urls:
+                clean_url = url.split('?')[0].strip()
+                if clean_url not in unique_job_urls:
+                    unique_job_urls.add(clean_url)
+                    new_jobs_count += 1
             
             print(f"✅ Page {page_num + 1}: Added {new_jobs_count} new jobs (Total: {len(unique_job_urls)})")
             
             # Try to navigate to next page
             next_clicked = await click_next_page_and_wait(page)
-            # next_clicked = False
             if not next_clicked:
                 print(f"🛑 No next page available, stopping at page {page_num + 1}")
                 break
         
-        print(f"✅ FIXED pagination complete: {len(job_elements)} unique jobs from multiple pages")
-        return job_elements
+        print(f"✅ FIXED pagination complete: {len(unique_job_urls)} unique jobs from multiple pages")
+        return list(unique_job_urls)
         
     except Exception as e:
         print(f"❌ FIXED pagination error: {e}")
@@ -412,36 +400,36 @@ async def force_layout_fix(page):
 
 
 async def collect_jobs_from_current_page(page):
-    """Collect all job elements from current page"""
+    """Collect all unique job URLs - 1920x1080 viewport with 4x content visibility"""
 
-    # Set a huge viewport to force everything to fit
-    await page.set_viewport_size({'width': 7680, 'height': 4320})  # 4K * 2
-    selectors = [
-        # '.job-card-container a[href*="/jobs/search/?currentJobId"]',
-        'a[href*="/jobs/view"]',
-        # 'a[href*="/jobs/search/?currentJobId"]',
-        # 'a.job-card-list__title--link',
-        # 'a.job-card-container__link',
-        # 'a[class*="job-card-container__link"]',
-        # 'li[data-job-id] a[href*="/jobs/view"] a[href*="/jobs/search/?currentJobId"]'
-    ]
+    # Set standard viewport: 1920x1080
+    await page.set_viewport_size({'width': 2562, 'height': 2000})
     
-    all_elements = []
-    for selector in selectors:
-        try:
-            print(f"using selector: {selector} to find job cards")
-            elements = await page.query_selector_all(selector)
-            if elements:
-                print("found jobs: ",len(elements))
-                all_elements.extend(elements)
+    # Scale content to 25% (shows 4x more content in same space)
+    await page.evaluate('() => { document.body.style.zoom = "0.25"; }')
+    
+    # Extract all job URLs - simple and direct
+    unique_urls = await page.evaluate('''
+        () => {
+            const urls = new Set();
+            // Find all links containing /jobs/view
+            const links = document.querySelectorAll('a[href*="/jobs/view"]');
             
-            else:
-                print(f"❌ jobs not found using this selector {selector}")
-        except:
-            print(f"❌ expection jobs not found using this selector {selector}")
-            continue
+            links.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href) {
+                    // Remove query parameters
+                    const cleanUrl = href.split('?')[0];
+                    urls.add(cleanUrl);
+                }
+            });
+            
+            return Array.from(urls);
+        }
+    ''')
     
-    return all_elements
+    print(f"✅ Found {len(unique_urls)} unique job URLs at 4x visibility in 1920x1080")
+    return unique_urls
 
 async def click_next_page_and_wait(page):
     """FIXED: Click next page and wait for new jobs to load"""
@@ -648,7 +636,8 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
         return {}
 
     page = await context.new_page()
-    
+    # page.set_viewport_size({'width': 2560, 'height': 2000})
+    await page.evaluate('() => { document.body.style.zoom = "0.25"; }')
     # Optimized timeouts for speed
     page.set_default_navigation_timeout(20000)
     page.set_default_timeout(15000)
@@ -678,62 +667,32 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
             print(f"❌ No jobs found for '{job_title}'")
             return {}
         
-        print(f"📊 Processing {len(job_cards)} job cards with RELAXED filtering")
+        print(f"📊 Processing {len(job_cards)} unique job URLs")
         
         valid_job_links = []
         
-        # RELAXED filtering with debugging
-        keyword_filtered = 0
-        link_failed = 0
-        text_failed = 0
-        
-        for i, card in enumerate(job_cards):
+        # job_cards now contains URLs directly, not elements
+        for i, url in enumerate(job_cards, 1):
             try:
-                href = await card.get_attribute('href')
-                if not href:
-                    # Try multiple methods to find link
-                    link_selectors = [
-                        'a[href*="/jobs/view"]',
-                        '[href*="/jobs/view"]'
-                    ]
-                    
-                    for selector in link_selectors:
-                        try:
-                            link_elem = await card.query_selector(selector)
-                            if link_elem:
-                                href = await link_elem.get_attribute('href')
-                                if href and '/jobs/' in href:
-                                    print(f"   ✅ Card {i+1}: Link found using {selector}")
-                                    break
-                        except:
-                            continue
+                full_url = url if url.startswith('http') else config["base_url"] + url
+                clean_url = full_url.split('?')[0]
                 
-                if href and '/jobs/view' in href:  # More lenient - not just '/jobs/view/'
-                    full_url = href if href.startswith('http') else config["base_url"] + href
-                    clean_url = full_url.split('?')[0]
-                    
-                    if clean_url not in PROCESSED_JOB_URLS:
-                        PROCESSED_JOB_URLS.add(clean_url)
-                        valid_job_links.append(clean_url)
-                        print(f"   ✅ Card {i+1}: Added to processing queue")
-                    else:
-                        print(f"   🔄 Card {i+1}: Duplicate URL, skipping")
+                if clean_url not in PROCESSED_JOB_URLS:
+                    PROCESSED_JOB_URLS.add(clean_url)
+                    valid_job_links.append(clean_url)
+                    print(f"   ✅ Job {i}: Added to processing queue")
                 else:
-                    link_failed += 1
-                    print(f"   ❌ Card {i+1}: No valid job link found")
-                    continue
+                    print(f"   🔄 Job {i}: Duplicate URL, skipping")
                         
             except Exception as e:
-                print(f"   ❌ Card {i+1}: Processing error: {e}")
+                print(f"   ❌ Job {i}: Processing error: {e}")
                 continue
         
         # Filtering summary
         print(f"\n📊 FILTERING SUMMARY:")
-        print(f"   📁 Total cards: {len(job_cards)}")
-        print(f"   ❌ No text content: {text_failed}")
-        print(f"   ❌ No keywords: {keyword_filtered}")
-        print(f"   ❌ No valid links: {link_failed}")
+        print(f"   📁 Total URLs collected: {len(job_cards)}")
         print(f"   ✅ Valid jobs: {len(valid_job_links)}")
+        print(f"   🔄 Duplicates skipped: {len(job_cards) - len(valid_job_links)}")
         
         print(f"✅ {len(valid_job_links)} jobs ready for OPTIMIZED processing")
         

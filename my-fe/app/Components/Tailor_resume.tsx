@@ -54,7 +54,8 @@ const Tailor_resume = () => {
           headers: {"Content-Type":"application/json"},
           body:JSON.stringify({
             "job_desc":description,
-            "resume_url": resume
+            "resume_url": resume,
+            "template": selectedTemplate
           })
         });
         const data = await response.json()
@@ -118,11 +119,12 @@ const Tailor_resume = () => {
             className='bg-[#183b70] text-white w-full min-h-[4rem] max-h-[14rem] box-border block resize-none text-base text-sm md:text-md p-3 md:p-4 outline-none overflow-y-auto rounded-lg' placeholder='Enter your job description'></textarea>
             <button
                 onClick={tailorButton}
-                className="bg-blue-600 hover:bg-blue-800 transition w-12 h-12 md:w-16 md:h-16 text-black font-bold py-2 px-3 md:px-4 rounded-full md:rounded-4xl flex items-center justify-center focus:outline-none focus:shadow-outline"
+                disabled = {loading}
+                className={`${loading ? 'cursor-none' : 'cursor-pointer'} bg-blue-600 hover:bg-blue-800 transition w-12 h-12 md:w-16 md:h-16 text-black font-bold py-2 px-3 md:px-4 rounded-full md:rounded-4xl flex items-center justify-center focus:outline-none focus:shadow-outline`}
                 type="button"
               >
                 {loading ? (
-                  <span className="flex items-center justify-center gap-2">
+                  <span className="flex items-center justify-center gap-2 cursor-not-allowed">
                     <svg
                       className="animate-spin h-5 w-5 text-black"
                       viewBox="0 0 24 24"
@@ -275,15 +277,8 @@ const Tailor_resume = () => {
                 {resumeTemplates.map((template, index) => (
                   <div 
                       key={template.id}
-                      onClick={() => {if(index>0){
-
+                      onClick={() => {
                         setSelectedTemplate(index)
-                        console.log("pro members only");
-                        toast.error("Premium users only")
-                        setTimeout(()=>{
-                          setSelectedTemplate(0)
-                        },600)
-                      }
                     }}
             className="min-w-[45%] md:min-w-[60%] lg:min-w-[45%] xl:min-w-[40%] h-full cursor-pointer relative rounded-lg overflow-hidden"
                   >
