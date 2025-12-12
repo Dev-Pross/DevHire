@@ -24,7 +24,9 @@ import pytesseract
 from google import genai
 from google.genai import types
 from google.api_core import exceptions as g_exc
-from config import GOOGLE_API
+from config import GOOGLE_API, GROQ_API
+from groq import Groq
+
 
 # ╭─────────────────────────  COLOUR LOG  ─────────────────────────╮
 class _C:
@@ -47,10 +49,16 @@ _TEMPLATE = 0
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Gemini setup ───────────────────────────────────────────────╮
-if not GOOGLE_API:
-    raise ValueError("Set GOOGLE_API env var")
-client = genai.Client(api_key=GOOGLE_API)
-model = "gemini-2.5-flash" # gemini-2.5-flash-lite
+# if not GOOGLE_API:
+#     raise ValueError("Set GOOGLE_API env var")
+# client = genai.Client(api_key=GOOGLE_API)
+# model = "gemini-2.5-flash" # gemini-2.5-flash-lite
+
+client = Groq(
+    api_key=GROQ_API,
+)
+model="openai/gpt-oss-120b"
+
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Resume-text helpers ────────────────────────────────────────╮
@@ -761,6 +769,7 @@ This prompt provides detailed explanations for each step. Understanding the 'why
 2.  **No-Change Condition**: If the resume is already a perfect match, the block must contain only `NO_CHANGES_NEEDED`.
 3.  **LaTeX Output**: Otherwise, the block must contain the complete, valid LaTeX code, starting with `\documentclass`.
 """
+
 def build_prompt(original_resume: str, jobs: List[str]) -> str:
     global _TEMPLATE
     if _TEMPLATE == 0:
@@ -803,17 +812,21 @@ def ask_gemini(orig: str, jobs: List[str]) -> str:
     for attempt, delay in zip(range(1, 4), (0, 20, 40)):
         try:
             log.info("Gemini attempt %d/3", attempt)
-            txt = client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(temperature=0.2)
-        ).text
+            txt = client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ],
+                model=model,
+            )
 
             # ADD THIS LINE TO SAVE GEMINI RESPONSE:
             # Path(f"gemini_debug_{int(time.time())}.txt").write_text(txt, encoding="utf-8")
 
-            log.debug("Gemini preview: %s", txt[:300].replace("\n", " ↩ "))
-            return txt
+            log.debug("Gemini preview: %s", txt.choices[0].message.content[:300].replace("\n", " ↩ "))
+            return txt.choices[0].message.content
         # except g_exc.ResourceExhausted:
         #     log.warning("Rate-limited – sleep %ss", delay)
         #     time.sleep(delay)
@@ -914,7 +927,7 @@ def tex_from_block(text: str) -> str | None:
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Batch processor ────────────────────────────────────────────╮
-def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | None = None, user_data: str | None = None, template: int | None = None ) -> List[Dict[str, Any]]:
+def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | None = None, user_data: str | None = None, template: int | None = 0 ) -> List[Dict[str, Any]]:
     global _TEMPLATE
     log.info("template from request - %d ", template if template >=0  else "not yet received")
     log.info("Processing %d jobs", len(jobs))

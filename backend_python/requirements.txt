@@ -19,3 +19,4 @@ pydantic
 pdf2image
 aiohttp
 pytesseract
+groq

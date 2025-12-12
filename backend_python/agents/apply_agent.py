@@ -1108,10 +1108,10 @@ def make_resume_payload(b64: str) -> dict:
 
 async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     await page.goto(LINKEDIN_LOGIN_URL, wait_until="networkidle")
+    await asyncio.sleep(10)
     if "/feed" in page.url:
         log.info("✅ Already logged in")
         return True
-    
     if user_id and password :
         print("user and password provided")
         global LINKEDIN_ID, LINKEDIN_PASSWORD
@@ -1325,7 +1325,7 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
 
     pw = await async_playwright().start()
     browser = await pw.chromium.launch(
-        headless=True,
+        headless=False,
         args=[
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]        
