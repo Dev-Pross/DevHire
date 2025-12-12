@@ -49,15 +49,15 @@ _TEMPLATE = 0
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Gemini setup ───────────────────────────────────────────────╮
-# if not GOOGLE_API:
-#     raise ValueError("Set GOOGLE_API env var")
-# client = genai.Client(api_key=GOOGLE_API)
-# model = "gemini-2.5-flash" # gemini-2.5-flash-lite
+if not GOOGLE_API:
+    raise ValueError("Set GOOGLE_API env var")
+client = genai.Client(api_key=GOOGLE_API)
+model = "gemini-2.5-flash" # gemini-2.5-flash-lite
 
-client = Groq(
-    api_key=GROQ_API,
-)
-model="openai/gpt-oss-120b"
+# client = Groq(
+#     api_key=GROQ_API,
+# )
+# model="groq/compound"
 
 # ╰───────────────────────────────────────────────────────────────╯
 
@@ -812,26 +812,34 @@ def ask_gemini(orig: str, jobs: List[str]) -> str:
     for attempt, delay in zip(range(1, 4), (0, 20, 40)):
         try:
             log.info("Gemini attempt %d/3", attempt)
-            txt = client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "no preamble just give the proper Latex code without any explainations, your response should start with ```latex and end with ```."
-                        "***Code shouldn't have any syntax errors proper tailored latex code should be provide.***"
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
-                ],
-                model=model,
-            )
+            # txt = client.chat.completions.create(
+            #     messages=[
+            #         {
+            #             "role": "system",
+            #             "content": "no preamble just give the proper Latex code without any explainations, your response should start with ```latex and end with ```."
+            #             "***Code shouldn't have any syntax errors proper tailored latex code should be provide.***"
+            #         },
+            #         {
+            #             "role": "user",
+            #             "content": prompt,
+            #         }
+            #     ],
+            #     model=model,
+            # )
+            res = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config= types.GenerateContentConfig(temperature=0.2)
+                    ).text
 
             # ADD THIS LINE TO SAVE GEMINI RESPONSE:
             # Path(f"gemini_debug_{int(time.time())}.txt").write_text(txt, encoding="utf-8")
 
-            log.debug("Gemini preview: %s", txt.choices[0].message.content[:300].replace("\n", " ↩ "))
-            return txt.choices[0].message.content
+            # log.debug("Gemini preview: %s", txt.choices[0].message.content[:300].replace("\n", " ↩ "))
+            # return txt.choices[0].message.content
+            log.debug("Gemini preview: %s", res[:300].replace("\n", " ↩ "))
+            return res
+
         # except g_exc.ResourceExhausted:
         #     log.warning("Rate-limited – sleep %ss", delay)
         #     time.sleep(delay)
