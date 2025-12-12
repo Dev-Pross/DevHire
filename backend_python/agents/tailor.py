@@ -815,6 +815,11 @@ def ask_gemini(orig: str, jobs: List[str]) -> str:
             txt = client.chat.completions.create(
                 messages=[
                     {
+                        "role": "system",
+                        "content": "no preamble just give the proper Latex code without any explainations, your response should start with ```latex and end with ```."
+                        "***Code shouldn't have any syntax errors proper tailored latex code should be provide.***"
+                    },
+                    {
                         "role": "user",
                         "content": prompt,
                     }
