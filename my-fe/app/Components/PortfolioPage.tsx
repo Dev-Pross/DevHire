@@ -17,6 +17,7 @@ const PortfolioPage = () => {
     setLoading(true)
     if(!resume) {
       setLoading(false)
+      toast.error("Please upload resume first")
       return
     }
     try{

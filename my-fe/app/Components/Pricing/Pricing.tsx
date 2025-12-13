@@ -14,7 +14,8 @@ export const Pricing = () => {
           </p>
           <ul className="mb-8 space-y-4 text-sm lg:text-base">
             <li>✔️ Access to Standard Resume template</li>
-            <li>✔️ Tailor your resume for 3 times/day</li>
+            <li>✔️ Tailor your resume for 2 times/day</li>
+            <li>✔️ Build your Portfolio for 3 times/day</li>
             <li>✔️ Apply upto 5 applications/day</li>
             <li>✔️ Limited access to Smart Applier</li>
           </ul>
@@ -32,6 +33,7 @@ export const Pricing = () => {
           <ul className="mb-8 space-y-4 text-sm lg:text-base">
             <li>✔️ Access to all advanced resume templates</li>
             <li>✔️ Tailor your resume for 10 times/day</li>
+            <li>✔️ Build your Portfolio for 10 times/day</li>
             <li>✔️ Apply upto 20 applications/day</li>
             <li>✔️ Full access to Smart Applier</li>
           </ul>

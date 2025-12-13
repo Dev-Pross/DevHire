@@ -231,6 +231,19 @@ const Navbar = () => {
             Tailor Resume
           </Link>
           <Link
+            href="/Jobs/portfolio"
+            className="hover:text-gray-300 font-bold transition-colors duration-300"
+            style={navLinkStyle}
+            onMouseEnter={(e) =>
+              ((e.target as HTMLAnchorElement).style.color = hoverStyle.color)
+            }
+            onMouseLeave={(e) =>
+              ((e.target as HTMLAnchorElement).style.color = color)
+            }
+          >
+            Portfolio Builder
+          </Link>
+          <Link
             href="/about"
             className="hover:text-gray-300 font-bold transition-colors duration-300"
             style={navLinkStyle}

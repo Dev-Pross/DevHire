@@ -1,6 +1,6 @@
 import React from 'react'
-import PortfolioPage from '../Components/PortfolioPage'
-import Navbar from '../Components/Navbar'
+import PortfolioPage from '../../Components/PortfolioPage'
+import Navbar from '../../Components/Navbar'
 
 const page = () => {
   return (
