@@ -335,6 +335,13 @@ const Navbar = () => {
             Tailor Resume
           </Link>
           <Link
+            href="/Jobs/portfolio"
+            className="text-white hover:text-[#00ffcc] font-bold text-lg transition-colors"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Portfolio Builder
+          </Link>
+          <Link
             href="/about"
             className="text-white hover:text-[#00ffcc] font-bold text-lg transition-colors"
             onClick={() => setMobileMenuOpen(false)}
