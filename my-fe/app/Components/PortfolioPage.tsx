@@ -89,7 +89,8 @@ const PortfolioPage = () => {
   }, []);
   return (
     <>
-      <div className="min-h-screen lg:h-screen  flex flex-col p-6 md:p-10 gap-5">
+      <div className="min-h-screen lg:h-full  flex flex-col p-6 md:p-10 gap-5">
+        {/* upload button */}
         <>
         <input
           type="file"
@@ -182,8 +183,8 @@ const PortfolioPage = () => {
             )}
           </div>
         </>
-        <div className="order-1 md:order-1 w-full bg-white/10 h-[90%] md:h-[90dvh] flex flex-col gap-2 rounded-xl p-4">
-          {loading ? <div className=" h-[90%] w-full flex justify-center items-center bg-white/10 rounded-md"><span className="flex items-center justify-center gap-2 cursor-not-allowed">
+        <div className="order-1 md:order-1 w-full bg-white/10 min-h-full md:h-[90dvh] flex flex-col gap-2 rounded-xl p-4">
+          {loading ? <div className=" h-screen w-full flex justify-center items-center bg-white/10 rounded-md"><span className="flex items-center justify-center gap-2 cursor-not-allowed">
             <svg
               className="animate-spin h-5 w-5 text-black"
               viewBox="0 0 24 24"
@@ -205,7 +206,7 @@ const PortfolioPage = () => {
             </svg>
             Generating...</span></div> : 
             (code ? 
-              (<div className='w-full h-[90%]'> 
+              (<div className='w-full h-full'> 
                   <iframe
                       srcDoc={code}
                       width="100%"
