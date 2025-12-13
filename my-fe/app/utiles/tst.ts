@@ -1,7 +1,4 @@
-import { PrismaClient } from '@prisma/client'
-import {UserOperations} from './database'
-
-const prisma = new PrismaClient()
+import prisma, {UserOperations} from './database'
 
 async function main() {
   const testUser = {
