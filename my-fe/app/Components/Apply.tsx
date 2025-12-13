@@ -260,8 +260,8 @@ const Apply: React.FC<ApplyProps> = () => {
 
   return (
     <>
-      <div className="w-screen h-full ">
-        <div className='lg:hidden flex flex-col gap-0 bg-gradient-to-b from-[#244283] to-[#0e3661] p-4 md:p-6 lg:p-8 py-8 lg:py-20 shadow-lg shadow-[#052718]-500 w-full lg:w-auto lg:max-w-xs lg:sticky lg:top-15 lg:left-0 lg:h-screen rounded-b-lg lg:rounded-r-lg lg:rounded-b-none cursor-default'>
+      <div className="w-full min-h-screen overflow-x-hidden flex flex-col">
+        <div className='lg:hidden shrink-0 flex flex-col gap-0 bg-gradient-to-b from-[#244283] to-[#0e3661] p-4 md:p-6 lg:p-8 py-8 lg:py-20 shadow-lg shadow-[#052718]-500 w-full lg:w-auto lg:max-w-xs lg:sticky lg:top-15 lg:left-0 lg:h-screen rounded-b-lg lg:rounded-r-lg lg:rounded-b-none cursor-default'>
           {steps.map((step, index) => (
             <div className="flex items-start" key={step.label}>
               {/* Connector Line & Circle Col */}
@@ -331,7 +331,7 @@ const Apply: React.FC<ApplyProps> = () => {
           ))}
         </div>
 
-        <div className="hidden lg:flex justify-center gap-0 bg-transparent p-18 py-20 shadow-lg shadow-[#052718]-500 w-screen max-w-screen sticky top-15 mt-10  rounded-r-lg cursor-default">
+        <div className="hidden lg:flex shrink-0 justify-center gap-0 bg-transparent p-18 py-20 shadow-lg shadow-[#052718]-500 w-screen max-w-screen sticky top-15 mt-10  rounded-r-lg cursor-default">
           {steps.map((step, index) => (
             <div className="flex flex-col item-start" key={step.label}>
               <div className="flex  items-center mr-1 h-fit">
@@ -352,9 +352,9 @@ const Apply: React.FC<ApplyProps> = () => {
                     </svg>
                   ) : index === currentStep ? (
                     // <div className="w-3 h-10 rounded-full bg-blue-400 animate-spin" />
-                    <div
-                      className={`bg-[url('/spinner.svg')] w-15 h-15 bg-no-repeat`}
-                    ></div>
+                        <div className="flex-1 ">
+                      <div className={`bg-[url('/spinner.svg')] w-15 h-15 bg-no-repeat`}/>
+                    </div>
                   ) : null}
                 </div>
 
@@ -404,6 +404,7 @@ const Apply: React.FC<ApplyProps> = () => {
         </div>
         {response && currentStep > 100 && (
           <>
+            <div className="min-h-full">
             <div className="flex md:flex-row flex-col p-16 md:px-32 justify-between">
               <div className="flex md:justify-around">
                 <p className="text-white font-bold text-2xl ">Total: </p>
@@ -430,6 +431,7 @@ const Apply: React.FC<ApplyProps> = () => {
                   Track your application here
                 </h1>
               </a>
+            </div>
             </div>
           </>
         )}
