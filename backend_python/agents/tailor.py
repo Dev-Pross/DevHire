@@ -52,7 +52,7 @@ _TEMPLATE = 0
 if not GOOGLE_API:
     raise ValueError("Set GOOGLE_API env var")
 client = genai.Client(api_key=GOOGLE_API)
-model = "gemini-2.5-flash" # gemini-2.5-flash-lite
+model = "gemini-robotics-er-1.5-preview" # gemini-2.5-flash-lite
 
 # client = Groq(
 #     api_key=GROQ_API,
@@ -811,7 +811,7 @@ def ask_gemini(orig: str, jobs: List[str]) -> str:
     prompt = build_prompt(orig, jobs)
     for attempt, delay in zip(range(1, 4), (0, 20, 40)):
         try:
-            log.info("Gemini attempt %d/3", attempt)
+            log.info("Gemini - (gemini-robotics-er-1.5-preview) attempt %d/3", attempt)
             # txt = client.chat.completions.create(
             #     messages=[
             #         {
