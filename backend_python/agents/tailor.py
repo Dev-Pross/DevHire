@@ -52,7 +52,7 @@ _TEMPLATE = 0
 if not GOOGLE_API:
     raise ValueError("Set GOOGLE_API env var")
 client = genai.Client(api_key=GOOGLE_API)
-model_1 = "gemini-3-flash-lite"
+model_1 = "gemini-3-flash-preview"
 model_2 = 'gemini-2.5-flash-lite' # gemini-2.5-flash-lite gemini-2.5-flash-preview-09-2025
 model_3 = 'gemini-2.5-flash'
 model_4 = 'gemini-robotics-er-1.5-preview'
