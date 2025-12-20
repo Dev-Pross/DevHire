@@ -3,6 +3,7 @@ import sys
 import tempfile
 import os
 from datetime import datetime
+import time
 import aiohttp
 from bs4 import BeautifulSoup
 
@@ -63,7 +64,14 @@ FILTERING_KEYWORDS = [
 
 PROCESSED_JOB_URLS = set()
 LOGGED_IN_CONTEXT = None
-MODEL_NAME="gemini-2.5-flash"
+# MODEL_NAME="gemini-2.5-flash"
+model_1 = "gemini-3-flash-preview"
+model_2 = 'gemini-2.5-flash-lite' # gemini-2.5-flash-lite gemini-2.5-flash-preview-09-2025
+model_3 = 'gemini-2.5-flash'
+model_4 = 'gemini-robotics-er-1.5-preview'
+
+MODELS = [model_1, model_2, model_3, model_4]
+
 # ---------------------------------------------------------------------------
 # 1. ENHANCED LOGIN FUNCTIONALITY
 # ---------------------------------------------------------------------------
@@ -774,6 +782,10 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
             print(f"\n📊 EXTRACTION SUMMARY:")
             print(f"   ✅ Successfully processed: {processed_count}/{len(valid_job_links)}")
             print(f"   ❌ Failed: {failed_count}/{len(valid_job_links)}")
+            # Remove all failed URLs from processed set and valid list
+            failed_set = set(failed_urls)
+            PROCESSED_JOB_URLS.difference_update(failed_set)
+            valid_job_links = [url for url in valid_job_links if url not in failed_set]
             if failed_urls:
                 print(f"   ⚠️ Failed URLs saved for debugging")
             # with open("scrapped_jobs", "w", encoding="utf-8") as f:
@@ -984,41 +996,44 @@ def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
 
 async def extract_single_batch(batch_dict: dict) -> list:
     prompt = create_bulk_prompt(batch_dict)
-    max_tries=5
-    delay=1
-    for attempt in range(max_tries):
-        try:
+    system_instruction = """
+        You are a professional job-data extraction specialist. Extract precisely the requested job titles and keywords, ensuring accuracy and consistency. Follow these rules strictly:
+        - Do not invent data not present.
+        - Use formal, clear, structured format.
+        - Prioritize ATS keywords and recruiter-friendly titles.
+        - Avoid company names or sensitive project code names.
+        - Following the prompt as it is and make sure data should align properly.
+        - ** Return VALID JSON OBJECT make sure in the object shouldn't be any Invalid control characters in that JSON Object ** (MANDATORY)
+        """
+    model_idx = 0
+    choose_model = MODELS[model_idx]
 
-            system_instruction = """
-                You are a professional job-data extraction specialist. Extract precisely the requested job titles and keywords, ensuring accuracy and consistency. Follow these rules strictly:
-                - Do not invent data not present.
-                - Use formal, clear, structured format.
-                - Prioritize ATS keywords and recruiter-friendly titles.
-                - Avoid company names or sensitive project code names.
-                - Following the prompt as it is and make sure data should align properly.
-                """
-            response = client.models.generate_content(
-                model="gemini-2.5-flash-lite",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=0.3,
-                )
-            )
-            # from datetime import datetime
-            # timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            # filename = f"gemini_scraper{timestamp}.txt"
-            
-            # with open(filename, "w", encoding="utf-8") as f:
-            #     f.write(response.text)
-            return parse_bulk_response(response.text, batch_dict)
+    for attempt, delay in zip(range(1, 6), (0, 5, 10, 5, 10)):
+        try:
+            print(f"Gemini - ({choose_model}) attempt {attempt}/5")
+            res = client.models.generate_content(
+                model=choose_model,
+                contents='system instruction: \n'+system_instruction+"\n"+prompt,
+                config=types.GenerateContentConfig(temperature=0.2)
+            ).text
+            return parse_bulk_response(res, batch_dict)
         except Exception as e:
-            print(f"❌ Attempt {attempt +1} failed with error: {e}")
-            if attempt < 2 - 1:
-                await asyncio.sleep(delay)
-                delay *= 2  # exponential backoff
+            # log.error("Gemini error: %s", str(e))
+            # Correctly detect specific HTTP/Status codes in the error text
+            if any(code in str(e) for code in ("404", "429", "503")):
+                # Move to next fallback model if available
+                prev_model = choose_model
+                if model_idx < len(MODELS) - 1:
+                    model_idx += 1
+                    choose_model = MODELS[model_idx]
+                    print(f"Switching model due to error ({e}) → {choose_model}")
+                else:
+                    print(f"Already on last fallback model ({choose_model}); will retry")
             else:
-                print("Max retries reached, exiting batch.")
+                print(f"Gemini error: {str(e)}")
+            # Wait, then retry next attempt (do not break)
+            time.sleep(delay)
+            continue
 
 
 async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25) -> list:  # Increased batch size

@@ -26,15 +26,21 @@ import pytesseract
 from playwright_stealth.stealth import Stealth
 from google.genai import types
 from google import genai
-from config import GOOGLE_API
+from config import GOOGLE_API, GROQ_API
+from groq import Groq
 import requests
 from config import LINKEDIN_ID, LINKEDIN_PASSWORD
+
+client = Groq(
+    api_key=GROQ_API,
+)
+model="openai/gpt-oss-120b"
 
 HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() != "false"
 
 # ────────────────────────── CONSTANTS ──────────────────────────
 
-client = genai.Client(api_key=GOOGLE_API)
+# client = genai.Client(api_key=GOOGLE_API)
 
 LINKEDIN_LOGIN_URL = "https://www.linkedin.com/login"
 RESUME_FILENAME = "RESUME.pdf"
@@ -122,6 +128,7 @@ class EasyApplyAgent:
             '#jobs-apply-button-id',
             '.jobs-apply-button--top-card a:has-text("Easy Apply")',
             'button[aria-label*="Easy Apply"]',
+            'a[aria-label*="Easy Apply to this job"]',
             '.jobs-apply-button--top-card button:has-text("Apply")',
             '.jobs-s-apply button:has-text("Apply")',
             '.jobs-apply-button button:has-text("Easy Apply")',
@@ -1233,12 +1240,22 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
         prompt = gemini_prompt_builder(org_resume)
 
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(temperature=0.2)
-        )
-        clean = response.text.strip()
+        # response = client.models.generate_content(
+        #     model="gemini-2.5-flash",
+        #     contents=prompt,
+        #     config=types.GenerateContentConfig(temperature=0.2)
+        # )
+        res = client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ],
+                model=model,
+            )
+        
+        clean = res.choices[0].message.content
         if clean.startswith("```json"):
             clean = clean[7:].lstrip()
         elif clean.startswith("```"):
