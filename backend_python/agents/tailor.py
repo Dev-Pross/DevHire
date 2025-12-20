@@ -52,8 +52,12 @@ _TEMPLATE = 0
 if not GOOGLE_API:
     raise ValueError("Set GOOGLE_API env var")
 client = genai.Client(api_key=GOOGLE_API)
-model = "gemini-robotics-er-1.5-preview" # gemini-2.5-flash-lite
-
+model_1 = "gemini-3-flash-lite"
+model_2 = 'gemini-2.5-flash-lite' # gemini-2.5-flash-lite gemini-2.5-flash-preview-09-2025
+model_3 = 'gemini-2.5-flash'
+model_4 = 'gemini-robotics-er-1.5-preview'
+# Ordered fallback list for retries
+MODELS = [model_1, model_2, model_3, model_4]
 # client = Groq(
 #     api_key=GROQ_API,
 # )
@@ -809,9 +813,12 @@ def build_prompt(original_resume: str, jobs: List[str]) -> str:
 # ╭── Gemini call ------------------------------------------------╮
 def ask_gemini(orig: str, jobs: List[str]) -> str:
     prompt = build_prompt(orig, jobs)
-    for attempt, delay in zip(range(1, 4), (0, 20, 40)):
+    # Start with first model and move through MODELS on specific failures
+    model_idx = 0
+    choose_model = MODELS[model_idx]
+    for attempt, delay in zip(range(1, 6), (0, 5, 10, 5, 10)):
         try:
-            log.info("Gemini - (gemini-robotics-er-1.5-preview) attempt %d/3", attempt)
+            log.info("Gemini - (%s) attempt %d/5", choose_model, attempt)
             # txt = client.chat.completions.create(
             #     messages=[
             #         {
@@ -827,10 +834,10 @@ def ask_gemini(orig: str, jobs: List[str]) -> str:
             #     model=model,
             # )
             res = client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                    config= types.GenerateContentConfig(temperature=0.2)
-                    ).text
+                model=choose_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(temperature=0.2)
+            ).text
 
             # ADD THIS LINE TO SAVE GEMINI RESPONSE:
             # Path(f"gemini_debug_{int(time.time())}.txt").write_text(txt, encoding="utf-8")
@@ -838,14 +845,27 @@ def ask_gemini(orig: str, jobs: List[str]) -> str:
             # log.debug("Gemini preview: %s", txt.choices[0].message.content[:300].replace("\n", " ↩ "))
             # return txt.choices[0].message.content
             log.debug("Gemini preview: %s", res[:300].replace("\n", " ↩ "))
+            # if any(code in res for code in ("404", "429", "503")):
+            #     choose_model = model_2
+            #     log.warning("Model switched to fallback due to error: model changed")
             return res
-
-        # except g_exc.ResourceExhausted:
-        #     log.warning("Rate-limited – sleep %ss", delay)
-        #     time.sleep(delay)
         except Exception as e:
-            log.error("Gemini error: %s", str(e))
-            break
+            # log.error("Gemini error: %s", str(e))
+            # Correctly detect specific HTTP/Status codes in the error text
+            if any(code in str(e) for code in ("404", "429", "503")):
+                # Move to next fallback model if available
+                prev_model = choose_model
+                if model_idx < len(MODELS) - 1:
+                    model_idx += 1
+                    choose_model = MODELS[model_idx]
+                    log.warning("Switching model due to error (%s) → %s", e, choose_model)
+                else:
+                    log.warning("Already on last fallback model (%s); will retry", choose_model)
+            else:
+                log.error("Gemini error: %s", str(e))
+            # Wait, then retry next attempt (do not break)
+            time.sleep(delay)
+            continue
     raise RuntimeError("Gemini failed 3×")
 # ╰───────────────────────────────────────────────────────────────╯
 
