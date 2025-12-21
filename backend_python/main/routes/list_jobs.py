@@ -41,7 +41,7 @@ async def getJobs(request: JobRequest):
 
     try:
 
-        title_keywords = parse_agent.main(request.user_id, request.file_url)
+        title_keywords = parse_agent.main(request.file_url)
         if not title_keywords or not all(title_keywords):
             return ResponseJob(jobs=[], total=0)
         
