@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 import sys
 import tempfile
 import os
@@ -963,19 +964,60 @@ def create_fallback_data_from_dict(url: str, job_description: str) -> dict:
     }
 
 def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
+    import re
     try:
-        clean = response_text.strip()
-        if clean.startswith("```json"):
-            clean = clean[7:].lstrip()
-        elif clean.startswith("```"):
-            clean = clean[3:].lstrip()
-        if clean.endswith("```"):
-            clean = clean[:-3].rstrip()
-        
-        extracted_jobs = json.loads(clean)
-        if not isinstance(extracted_jobs, list):
-            extracted_jobs = [extracted_jobs]
-        
+        raw = response_text.strip()
+        # Remove markdown code fences if present
+        if raw.startswith("```json"):
+            raw = raw[7:].lstrip()
+        elif raw.startswith("```"):
+            raw = raw[3:].lstrip()
+        if raw.endswith("```"):
+            raw = raw[:-3].rstrip()
+
+        # Remove invalid control characters except \n, \r, \t
+        clean = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', raw)
+
+        # Remove C-style comments (/* ... */) if present
+        clean = re.sub(r'/\*.*?\*/', '', clean, flags=re.DOTALL)
+
+        # Remove trailing commas before ] or }
+        clean = re.sub(r',\s*([}\]])', r'\1', clean)
+
+        # Replace single quotes with double quotes (if any)
+        # Only do this if there are no double quotes at all (rare, but for LLMs that use single quotes)
+        if clean.count('"') == 0 and clean.count("'") > 0:
+            clean = clean.replace("'", '"')
+
+        # Try direct parsing first
+        try:
+            extracted_jobs = json.loads(clean)
+            if not isinstance(extracted_jobs, list):
+                extracted_jobs = [extracted_jobs]
+        except Exception as e:
+            print(f"❌ Error parsing full batch, attempting partial recovery: {e}")
+            print("--- RAW OUTPUT START ---")
+            print(raw[:2000])
+            print("--- RAW OUTPUT END ---")
+            print("--- CLEANED OUTPUT START ---")
+            print(clean[:2000])
+            print("--- CLEANED OUTPUT END ---")
+            # Try to extract individual objects from the array
+            objects = re.findall(r'\{.*?\}', clean, re.DOTALL)
+            extracted_jobs = []
+            for idx, obj_str in enumerate(objects):
+                try:
+                    job = json.loads(obj_str)
+                    extracted_jobs.append(job)
+                except Exception as e2:
+                    print(f"   ⚠️ Skipping malformed job object {idx+1}: {e2}")
+                    # fallback for this job
+                    job_urls = list(original_jobs.keys())
+                    if idx < len(job_urls):
+                        url = job_urls[idx]
+                        jd = original_jobs[url]
+                        extracted_jobs.append(create_fallback_data_from_dict(url, jd))
+
         job_urls = list(original_jobs.keys())
         for i, job in enumerate(extracted_jobs):
             if i < len(job_urls):
@@ -983,12 +1025,12 @@ def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
                 job["job_url"] = url
                 job["job_description"] = original_jobs[url]
                 job["source"] = "linkedin"
-        
+
         while len(extracted_jobs) < len(job_urls):
             idx = len(extracted_jobs)
             url = job_urls[idx]
             extracted_jobs.append(create_fallback_data_from_dict(url, original_jobs[url]))
-        
+
         return extracted_jobs
     except Exception as e:
         print(f"❌ Error parsing response: {e}")
@@ -1013,9 +1055,12 @@ async def extract_single_batch(batch_dict: dict) -> list:
             print(f"Gemini - ({choose_model}) attempt {attempt}/5")
             res = client.models.generate_content(
                 model=choose_model,
-                contents='system instruction: \n'+system_instruction+"\n"+prompt,
+                contents=prompt,
                 config=types.GenerateContentConfig(temperature=0.2)
             ).text
+            # Path(f"gemini_debug_{int(time.time())}.txt").write_text(res, encoding="utf-8")
+            # Path(f"gemini_debug_{int(time.time())}.json").write_text(res, encoding="utf-8")
+
             return parse_bulk_response(res, batch_dict)
         except Exception as e:
             # log.error("Gemini error: %s", str(e))

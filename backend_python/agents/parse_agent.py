@@ -1,11 +1,18 @@
-from config import GOOGLE_API
+from config import GOOGLE_API, GROQ_API
 import requests
 import fitz
 import io
-from google import genai
-from google.genai import types
+# from google import genai
+# from google.genai import types
+from groq import Groq
 
-client  = genai.Client(api_key= GOOGLE_API)
+
+# client  = genai.Client(api_key= GOOGLE_API)
+
+client = Groq(
+    api_key=GROQ_API,
+)
+model="openai/gpt-oss-120b"
 
 def parse_pdf(url : str):
     response = requests.get(url)
@@ -29,44 +36,14 @@ def parse_pdf(url : str):
 #     else:
 #         return True
 
-
-def main(user, url):
-
+              
+def main(url):
+    response: any
     # userID = user
     if url:
         # UploadedResume = session.query(UploadedResume.file_url,UploadedResume.id).filter(UploadedResume.users_id== userID).first()
             resume_text = (parse_pdf(url))
-            system_instruction = """
-You are an expert AI recruiter and resume analyzer.
-
-Your task is to analyze the provided resume text and generate two outputs that maximize the candidate’s visibility and job matching potential:
-
-1. Generate 5 high-quality, market-aligned job titles that reflect the candidate’s skills and experience.
-
-2. Extract 20-25 precise keywords optimized for ATS and recruiter searches.
-
-Important instructions for job titles:
-
-- If the candidate does not have confirmed professional work experience or only lists academic or personal projects, classify them as "Fresher" or "Entry Level".
-- Generate only junior-level job titles such as "Software Engineer", " Developer", "Frontend Developer","Full Stack Developer" dont use Senior as a prefix of Job titles untill unless candidate has professional work experience not personal project's experience thats it.
-- Do NOT suggest "Senior", "Lead", "Manager", or other advanced roles unless there is clear evidence of such experience in the resume.
-- Base the job title recommendations strictly on the experience and evidence provided in the resume.
-
-For keywords extraction:
-
-- Extract technical skills, domain knowledge, soft skills, certifications, emerging technologies, and business acumen terms.
-- Include keywords that reflect the candidate’s actual experience without fabricating information.
-
-Please return ONLY the following output format:
-
-<Job Titles (comma separated)>~<Keywords (comma separated)>
-
-Maintain the "~" separator without quotes and no additional text.
-"""
-
-            response = client.models.generate_content(
-                model="gemini-2.5-flash-lite",
-                contents =f"""You are an elite AI hiring strategist and career intelligence specialist with deep expertise in talent acquisition, market trends, and career optimization across the global technology sector.
+            contents =f"""You are an elite AI hiring strategist and career intelligence specialist with deep expertise in talent acquisition, market trends, and career optimization across the global technology sector.
 
                     Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:
 
@@ -124,15 +101,71 @@ Maintain the "~" separator without quotes and no additional text.
                     Senior Full Stack Engineer, Web developer, DevOps Engineering Manager, Backend System Engineer, Frontend Technical Lead, Software Engineering Consultant, Platform Engineer, Site Reliability Engineer~JavaScript, TypeScript, React, Node.js, Python, AWS, Kubernetes, Docker, Microservices, GraphQL, PostgreSQL, MongoDB, Redis, Terraform, Jenkins, Git, Agile, Scrum, System Design, API Design, Cloud Architecture, DevOps, CI/CD, Monitoring, Performance Optimization, Team Leadership, Mentoring, Stakeholder Management, Problem Solving, Technical Documentation
 
                     **Critical**: Maintain the "~" separator and ensure both lists flow from highest to lowest strategic value for the candidate's career positioning."""
-                    ,
-                config=types.GenerateContentConfig(
-                temperature=0.3,
-                system_instruction=system_instruction
-                )
-            )
+  
+            system_instruction = """
+You are an expert AI recruiter and resume analyzer.
+
+Your task is to analyze the provided resume text and generate two outputs that maximize the candidate’s visibility and job matching potential:
+
+1. Generate 5 high-quality, market-aligned job titles that reflect the candidate’s skills and experience.
+
+2. Extract 20-25 precise keywords optimized for ATS and recruiter searches.
+
+Important instructions for job titles:
+
+- If the candidate does not have confirmed professional work experience or only lists academic or personal projects, classify them as "Fresher" or "Entry Level".
+- Generate only junior-level job titles such as "Software Engineer", " Developer", "Frontend Developer","Full Stack Developer" dont use Senior as a prefix of Job titles untill unless candidate has professional work experience not personal project's experience thats it.
+- Do NOT suggest "Senior", "Lead", "Manager", or other advanced roles unless there is clear evidence of such experience in the resume.
+- Base the job title recommendations strictly on the experience and evidence provided in the resume.
+
+For keywords extraction:
+
+- Extract technical skills, domain knowledge, soft skills, certifications, emerging technologies, and business acumen terms.
+- Include keywords that reflect the candidate’s actual experience without fabricating information.
+
+Please return ONLY the following output format:
+
+<Job Titles (comma separated)>~<Keywords (comma separated)>
+
+Maintain the "~" separator without quotes and no additional text.
+"""
+            for attempt in range(3):
+                print(f"Groq ({model}) attempt {attempt+1}/3")
+                try:
+                    # res = client.models.generate_content(
+                    #         model=model,
+                    #         contents=prompt,
+                    #         config= types.GenerateContentConfig(temperature=0.2)
+                    #         ).text
+                    res = client.chat.completions.create(
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": system_instruction
+                            },
+                            {
+                                "role": "user",
+                                "content": contents,
+                            }
+                        ],
+                        model=model,
+                    )
+                    response = res.choices[0].message.content
+                    break
+                except Exception as e:
+                    print(f"Gemini error: {e}")
+            
+            # response = client.models.generate_content(
+            #     model="gemini-2.5-flash-lite",
+
+            #     config=types.GenerateContentConfig(
+            #     temperature=0.3,
+            #     system_instruction=system_instruction
+            #     )
+            # )
 
             # print(response.text)
-            [titles,Keywords ]= response.text.split("~")
+            [titles,Keywords ]= response.split("~")
             # titles = [title.strip() for title in titles if titles] 
             # print((titles))
             # print(Keywords)
@@ -155,4 +188,4 @@ Maintain the "~" separator without quotes and no additional text.
             # else:
             #     print("titles already exists")
 if __name__ == "__main__":
-    main("082a77f6-67f8-4011-bb87-1ae00918da8d","https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/Vamsi_Resume.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS9WYW1zaV9SZXN1bWUucGRmIiwiaWF0IjoxNzUyNTg1MTA3LCJleHAiOjE3ODQxMjExMDd9.-EGFLMGiF49ttUIlVe99J-50R0vkiJ1aNOUBzD9boUA")
+    main("https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1765969051672_SRINIVAS_SAI_SARAN_TEJA.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzY1OTY5MDUxNjcyX1NSSU5JVkFTX1NBSV9TQVJBTl9URUpBLnBkZiIsImlhdCI6MTc2NTk2OTA1MSwiZXhwIjoxNzc0NjA5MDUxfQ.OBw39Nt4KNZOeMpTTjAtsOTv_l3-KbGCvhlrEBbz9RA")

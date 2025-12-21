@@ -60,7 +60,7 @@ EXPOSE 8000
 
 # optional: replace /health with your real health endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD curl -f http://127.0.0.1:8000/health || exit 1
+  CMD curl -f http://127.0.0.1:8000/ || exit 1
 
 # dev: use --reload; production: use gunicorn + uvicorn workers
 CMD ["uvicorn", "main.main:app", "--host", "0.0.0.0", "--port", "8000"]
