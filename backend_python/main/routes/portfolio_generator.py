@@ -1,9 +1,12 @@
 import logging
 import os
+import mimetypes
+import base64
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl, field_validator
 from typing import List, Dict, Any, Optional
 from agents.portfolio_agent import generate_portfolio_main as main
+from main.routes import image2base64
 
 class PortfolioRequest(BaseModel):
     resume_url: Optional[str] = None
@@ -13,6 +16,10 @@ class PortfolioRequest(BaseModel):
 class PortfolioResponses(BaseModel):
     success: bool
     payload: str | None = None
+
+class TemplatesResponse(BaseModel):
+    image: str
+    template: int
 
 class _C:
     R = "\33[31m"
@@ -64,3 +71,36 @@ def portfolio_Builder(request: PortfolioRequest):
             status_code=500, 
             detail=f"Error processing Portfolio building: {str(e)}"
         )
+
+
+@router.get('/portfolio/get-templates', response_model=List[TemplatesResponse])
+def getTemplates():
+    images = ['portfolio_1.png','portfolio_2.png','portfolio_3.png','portfolio_4.png','portfolio_5.png']
+    base_folder = os.path.join(os.path.dirname(__file__),'templates')
+    log.debug("base_folder : %s", base_folder)
+    tempList = []
+    try:
+        for i, name in enumerate(images):
+            file_path = os.path.join(base_folder,name)
+
+            if os.path.exists(file_path):
+                data_url = image2base64(file_path)
+                log.info("url generated")
+                log.info("template id %i and url %s", i, data_url[:20])
+                tempList.append({
+                    "image":data_url,
+                    "template":i
+                })
+            else:
+                log.error('folder not found: %s',file_path)
+        # log.info(tempList)
+        return tempList
+    except Exception as e:
+        log.error(f"Error :{e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error processing Portfolio building: {str(e)}"
+        )
+
+
+    

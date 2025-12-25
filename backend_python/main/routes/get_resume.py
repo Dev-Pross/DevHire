@@ -1,35 +1,39 @@
 import logging
+import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl, field_validator
 from typing import List, Dict, Any, Optional
 from agents.tailor import process_batch as tailor_main
+from main.routes import image2base64
+
+
+class _C:
+    R = "\33[31m"
+    G = "\33[32m"
+    Y = "\33[33m"
+    C = "\33[36m"
+    M = "\33[35m"
+    Z = "\33[0m"
+_PALETTE = {"DEBUG": _C.C, "INFO": _C.G, "WARNING": _C.Y, "ERROR": _C.R, "CRITICAL": _C.M}
+class _Fmt(logging.Formatter):
+    def format(self, rec):
+        rec.levelname = f"{_PALETTE.get(rec.levelname, _C.Z)}{rec.levelname}{_C.Z}"
+        return super().format(rec)
+hlr = logging.StreamHandler()
+hlr.setFormatter(_Fmt("%(asctime)s | %(levelname)s | %(message)s"))
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(), handlers=[hlr])
+log = logging.getLogger("portfolio_route")
+
 
 class TailorRequest(BaseModel):
     job_desc: Optional[str] = None
     resume_url: Optional[HttpUrl] = None
     user_data: Optional[str] = None
     template: int = None
-    
-    # @field_validator('*', mode='before')
-    # @classmethod
-    # def check_at_least_one_required(cls, v):
-    #     return v
-    
-    # def __init__(self, **data):
-    #     super().__init__(**data)
-    #     # Validate that we have valid combinations
-    #     has_url = self.resume_url is not None
-    #     has_user_data = self.user_data is not None
-    #     has_desc = self.job_desc is not None
-        
-    #     # Valid combinations:
-    #     # 1. resume_url + optional job_desc
-    #     # 2. user_data + optional job_desc
-    #     if not has_url and not has_user_data:
-    #         raise ValueError("Must provide either 'resume_url' or 'user_data'")
-        
-    #     if has_url and has_user_data:
-    #         raise ValueError("Cannot provide both 'resume_url' and 'user_data' - use only one")
+
+class TemplatesResponse(BaseModel):
+    image: str
+    template: int  
 
 class TailorResponses(BaseModel):
     success: bool
@@ -64,3 +68,33 @@ def tailor_resume(request: TailorRequest):
             status_code=500, 
             detail=f"Error processing job applications: {str(e)}"
         )
+    
+@router.get('/tailor/get-templates', response_model=List[TemplatesResponse])
+def getTemplates():
+    images = ['templete-0.png','templete-1.png','templete-2.png','templete-3.png']
+    base_folder = os.path.join(os.path.dirname(__file__),'templates')
+    log.debug("base_folder : %s", base_folder)
+    tempList = []
+    try:
+        for i, name in enumerate(images):
+            file_path = os.path.join(base_folder,name)
+
+            if os.path.exists(file_path):
+                data_url = image2base64(file_path)
+                log.info("url generated")
+                log.info("template id %i and url %s", i, data_url[:20])
+                tempList.append({
+                    "image":data_url,
+                    "template":i
+                })
+            else:
+                log.error('folder not found: %s',file_path)
+        # log.info(tempList)
+        return tempList
+    except Exception as e:
+        log.error(f"Error :{e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error processing Portfolio building: {str(e)}"
+        )
+
