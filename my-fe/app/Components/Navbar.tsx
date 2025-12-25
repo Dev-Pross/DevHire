@@ -126,7 +126,7 @@ const Navbar = () => {
         // console.log("isIntersecting:", entry.isIntersecting);
       },
       {
-        threshold: 0.9,
+        threshold: 0.5,
         rootMargin: `-${height}px 0px 0px 0px`,
       }
     );

@@ -1,8 +1,9 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { supabase } from '../utiles/supabaseClient'
 import {useRouter} from 'next/navigation'
 import toast from 'react-hot-toast'
+import getLoginUser from '../utiles/getUserData'
 
 const Register = () => {
 
@@ -16,6 +17,16 @@ const Register = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     
     const router = useRouter()
+
+    useEffect(()=>{
+         async function fetchUser() {
+              const { data, error } = await getLoginUser();
+              if (data) {
+                router.push('/')
+              }
+            }
+            fetchUser();
+      })
 
     const RegisterHandler = ()=>{
         setError(null)
@@ -49,14 +60,15 @@ const Register = () => {
                 data:{
                     username: username
                 },
-            emailRedirectTo: 'https://dev-hire-znlr.vercel.app//login',
+            emailRedirectTo: '/login',
             },
         })
         if(error){
-            // console.log("error",error);
-            toast.error(`Failed to establish connection with server`)
+
+            console.log("error",error.message);
+            toast.error(`${error.message}, please login`)
             setLoading(false)
-            setError("Failed to establish connection with server")
+            setError(error.message)
         }
         else{
             // console.log("success", data); 
