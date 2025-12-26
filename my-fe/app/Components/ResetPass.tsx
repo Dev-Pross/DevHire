@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { supabase } from '../utiles/supabaseClient'
 import { useRouter } from 'next/navigation'
 
@@ -10,22 +10,44 @@ const ResetPass = ({onBack}:RestProps) => {
     const [email, setEmail] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
-    const router = useRouter();
+    const resendMailTime = 60000
+    const [buttonShow, setButtonShow] = useState(false)
+    const [resetTimer, setResetTimer] = useState(0)
+    
+    useEffect(()=>{
+      if(buttonShow && resetTimer>0){
+        const timer = setInterval(()=>{
+          setResetTimer((prev)=>prev-1)
+          console.log(`timer: ${resetTimer}`)
+        },1000)
+        return ()=> clearInterval(timer)
+      }
+    })
+
     const frontendURL = process.env.NEXT_PUBLIC_FRONT_URL as string || 'http://localhost:3000'
     const resetPassword = async()=>{
+      
         setLoading(true)
         try{
             if(email){
+                setError('Password reset link sent to your mail')
                 const {data, error} = await supabase.auth.resetPasswordForEmail(email,{
-                    redirectTo: `${frontendURL}/reset-password`
+                    redirectTo: `https://dev-hire-znlr.vercel.app/reset-password`
                 })
                 console.log(data)
                 console.log(error)
+                if(error?.message) setError(error?.message)
                 setLoading(false)
             }
         }catch(e){
-
+          setLoading(false)
+          setError(e instanceof Error ? e.message : "Unknown Error")
         }
+        setButtonShow(true)
+        setResetTimer(60)
+        setTimeout(() => {
+          setButtonShow(false)
+        }, resendMailTime);
   }
   return (
     <>
@@ -58,7 +80,7 @@ const ResetPass = ({onBack}:RestProps) => {
             <div className="pt-2">
               <button
                 onClick={resetPassword}
-                disabled={loading}
+                disabled={loading || buttonShow}
                 className="bg-[#27db78] hover:bg-[#159950] w-full text-black font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 type="button"
               >
@@ -86,7 +108,8 @@ const ResetPass = ({onBack}:RestProps) => {
                     Sending reset link...
                   </span>
                 ) : (
-                  <span>Reset</span>
+                  buttonShow && resetTimer>0 ? (<span>Resend in {resetTimer}s</span>) :
+                  (<span>Reset</span>)
                 )}
               </button>
             </div>
