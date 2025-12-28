@@ -2139,7 +2139,7 @@ def generate_portfolio_main(template: int, url: str | None = None, user_data: st
 
     if _data:
         code = gemini_call(_data)
-        Path("portfolio_code.txt").write_text(code_cleaner(code), encoding='utf-8')
+        # Path("portfolio_code.txt").write_text(code_cleaner(code), encoding='utf-8')
         log.info('portfolio generated from server!!')
         return code_cleaner(code)
     else:
@@ -2147,7 +2147,7 @@ def generate_portfolio_main(template: int, url: str | None = None, user_data: st
 
 
 if __name__ == "__main__":
-    RESUME_URL = "https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1763460142391_SRINIVAS_SAI_SARAN_TEJA.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzYzNDYwMTQyMzkxX1NSSU5JVkFTX1NBSV9TQVJBTl9URUpBLnBkZiIsImlhdCI6MTc2MzQ2MDE0NCwiZXhwIjoxNzcyMTAwMTQ0fQ.6iyRMxdjVV7vRJP7qfRREAnqtWgi3uahOHfgVmRfW-o"
+    RESUME_URL = "https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1766914489015_AISHWARYA%20RESUME.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzY2OTE0NDg5MDE1X0FJU0hXQVJZQSBSRVNVTUUucGRmIiwiaWF0IjoxNzY2OTE0NDkxLCJleHAiOjE3NzU1NTQ0OTF9.Uy4f9nrWkpLLWUPy1KPYJWU_8zqWJlnjp2n0hqGMI-E"
     userdata = r"""
     {
   "user_data": {
@@ -2257,6 +2257,6 @@ if __name__ == "__main__":
 }
 
 """
-    generate_portfolio_main(url=RESUME_URL)
+    generate_portfolio_main(url=RESUME_URL, template=0)
 
 

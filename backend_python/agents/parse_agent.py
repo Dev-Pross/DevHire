@@ -4,6 +4,8 @@ import fitz
 import io
 from google import genai
 from google.genai import types
+from pdf2image import convert_from_bytes
+import pytesseract
 # from groq import Groq
 
 
@@ -19,14 +21,36 @@ def parse_pdf(url : str):
     if response.status_code != 200 :
         raise Exception("failed to fetch url")
     else:
-        # print(response.content)
-        pdf = io.BytesIO(response.content)
-        doc = fitz.open("pdf",pdf)
+        pdf_bytes = response.content
+        docs = fitz.open(stream=pdf_bytes, filetype="pdf")
+        text = ""
+        pages = len(docs)
 
-        text=""
-        for page in doc:
-            text+=page.get_text()
-    return text
+        for page_num in range(pages):
+            page = docs.load_page(page_num)
+            page_text = page.get_text().strip()
+            if page_text:
+                text += page_text
+            else:
+                # Fallback to OCR using pdf2image + pytesseract on page bytes
+                # Convert only the page to image
+                images = convert_from_bytes(pdf_bytes)
+                if images:
+                    text_from_image = pytesseract.image_to_string(images[0])
+                    if(text_from_image):
+                        text += text_from_image
+                        print("data fetched from resume using **tesseract**")
+                    else:
+                        print(f"unable to fetch the text from resume {page_num + 1}")
+                else:
+                    print(f"unable to convert the image from byte fallback method failed!")
+        if len(page_text)< 500 or text.count('') > (len(text) / 2):
+            raise ValueError("invalid pdf")
+        print("data fetched from resume")
+
+
+        docs.close()
+        return text
 
 system_instruction = """
         You are an expert AI recruiter and resume analyzer.
@@ -72,49 +96,64 @@ def main(url):
     if url:
         # UploadedResume = session.query(UploadedResume.file_url,UploadedResume.id).filter(UploadedResume.users_id== userID).first()
             resume_text = (parse_pdf(url))
-            contents =f"""You are an Elite AI Talent Intelligence Engine designed for ruthless accuracy in candidate profiling. Your goal is to analyze the provided resume and extract precise metadata for algorithmic job matching. You must ignore fluff,experience levels, detect exaggeration, and map skills to the current global market reality.
+            contents=f"""You are an elite AI hiring strategist and career intelligence specialist with deep expertise in talent acquisition, market trends, and career optimization across the global technology sector.
 
-                        INPUT CONTEXT:
-                        Resume Text: {resume_text}
+                    Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:
 
-                        YOUR MISSION:
-                        Generate exactly TWO data sets based on the resume:
-                        1. 5 Strategic Job Titles (Ranked by fit)
-                        2. 30-50 High-Value Keywords (Accurate with resume)
+                    🎯 **PRIMARY OBJECTIVES:**
+                    1. **STRATEGIC JOB TITLES** - Generate 5 solid and quality, high-impact, market-aligned job titles that should align with candidate's skill and expertise spectrum
+                    2. **INTELLIGENT KEYWORDS** - Extract 20-25 precisely targeted keywords that create maximum ATS compatibility and recruiter appeal
 
-                        CRITICAL RULES FOR ANALYSIS (BE BRUTAL & HONEST):
-                        ***[IMPORTANT] ALL TITLES SHOULD BE DEAD ACCURATE AND CONSISTENT *** 
-                        1. SENIORITY CALIBRATION (Strict Enforcement):
-                        - IF the candidate lists only personal projects, freelance gigs without verifiable company entities, or university projects: You MUST classify them as "Entry Level," "Junior," or "Associate." DO NOT assign "Senior," "Lead," or "Architect" titles, regardless of project complexity.
-                        - IF the candidate has < 2 years of corporate experience: Use just titles no need of "Junior" and all things.
-                        - IF the candidate has 3-5 years: Use "Mid-Level" or standard Engineer titles.
-                        - ONLY assign "Senior" or "Lead" if there is clear evidence of team leadership and 5+ years of corporate experience.
+                    📊 **ADVANCED ANALYSIS FRAMEWORK:**
 
-                        2. JOB TITLE STRATEGY (Generate 5 Titles):
-                        - Title 1 (The Perfect Match): The most accurate title based on actual work history.
-                        - Title 2 (The Specialist): A title highlighting their strongest specific tech stack (e.g., "React Developer" or "Python Backend Engineer").
-                        - Title 3 (The Market Trend): A modern, high-demand title that fits their skills (e.g., "AI Application Engineer" vs "Programmer").
-                        - Title 4 (The Growth Role): A slightly aspirational title they are qualified for (e.g., moving from "Developer" to "Engineer").
-                        - Title 5 (The Industry Hybrid): A title mixing domain + tech if applicable (e.g., "FinTech Developer"), otherwise a standard variation.
+                    **For JOB TITLES - Apply Multi-Dimensional Matching:**
+                    • **Experience Calibration**: Analyze years of experience, project complexity, and leadership indicators to determine accurate seniority levels (Freshers/Entry/Junior/Mid/Senior/Staff/Principal/Architect/VP) make sure to find the best match for the candidate's experience. If the candidate has only projects not having any work experinece he mentioned as fresher or entry level whatever the projects he done he has to mention his professional working experience like company name and duration all stiff orelse he mention only his personal projects he done consider him as fresher or entry level
+                    • **Skill Intersection Analysis**: Identify overlapping competencies to suggest hybrid roles (e.g., "Full Stack Engineer", "DevSecOps Specialist", "AI/ML Engineer") dont give the general titles unless the candidate has not worked on any specific domain or technology that may be a personal project or an organization project
+                    • **Market Positioning**: Include both traditional titles recruiters search for AND emerging/trendy titles gaining market traction
+                    • **Industry Verticals**: Consider domain expertise (FinTech, HealthTech, EdTech, E-commerce, Gaming, etc.) for specialized titles
+                    • **Role Evolution Path**: Include both current-level roles AND natural next-step positions for career growth
+                    • **Geographical Relevance**: Consider titles popular in target markets (US, Europe, India, etc.)
 
-                        3. KEYWORD EXTRACTION STRATEGY (30-50 Keywords):
-                        - PRIORITY 1 (Hard Tech Stack): Languages, Frameworks, Databases, Cloud Tools. (e.g., usage of "MERN" should explode into "MongoDB, Express.js, React, Node.js").
-                        - PRIORITY 2 (Concepts): Methodologies (CI/CD, Agile, REST API, Microservices).
-                        - PRIORITY 3 (Tools): Git, Docker, Kubernetes, Jira, Postman.
-                        - NORMALIZE TERMS: Convert "React.js" to "React", "Amazon Web Services" to "AWS".
-                        - EXCLUDE FLUFF: Do not list generic soft skills like "Hard worker" or "Fast learner" unless the resume is devoid of technical skills. Focus on "System Design," "Team Leadership," or "Stakeholder Management" only if supported by evidence.
+                    **For KEYWORDS - Execute Comprehensive Extraction:**
+                    • **Technical Stack Taxonomy**: Programming languages, frameworks, libraries, databases, cloud platforms, tools, and methodologies
+                    • **Domain Intelligence**: Industry-specific terminology, business domains, and vertical expertise
+                    • **Soft Skills Mining**: Extract leadership, communication, problem-solving, and collaboration abilities from project descriptions and achievements
+                    • **Certification & Standards**: Professional certifications, compliance standards, and industry methodologies
+                    • **Emerging Technologies**: AI/ML, blockchain, IoT, edge computing, quantum computing if relevant
+                    • **Business Acumen**: Product management, strategy, analytics, and commercial awareness indicators
+                    • **Scale & Impact**: Keywords reflecting system scale, user base, performance metrics, and business impact
+                    • **Cross-Functional Abilities**: Keywords showing collaboration across teams, stakeholder management, and interdisciplinary skills
 
-                        OUTPUT FORMAT RESTRICTIONS:
-                        - Return the result as a SINGLE string.
-                        - Separated by a tilde character (~).
-                        - No labels, no bullet points, no introductory text, no markdown formatting.
-                        - Format: Comma-separated Titles ~ Comma-separated Keywords
+                    ⚡ **STRATEGIC ENHANCEMENTS:**
+                    • **ATS Optimization**: Prioritize keywords frequently used in job descriptions for target roles
+                    • **Recruiter Psychology**: Include terms that trigger recruiter interest and convey seniority/expertise
+                    • **Competitive Differentiation**: Highlight unique combinations that set the candidate apart
+                    • **Future-Proofing**: Include emerging skills and technologies relevant to career trajectory
+                    • **Global Standards**: Use internationally recognized terminology and industry standards
 
-                        EXAMPLE OUTPUT (Do not copy, use as structure guide):
-                        Junior Full Stack Developer, React Engineer, Associate Software Engineer, Frontend Developer, Web Application Developer ~ JavaScript, TypeScript, React, Node.js, Next.js, Redux, PostgreSQL, MongoDB, Docker, AWS, Git, REST APIs, GraphQL, HTML5, CSS3, Tailwind CSS, CI/CD, Agile, Unit Testing, Linux, WebSockets
+                    🎯 **QUALITY ASSURANCE CRITERIA:**
+                    • Job titles must be realistic, specific, and currently in-demand in the market
+                    • Keywords must be substantiated by actual resume evidence (no speculation)
+                    • Avoid company names, project codenames, or proprietary terminology
+                    • Ensure geographic and cultural relevance for target job markets
+                    • Balance technical depth with business relevance
+                    • Prioritize terms that maximize job matching algorithms
 
-                        GENERATE OUTPUT NOW:"""
-                                    
+                    📥 **Resume Content for Analysis:**
+                    {resume_text}
+
+                    🔥 **ENHANCED OUTPUT REQUIREMENTS:**
+                    • **Ranking Logic**: Order titles by market demand + skill alignment + experience match
+                    • **Keyword Weighting**: Prioritize by frequency in job descriptions + skill importance + uniqueness factor
+                    • **Completeness Check**: Ensure keywords support ALL listed job titles comprehensively
+                    • **Market Intelligence**: Reflect current industry trends and hiring patterns
+
+                    ✅ **Precise Output Format:**
+                    Return EXCLUSIVELY the analyzed content in this exact structure:
+
+                    Senior Full Stack Engineer, Web developer, DevOps Engineering Manager, Backend System Engineer, Frontend Technical Lead, Software Engineering Consultant, Platform Engineer, Site Reliability Engineer~JavaScript, TypeScript, React, Node.js, Python, AWS, Kubernetes, Docker, Microservices, GraphQL, PostgreSQL, MongoDB, Redis, Terraform, Jenkins, Git, Agile, Scrum, System Design, API Design, Cloud Architecture, DevOps, CI/CD, Monitoring, Performance Optimization, Team Leadership, Mentoring, Stakeholder Management, Problem Solving, Technical Documentation
+
+                    **Critical**: Maintain the "~" separator and ensure both lists flow from highest to lowest strategic value for the candidate's career positioning."""                       
             #     print(f"Groq ({model}) attempt {attempt+1}/3")
             #     try:
             #         # res = client.models.generate_content(
@@ -148,9 +187,9 @@ def main(url):
                 system_instruction=system_instruction
                 )
             ).text
-            # print("="*30)
-            # print(response)
-            # print("="*30)
+            print("="*30)
+            print(response)
+            print("="*30)
             [titles,Keywords ]= response.split("~")
             # titles = [title.strip() for title in titles if titles] 
             # print((titles))
@@ -174,4 +213,4 @@ def main(url):
             # else:
             #     print("titles already exists")
 if __name__ == "__main__":
-    main("https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1765969051672_SRINIVAS_SAI_SARAN_TEJA.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzY1OTY5MDUxNjcyX1NSSU5JVkFTX1NBSV9TQVJBTl9URUpBLnBkZiIsImlhdCI6MTc2NTk2OTA1MSwiZXhwIjoxNzc0NjA5MDUxfQ.OBw39Nt4KNZOeMpTTjAtsOTv_l3-KbGCvhlrEBbz9RA")
+    main("https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1766914489015_AISHWARYA%20RESUME.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzY2OTE0NDg5MDE1X0FJU0hXQVJZQSBSRVNVTUUucGRmIiwiaWF0IjoxNzY2OTE0NDkxLCJleHAiOjE3NzU1NTQ0OTF9.Uy4f9nrWkpLLWUPy1KPYJWU_8zqWJlnjp2n0hqGMI-E")
