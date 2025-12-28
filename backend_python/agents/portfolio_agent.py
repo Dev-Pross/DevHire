@@ -2038,6 +2038,8 @@ def pdf_to_text(r):
                     log.warning(f"unable to fetch the text from resume {page_num + 1}")
             else:
                 log.error(f"unable to convert the image from byte fallback method failed!")
+    if len(page_text)< 500 or text.count('') > (len(text) / 2):
+      raise ValueError("invalid pdf")
     log.info("data fetched from resume")
 
 
