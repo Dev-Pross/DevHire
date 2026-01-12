@@ -13,7 +13,7 @@ LINKEDIN_CONTEXT_OPTIONS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/120.0.0.0 Safari/537.36"
     ),
-    "viewport": {"width": 1920, "height": 1080},
+    "viewport": {"width": 1366, "height": 768},
     "locale": "en-US",
     "timezone_id": "Asia/Calcutta",
 }

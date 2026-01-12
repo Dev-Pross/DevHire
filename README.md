@@ -1,5 +1,17 @@
 # DevHire – AI-Powered LinkedIn Job Application Automation
 
+[![Demo Video](https://img.shields.io/badge/🎬_Demo-Watch_Video-red?style=for-the-badge)](https://www.loom.com/share/ae8227b5df5446669f74b63288176082)
+
+## 🎬 Demo Video
+
+Watch the full product demo to see DevHire in action:
+
+[![DevHire Demo](https://cdn.loom.com/sessions/thumbnails/ae8227b5df5446669f74b63288176082-with-play.gif)](https://www.loom.com/share/ae8227b5df5446669f74b63288176082)
+
+👉 **[Watch Full Demo on Loom](https://www.loom.com/share/ae8227b5df5446669f74b63288176082)**
+
+---
+
 ## 🎯 The Problem It Solves
 
 Applying to jobs on LinkedIn is **tedious, time-consuming, and repetitive**. Professionals spend hours:
@@ -20,9 +32,11 @@ DevHire is a **full-stack AI automation platform** that:
 1. **Extracts Your Profile** – Uses a Chrome extension to capture LinkedIn credentials, cookies, and browser fingerprint
 2. **Parses Your Resume** – Analyzes your resume using Google Gemini AI to extract skills, experience, and qualifications
 3. **Searches for Jobs** – Scrapes LinkedIn using Playwright (headless browser) based on parsed job titles and keywords from your resume
-4. **Tailors Resumes** – Uses Google Gemini to dynamically generate job-specific resumes for each application with LaTeX rendering to PDF
+4. **Tailors Resumes** – Uses Google Gemini to dynamically generate job-specific resumes for each application with LaTeX rendering to PDF (supports **4 professional templates**)
 5. **Auto-Applies** – Programmatically fills out LinkedIn's Easy Apply forms and submits applications with tailored resumes
-6. **Tracks Progress** – Provides real-time progress tracking and application history in the web dashboard
+6. **Generates Portfolios** – 🆕 **AI-powered portfolio website generator** creates professional HTML/CSS portfolio pages from your resume (supports **5 templates**)
+7. **Tracks Progress** – Provides real-time progress tracking and application history in the web dashboard
+8. **Persistent Sessions** – 🆕 Stores LinkedIn browser context in database for seamless session resumption
 
 **Result:** Apply to 50+ tailored job applications in the time it used to take to apply to 5.
 
@@ -34,6 +48,7 @@ DevHire is a **full-stack AI automation platform** that:
 ┌─────────────────────────────────────────────────────┐
 │        Frontend (Next.js 15 + React 19)             │
 │  ✨ Dashboard, Login, Job Selection, Apply Flow    │
+│  🆕 Portfolio Builder, Pricing Plans, Password Reset│
 │         Supabase Auth + Prisma ORM                 │
 └─────────────────────────────────────────────────────┘
                         ↕ (API calls)
@@ -43,6 +58,9 @@ DevHire is a **full-stack AI automation platform** that:
 │  • /apply-jobs – Apply with tailored resumes      │
 │  • /tailor – AI resume customization (Gemini)     │
 │  • /store-cookie – Receive auth from extension    │
+│  • 🆕 /portfolio – AI portfolio website generator │
+│  • 🆕 /logout – Clear LinkedIn context            │
+│  • 🆕 /debug/* – Visual debugging dashboard       │
 └─────────────────────────────────────────────────────┘
                         ↕ (Browser control)
 ┌─────────────────────────────────────────────────────┐
@@ -50,6 +68,7 @@ DevHire is a **full-stack AI automation platform** that:
 │  • Captures LinkedIn cookies & localStorage       │
 │  • Sends credentials to backend                   │
 │  • Injects content scripts for data collection    │
+│  • 🆕 Browser fingerprint collection              │
 └─────────────────────────────────────────────────────┘
                         ↕
 ┌─────────────────────────────────────────────────────┐
@@ -58,11 +77,13 @@ DevHire is a **full-stack AI automation platform** that:
 │  • Parser Agent – Resume analysis (Gemini AI)      │
 │  • Tailor Agent – Resume generation (Gemini)      │
 │  • Apply Agent – Form filling & submission         │
+│  • 🆕 Portfolio Agent – Website generation (Groq) │
 └─────────────────────────────────────────────────────┘
                         ↕
 ┌─────────────────────────────────────────────────────┐
 │   Databases                                        │
 │  • PostgreSQL (Prisma ORM) – Users, applied jobs  │
+│  • 🆕 LinkedIn Context Storage – Session persist  │
 │  • Supabase – Authentication & Auth helpers       │
 └─────────────────────────────────────────────────────┘
 ```
@@ -71,13 +92,13 @@ DevHire is a **full-stack AI automation platform** that:
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| **Frontend** | Next.js 15, React 19, TypeScript | User dashboard, job browsing, application tracking |
-| **Backend** | Python FastAPI, Uvicorn | Job scraping, resume tailoring, form automation |
-| **AI Engine** | Google Gemini 2.5 Flash | Resume parsing, job-resume matching, tailored resume generation |
+| **Frontend** | Next.js 15, React 19, TypeScript | User dashboard, job browsing, application tracking, portfolio builder |
+| **Backend** | Python FastAPI, Uvicorn | Job scraping, resume tailoring, form automation, portfolio generation |
+| **AI Engines** | Google Gemini 2.5 Flash + Groq GPT | Resume parsing, job-resume matching, tailored resume generation, portfolio creation |
 | **Browser Automation** | Playwright (async) | LinkedIn login, job scraping, form filling |
-| **Auth** | Supabase + JWT | User registration, login, session management |
-| **Database** | PostgreSQL + Prisma | User profiles, applied jobs, resume URLs |
-| **Extension** | Chrome Manifest V3 | Cookie/fingerprint capture, credential sync |
+| **Auth** | Supabase + JWT + AES-256 | User registration, login, session management, credential encryption |
+| **Database** | PostgreSQL + Prisma | User profiles, applied jobs, resume URLs, LinkedIn context |
+| **Extension** | Chrome Manifest V3 | Cookie/fingerprint capture, credential sync, session persistence |
 
 ---
 
@@ -88,50 +109,97 @@ DevHire/
 ├── my-fe/                          # Next.js Frontend
 │   ├── app/
 │   │   ├── Components/
-│   │   │   ├── Home.tsx           # Landing page
+│   │   │   ├── Home.tsx           # Landing page hero section
 │   │   │   ├── Jobs.tsx           # Job search & listing
 │   │   │   ├── Apply.tsx          # Application progress tracker
 │   │   │   ├── Tailor_resume.tsx  # Resume tailoring UI
 │   │   │   ├── Login.tsx          # Authentication
-│   │   │   └── JobCards.tsx       # Job card display
+│   │   │   ├── Register.tsx       # 🆕 User registration with validation
+│   │   │   ├── ResetPass.tsx      # 🆕 Password reset flow
+│   │   │   ├── JobCards.tsx       # Job card display
+│   │   │   ├── PortfolioPage.tsx  # 🆕 AI portfolio builder UI
+│   │   │   ├── Navbar.tsx         # Navigation with session management
+│   │   │   ├── Features.tsx       # Feature showcase with animations
+│   │   │   ├── Linkedin.tsx       # LinkedIn credentials input
+│   │   │   ├── About.jsx          # About page
+│   │   │   ├── Pricing/           # 🆕 Pricing plans (Basic/Pro)
+│   │   │   └── Landing-Page/      # Landing page components
 │   │   ├── api/                   # Backend API routes (Next.js)
+│   │   │   ├── store/             # 🆕 Encrypted credential storage
+│   │   │   ├── get-data/          # 🆕 Retrieve encrypted credentials
+│   │   │   └── User/              # User CRUD operations
 │   │   ├── Jobs/                  # Job pages
+│   │   │   ├── LinkedinUserDetails/ # LinkedIn login page
+│   │   │   ├── tailor/            # Resume tailoring page
+│   │   │   └── portfolio/         # 🆕 Portfolio builder page
 │   │   ├── apply/                 # Application flow pages
+│   │   ├── login/                 # Login page
+│   │   ├── register/              # 🆕 Registration page
+│   │   ├── reset-password/        # 🆕 Password reset page
+│   │   ├── pricing/               # 🆕 Pricing page
+│   │   ├── about/                 # About page
 │   │   └── utiles/
 │   │       ├── agentsCall.ts      # API calls to Python backend
 │   │       ├── supabaseClient.ts  # Supabase initialization
-│   │       └── getUserData.ts     # User profile management
+│   │       ├── getUserData.ts     # User profile management
+│   │       ├── useUploadResume.ts # 🆕 Resume upload hook
+│   │       ├── database.ts        # 🆕 Prisma client
+│   │       └── api.ts             # 🆕 API URL configuration
 │   ├── prisma/
 │   │   └── schema.prisma          # Database schema (PostgreSQL)
+│   ├── context/                   # React context providers
+│   ├── store/                     # Redux store configuration
 │   └── package.json
 │
 ├── backend_python/                # Python FastAPI Backend
 │   ├── main/
 │   │   ├── main.py               # FastAPI app setup
+│   │   ├── progress_dict.py      # 🆕 Shared progress tracking
 │   │   └── routes/
 │   │       ├── list_jobs.py      # GET /get-jobs endpoint
 │   │       ├── apply_jobs.py     # POST /apply-jobs endpoint
 │   │       ├── get_resume.py     # POST /tailor endpoint
 │   │       ├── cookie_receiver.py # POST /store-cookie endpoint
-│   │       └── progress_route.py # Progress tracking
+│   │       ├── progress_route.py # Progress tracking
+│   │       ├── portfolio_generator.py # 🆕 Portfolio generation endpoint
+│   │       ├── logout.py         # 🆕 LinkedIn context cleanup
+│   │       ├── debug_routes.py   # 🆕 Visual debugging dashboard
+│   │       └── templates/        # 🆕 Resume template images
 │   ├── agents/
 │   │   ├── scraper_agent.py             # LinkedIn job scraper
-│   │   ├── scraper_agent_optimized.py   # Optimized scraper with Gemini extraction
+│   │   ├── scraper_agent_optimized.py   # Optimized async scraper
 │   │   ├── apply_agent.py               # Form filling & submission
-│   │   ├── tailor.py                    # Resume AI customization
-│   │   └── parse_agent.py               # Resume parsing
+│   │   ├── tailor.py                    # Resume AI customization (4 templates)
+│   │   ├── parse_agent.py               # Resume parsing
+│   │   └── portfolio_agent.py           # 🆕 AI portfolio generator (5 templates)
 │   ├── database/
 │   │   ├── db_engine.py          # SQLAlchemy connection
-│   │   └── SchemaModel.py        # User model (SQLAlchemy)
+│   │   ├── SchemaModel.py        # User model (SQLAlchemy)
+│   │   └── linkedin_context.py   # 🆕 LinkedIn session persistence
+│   ├── lib/
+│   │   └── session_manager.py    # 🆕 Session management utilities
+│   ├── data_dump/                # 🆕 Playwright persistent storage
 │   ├── config.py                 # API keys & environment variables
-│   ├── requirements.txt           # Python dependencies
-│   └── run.sh                     # Startup script
+│   ├── requirements.txt          # Python dependencies
+│   ├── Dockerfile                # 🆕 Docker containerization
+│   ├── run.sh                    # Linux startup script
+│   └── run.bat                   # 🆕 Windows startup script
 │
 ├── extension/                     # Chrome Extension
 │   ├── manifest.json             # Extension configuration
 │   ├── background.js             # Service worker (cookie/storage sync)
-│   └── content.js                # Content script (page injection)
+│   └── content.js                # Content script (fingerprint collection)
 │
+├── next-app/                      # 🆕 Alternative Next.js app
+│   ├── app/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── signin/
+│   │   ├── signup/
+│   │   └── UserDetails/
+│   └── prisma/
+│
+├── schema.sql                     # 🆕 Database SQL schema
 └── prisma/                        # Prisma schema (shared)
     └── schema.prisma             # Database models
 ```
@@ -216,28 +284,38 @@ DevHire/
 - **Async Runtime:** Uvicorn (ASGI)
 - **Browser Automation:** Playwright (async headless browser)
 - **Database:** PostgreSQL + SQLAlchemy ORM
-- **AI:** Google Gemini 2.5 Flash (resume parsing, tailoring)
+- **AI Models:**
+  - Google Gemini 2.5 Flash (resume parsing, tailoring) with fallback chain
+  - Groq GPT-oss-120b (portfolio generation)
 - **PDF Processing:** PyMuPDF (fitz), pdf2image, pytesseract (OCR)
-- **Resume Generation:** FPDF, python-docx
+- **Resume Generation:** LaTeX rendering (4 templates), FPDF, python-docx
+- **Portfolio Generation:** HTML/CSS (5 templates)
 - **HTTP:** aiohttp for async requests
 - **Auth:** browser-cookie3 for session cookies
+- **Containerization:** Docker support
 
 ### Database (PostgreSQL + Prisma)
 ```prisma
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  name         String?
-  resume_url   String?
-  applied_jobs String[]  # Array of LinkedIn job URLs applied to
+  id                 String    @id @default(uuid()) @db.Uuid
+  email              String    @unique
+  name               String?
+  resume_url         String?
+  applied_jobs       String[]  // Array of LinkedIn job URLs applied to
+  linkedin_context   Json?     // 🆕 Playwright browser session state
+  context_updated_at DateTime? // 🆕 LinkedIn context last update timestamp
 }
 ```
 
 ### Chrome Extension
 - **Manifest:** V3 (latest standard)
 - **Service Worker:** background.js (cookie sync every 2 minutes)
-- **Content Script:** content.js (data injection)
-- **Capabilities:** Cookie capture, localStorage/sessionStorage access, browser fingerprint collection
+- **Content Script:** content.js (data injection + fingerprint collection)
+- **Capabilities:** 
+  - Cookie capture (`.linkedin.com` and `www.linkedin.com` domains)
+  - localStorage/sessionStorage access
+  - 🆕 Browser fingerprint collection (userAgent, platform, language, timezone, hardware info, screen dimensions, viewport size, pixel ratio, color depth)
+  - 🆕 SPA navigation detection for re-injection
 
 ---
 
@@ -280,6 +358,7 @@ playwright install  # Download browser binaries
 Create `config.py`:
 ```python
 GOOGLE_API = "your_gemini_api_key"
+GROQ_API = "your_groq_api_key"  # For portfolio generation
 LINKEDIN_ID = "your_linkedin_email"
 LINKEDIN_PASSWORD = "your_linkedin_password"
 ```
@@ -322,8 +401,14 @@ Open `http://localhost:3000` in browser.
 - Parse response
 **Output:** `["Full Stack Developer", "Backend Engineer"] + ["Python", "React", "PostgreSQL", ...]`
 
-### Feature 2: Intelligent Resume Tailoring
+### Feature 2: Intelligent Resume Tailoring (4 Templates)
 **Input:** Original resume + Job description
+**Templates Available:**
+- Classic Professional
+- Modern Minimalist
+- Technical Focus
+- Creative Design
+
 **Process:**
 ```python
 prompt = f"""
@@ -343,7 +428,31 @@ response = gemini_model.generate_content(prompt)
 ```
 **Output:** Customized PDF resume (Base64 encoded)
 
-### Feature 3: Automated Job Application
+### Feature 3: 🆕 AI Portfolio Website Generator (5 Templates)
+**Input:** Resume data + Selected template
+**Templates Available:**
+1. Modern Developer Portfolio
+2. Minimalist Professional
+3. Creative Designer
+4. Tech Startup Style
+5. Corporate Executive
+
+**Process:**
+```python
+# Uses Groq GPT-oss-120b for HTML/CSS generation
+prompt = f"""
+Generate a complete, responsive portfolio website HTML/CSS based on:
+- Resume data: {resume_data}
+- Template style: {template_id}
+
+Include sections for: About, Skills, Experience, Projects, Contact
+"""
+response = groq_client.generate(prompt)
+# Returns production-ready HTML/CSS
+```
+**Output:** Complete HTML/CSS portfolio page with live preview
+
+### Feature 4: Automated Job Application
 **Example Flow:**
 ```python
 # 1. Playwright opens LinkedIn Easy Apply
@@ -365,9 +474,45 @@ await resume_input.set_input_files(tailored_resume_path)
 await page.click('button:has-text("Submit application")')
 ```
 
+### Feature 5: 🆕 LinkedIn Session Persistence
+**Process:**
+```python
+# Save browser context to database
+await save_linkedin_context(
+    email=user_email,
+    context={
+        "storage_state": browser_context.storage_state(),
+        "cookies": cookies,
+        "localStorage": local_storage
+    }
+)
+
+# Restore session on next visit - no re-login needed!
+context = await load_linkedin_context(user_email)
+browser_context = await browser.new_context(storage_state=context)
+```
+
+### Feature 6: 🆕 Visual Debugging Dashboard
+**Endpoints:**
+- `/debug/screenshots` - View all debug screenshots
+- `/debug/gallery` - HTML gallery for visual inspection
+- `/debug/images` - Get images from recent scraper runs
+
 ---
 
-## 📊 Performance & Metrics
+## � Pricing Plans
+
+| Feature | Basic (Free) | Pro (₹199/month) |
+|---------|--------------|------------------|
+| Job Applications | 10/month | Unlimited |
+| Resume Tailoring | 5/month | Unlimited |
+| Portfolio Generation | 1 template | All 5 templates |
+| LinkedIn Context Persistence | ❌ | ✅ |
+| Priority Support | ❌ | ✅ |
+
+---
+
+## �📊 Performance & Metrics
 
 | Metric | Value |
 |--------|-------|
@@ -382,12 +527,13 @@ await page.click('button:has-text("Submit application")')
 ## 🔒 Security & Privacy
 
 ### Credential Handling
-- LinkedIn credentials encrypted with AES-256
+- LinkedIn credentials encrypted with AES-256-CBC
 - Session-based authentication (JWT)
-- Credentials NOT stored in database (ephemeral per session)
+- Credentials stored in HTTP-only cookies (encrypted)
+- LinkedIn context stored in PostgreSQL (session persistence)
 
 ### Data Protection
-- CORS middleware restricts to authorized origins
+- CORS middleware restricts to authorized origins (extension ID + Vercel production URL)
 - Supabase Auth for user verification
 - PostgreSQL for encrypted data at rest
 
@@ -407,16 +553,29 @@ await page.click('button:has-text("Submit application")')
 **Solution:** Run `playwright install` after pip install
 
 ### "Gemini API rate limit exceeded"
-**Solution:** Add delays between tailoring requests (5-10 second intervals)
+**Solution:** Add delays between tailoring requests (5-10 second intervals). The system has automatic fallback to: `gemini-2.5-flash` → `gemini-2.5-flash-lite` → `gemini-2.0-flash` → `gemini-1.5-flash`
 
 ### "LinkedIn login failing"
 **Solution:**
 - Update `LINKEDIN_ID` and `LINKEDIN_PASSWORD` in `config.py`
 - Check if LinkedIn has changed login flow (inspect with DevTools)
 - Ensure 2FA is disabled or use app passwords
+- Use the debug dashboard at `/debug/gallery` to see screenshots
 
 ### "Resume tailoring returns LaTeX errors"
 **Solution:** Retry with simpler job description or increase context length in Gemini prompt
+
+### "Portfolio generation not working"
+**Solution:** 
+- Ensure Groq API key is configured in `config.py`
+- Check that resume data is properly parsed
+- Try a different template
+
+### "LinkedIn context not persisting"
+**Solution:**
+- Check database connection in `db_engine.py`
+- Verify `linkedin_context` column exists in User table
+- Run database migrations: `npx prisma migrate dev`
 
 ---
 
@@ -431,6 +590,34 @@ await page.click('button:has-text("Submit application")')
 | `/tailor` | POST | Generate AI-tailored resume for a job |
 | `/store-cookie` | POST | Receive LinkedIn cookies from extension |
 | `/progress` | GET | Real-time application progress tracking |
+| `/portfolio` | POST | 🆕 Generate AI-powered portfolio website |
+| `/portfolio/templates` | GET | 🆕 Get available portfolio templates |
+| `/templates` | GET | 🆕 Get available resume templates |
+| `/logout` | DELETE | 🆕 Clear LinkedIn context from database |
+| `/progress/scraping/{email}` | GET | 🆕 Job scraping progress by user |
+| `/progress/applying/{email}` | GET | 🆕 Application progress by user |
+
+### Debug Endpoints (Development)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/debug/capture` | GET | 🆕 Capture screenshot with Playwright |
+| `/debug/screenshot` | GET | 🆕 Get captured screenshot |
+| `/debug/html` | GET | 🆕 Get captured HTML |
+| `/debug/screenshots` | GET | 🆕 Get all debug screenshots as base64 |
+| `/debug/images` | GET | 🆕 Get debug images from scraper runs |
+| `/debug/gallery` | GET | 🆕 HTML gallery to view screenshots |
+| `/debug/cleanup` | DELETE | 🆕 Clear old debug files |
+
+### Next.js API Routes
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/store` | POST | 🆕 Encrypt LinkedIn credentials (AES-256-CBC) |
+| `/api/get-data` | GET | 🆕 Retrieve encrypted credentials |
+| `/api/User?action=insert` | POST | 🆕 Create new user |
+| `/api/User?action=update` | POST | 🆕 Update user data |
+| `/api/User?id={id}` | GET | 🆕 Fetch user by ID |
 
 ### Example Requests
 
@@ -466,6 +653,29 @@ curl -X POST http://localhost:8000/apply-jobs \
       }
     ]
   }'
+
+# 🆕 Generate portfolio website
+curl -X POST http://localhost:8000/portfolio \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resume_url": "https://..../resume.pdf",
+    "template_id": "modern-developer"
+  }'
+
+# 🆕 Get available portfolio templates
+curl -X GET http://localhost:8000/portfolio/templates
+
+# 🆕 Get available resume templates
+curl -X GET http://localhost:8000/templates
+
+# 🆕 Clear LinkedIn context (logout)
+curl -X DELETE http://localhost:8000/logout?email=user@example.com
+
+# 🆕 Check scraping progress
+curl -X GET http://localhost:8000/progress/scraping/user@example.com
+
+# 🆕 Check application progress
+curl -X GET http://localhost:8000/progress/applying/user@example.com
 ```
 
 ---
@@ -480,15 +690,27 @@ curl -X POST http://localhost:8000/apply-jobs \
 
 2. **Resume Tailoring Logic**
    - Read: `backend_python/agents/tailor.py` (Gemini integration)
-   - Learn: PDF text extraction, LaTeX generation, batch processing
+   - Learn: PDF text extraction, LaTeX generation, batch processing, 4 template system
 
-3. **Frontend State Management**
+3. **🆕 Portfolio Generation**
+   - Read: `backend_python/agents/portfolio_agent.py` (Groq integration)
+   - Learn: HTML/CSS generation from resume data, 5 template system
+
+4. **Frontend State Management**
    - Read: `my-fe/app/Components/Jobs.tsx` & `Apply.tsx`
    - Learn: Redux + sessionStorage for multi-step flows
 
-4. **Database Models**
+5. **🆕 Portfolio Builder UI**
+   - Read: `my-fe/app/Components/PortfolioPage.tsx`
+   - Learn: Template selection, live preview, code export
+
+6. **Database Models**
    - Read: `my-fe/prisma/schema.prisma` & `backend_python/database/SchemaModel.py`
-   - Learn: How Prisma ORM mirrors SQLAlchemy models
+   - Learn: How Prisma ORM mirrors SQLAlchemy models, LinkedIn context storage
+
+7. **🆕 LinkedIn Session Persistence**
+   - Read: `backend_python/database/linkedin_context.py`
+   - Learn: Browser context serialization and restoration
 
 ---
 
@@ -516,6 +738,9 @@ This project is licensed under the MIT License – see LICENSE file for details.
 - [ ] Email notification tracking
 - [ ] Mobile app (React Native)
 - [ ] API marketplace for third-party integrations
+- [ ] Cover letter generation
+- [ ] Application analytics dashboard
+- [ ] Multi-language resume support
 
 ---
 
@@ -529,3 +754,21 @@ This project is licensed under the MIT License – see LICENSE file for details.
 ---
 
 **Made with ❤️ to help developers land their dream jobs faster.**
+
+---
+
+## 📋 Changelog
+
+### Latest Updates (v2.0)
+- ✅ **AI Portfolio Generator** - Create professional portfolio websites from your resume
+- ✅ **5 Portfolio Templates** - Modern, Minimalist, Creative, Startup, Corporate styles
+- ✅ **4 Resume Templates** - Choose from multiple LaTeX resume designs
+- ✅ **LinkedIn Session Persistence** - No more re-logging in every session
+- ✅ **Visual Debugging Dashboard** - See exactly what the scraper sees
+- ✅ **Pricing System** - Basic (Free) and Pro tiers
+- ✅ **Password Reset Flow** - Full Supabase-powered password recovery
+- ✅ **Browser Fingerprint Collection** - Enhanced session authenticity
+- ✅ **Docker Support** - Easy containerized deployment
+- ✅ **Windows Support** - `run.bat` for Windows users
+- ✅ **Groq AI Integration** - Additional AI model for portfolio generation
+- ✅ **Gemini Fallback Chain** - Automatic failover between Gemini models
