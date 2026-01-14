@@ -1,5 +1,6 @@
 import axios from "axios";
 import getLoginUser from "./getUserData";
+import { API_URL } from "./api";
 
 interface JobsData{
     "job_url":string,
@@ -14,7 +15,7 @@ async function sendUrl(url: string, user_id: string, password: string) {
     }
     else progress_user = null
 try {
-    const res = await axios.post(`http://localhost:8000/get-jobs`, {
+    const res = await axios.post(`${API_URL}/get-jobs`, {
             file_url: url,
             user_id: user_id ? user_id : "",
             password: password ? password : "",
@@ -38,7 +39,7 @@ async function Apply_Jobs(jobs: JobsData[], url: string, user_id: string, passwo
     }
     else progress_user = null
     try {
-    const res = await axios.post(`http://localhost:8000/apply-jobs`, {
+    const res = await axios.post(`${API_URL}/apply-jobs`, {
             user_id: user_id ? user_id : "",
             password: password ? password : "",
             resume_url: url,

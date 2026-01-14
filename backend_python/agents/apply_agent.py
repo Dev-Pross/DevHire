@@ -1342,7 +1342,7 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
 
     pw = await async_playwright().start()
     browser = await pw.chromium.launch(
-        headless=False,
+        headless=True,
         args=[
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]        
