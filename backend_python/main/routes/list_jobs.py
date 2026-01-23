@@ -17,17 +17,17 @@ class JobRequest(BaseModel):
 
 class Job(BaseModel):
     title: Optional[str] = "Title not available"  # Allow None with default
-    job_id: Optional[str] = "ID not available"    # Make this optional too
-    company_name: Optional[str] = None
-    location: Optional[str] = None
-    experience: Optional[str] = None
-    salary: Optional[str | int | float] = None
-    key_skills: List[str] = []                     # Default to empty list
+    job_id: Optional[Any] = "ID not available"    # Make this optional too
+    company_name: Optional[Any] = None
+    location: Optional[Any] = None
+    experience: Optional[Any] = None
+    salary: Optional[Any] = None
+    key_skills: List[Any] = []                     # Default to empty list
     job_url: HttpUrl
-    posted_at: Optional[str] = None
+    posted_at: Optional[Any] = None
     job_description: str = "Description not available"  # Provide default
     source: str = "linkedin"                       # Default value
-    relevance_score: Optional[str] = "unknown"     # Make optional with default
+    relevance_score: Optional[Any] = "unknown"     # Make optional with default
 
 class ResponseJob(BaseModel):
     jobs: List[Job]

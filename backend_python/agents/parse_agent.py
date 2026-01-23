@@ -44,7 +44,8 @@ def parse_pdf(url : str):
                         print(f"unable to fetch the text from resume {page_num + 1}")
                 else:
                     print(f"unable to convert the image from byte fallback method failed!")
-        if len(page_text)< 500 or text.count('') > (len(text) / 2):
+        if len(text)< 500 or text.count('') > (len(text) / 2):
+            print(text)
             raise ValueError("invalid pdf")
         print("data fetched from resume")
 
@@ -187,9 +188,9 @@ def main(url):
                 system_instruction=system_instruction
                 )
             ).text
-            print("="*30)
-            print(response)
-            print("="*30)
+            # print("="*30)
+            # print(response)
+            # print("="*30)
             [titles,Keywords ]= response.split("~")
             # titles = [title.strip() for title in titles if titles] 
             # print((titles))

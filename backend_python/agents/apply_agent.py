@@ -1114,7 +1114,7 @@ def make_resume_payload(b64: str) -> dict:
     }
 
 async def login(page: Page, user_id: str|None, password: str| None) -> bool:
-    await page.goto(LINKEDIN_LOGIN_URL, wait_until="networkidle")
+    await page.goto(LINKEDIN_LOGIN_URL, wait_until="domcontentloaded")
     await asyncio.sleep(10)
     if "/feed" in page.url:
         log.info("✅ Already logged in")
