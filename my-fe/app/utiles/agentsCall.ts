@@ -10,8 +10,9 @@ interface JobsData{
 async function sendUrl(url: string, user_id: string, password: string) {
     let progress_user: string | null
     const { data, error } = await getLoginUser();
-    if(data?.user){
+    if(data?.user.email){
         progress_user = data?.user.user_metadata.email
+        console.log('email from data progress ', data.user.email)
     }
     else progress_user = null
 try {

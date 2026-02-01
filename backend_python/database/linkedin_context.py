@@ -20,8 +20,15 @@ def save_linkedin_context(user_id: str, context_data: dict):
             WHERE email = %s
         """
         cursor.execute(query, (Json(context_data), datetime.utcnow(), user_id))
+        rows_affected = cursor.rowcount
         conn.commit()
-        print(f"✅ LinkedIn context saved for user {user_id}")
+        
+        if rows_affected == 0:
+            print(f"⚠️ No user found with email '{user_id}' - context NOT saved!")
+            print(f"   Hint: Check if user exists in database or if email is correct")
+            return False
+        
+        print(f"✅ LinkedIn context saved for user {user_id} ({rows_affected} row(s) updated)")
         return True
     except Exception as e:
         conn.rollback()
@@ -37,6 +44,25 @@ def get_linkedin_context(user_id: str):
     cursor = conn.cursor()
     
     try:
+        # Debug: Check if user exists first
+        check_query = """
+            SELECT email, linkedin_context IS NOT NULL as has_context 
+            FROM public."User" 
+            WHERE email = %s
+        """
+        cursor.execute(check_query, (user_id,))
+        check_result = cursor.fetchone()
+        
+        if check_result:
+            print(f"🔍 User found: {check_result[0]}, has_context: {check_result[1]}")
+        else:
+            print(f"⚠️ No user found with email: '{user_id}'")
+            # List existing users for debugging (first 5)
+            cursor.execute('SELECT email FROM public."User" LIMIT 5')
+            existing = cursor.fetchall()
+            print(f"   Existing users (sample): {[u[0] for u in existing]}")
+            return None
+        
         query = """
             SELECT linkedin_context 
             FROM public."User" 
@@ -46,7 +72,7 @@ def get_linkedin_context(user_id: str):
         result = cursor.fetchone()
         
         if result and result[0]:
-            # print("context:",result)
+            print(f"✅ Retrieved LinkedIn context for user {user_id}")
             return result[0]  # Return only the context data
         return None
     except Exception as e:

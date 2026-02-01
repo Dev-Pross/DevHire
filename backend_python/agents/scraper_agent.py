@@ -1122,7 +1122,7 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=True,
+            headless=False,
             args=[
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
             ]

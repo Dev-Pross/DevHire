@@ -119,168 +119,180 @@ def extract_resume_text(url: str) -> str:
 
 # ╭── Prompt builder ─────────────────────────────────────────────╮
 _SAMPLE0 = r"""
-\documentclass[a4paper,12pt]{article}
-
+\documentclass[letterpaper,10pt]{article}
+\usepackage{latexsym}
 \usepackage[empty]{fullpage}
 \usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
 \usepackage{fancyhdr}
+\usepackage{fontawesome5} 
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
 
+% --- MARGINS & SPACING ---
 \pagestyle{fancy}
-\fancyhf{}
+\fancyhf{} 
 \fancyfoot{}
 \renewcommand{\headrulewidth}{0pt}
 \renewcommand{\footrulewidth}{0pt}
 
-% Adjusted margins for proper whitespace
-\addtolength{\oddsidemargin}{-0.3in}
-\addtolength{\evensidemargin}{-0.3in}
-\addtolength{\textwidth}{0.6in}
-\addtolength{\topmargin}{-0.4in}
-\addtolength{\textheight}{0.8in}
+% Optimized margins for 1-page fit
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1.0in}
+\addtolength{\topmargin}{-0.5in}
+\addtolength{\textheight}{1.0in}
 
-% Formatting for section titles
-\titleformat{\section}{%
-  \scshape\raggedright\large
-}{}{0em}{}[\titlerule]
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
 
-\newcommand{\resumeItem}[1]{\item\small{{#1}}}
+% --- SECTION FORMATTING ---
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large\bfseries
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
 
-% Subheading for education (4 args)
-\newcommand{\resumeSubheading}[4]{\vspace{2pt}\item
+% --- CUSTOM COMMANDS ---
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small\textbf{#1} & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-1pt}\item
     \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
-      {\bfseries #1} & #2 \\
+      \textbf{#1} & #2 \\
       \textit{\small#3} & \textit{\small #4} \\
-    \end{tabular*}\vspace{2pt}
+    \end{tabular*}\vspace{-7pt}
 }
 
-% Project heading (2 args)
-\newcommand{\resumeProjectHeading}[2]{\item
-  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
-    {\bfseries #1} & \textit{#2} \\
-  \end{tabular*}\vspace{2pt}
-}
-
-\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.2in]}
-\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{6pt}}
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
-\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{8pt}}
-\newcommand{\resumeSubHeadingListEndNoSpace}{\end{itemize}\vspace{4pt}}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
 
+%-------------------------------------------
+%  RESUME STARTS HERE
+%-------------------------------------------
 \begin{document}
 
-%----------HEADING----------
+%----------HEADER----------
 \begin{center}
     {\Huge \bfseries Budumuru Srinivas Sai Saran Teja} \\ \vspace{3pt}
-    Visakhapatnam, India $|$ +91 7993027519 $|$ \href{mailto:tejabudumuru3@gmail.com}{tejabudumuru3@gmail.com} \\
-    \href{https://linkedin.com/in/teja-budumuru-15123a292}{LinkedIn} $|$ 
-    \href{https://github.com/TejaBudumuru3}{GitHub}
+    {\Large \bfseries Backend Engineer \& GenAI Specialist} \\ \vspace{5pt}
+    
+    \small
+    \faMapMarker* Visakhapatnam, India \ $|$ \ 
+    \faPhone* +91 7993027519 \ $|$ \ 
+    \faEnvelope \ \href{mailto:tejabudumuru3@gmail.com}{tejabudumuru3@gmail.com} \\ \vspace{4pt}
+    
+    \faLinkedin \ \href{https://www.linkedin.com/in/srinivas-sai-saran-teja-budumuru-15123a292/}{Linkedin} \ $|$ \ 
+    \faGithub \ \href{https://github.com/TejaBudumuru3}{Github} \ $|$ \ 
+    \faGlobe \ \href{https://teja-budumuru.vercel.app}{Portfolio}
 \end{center}
 
 %-----------PROFESSIONAL SUMMARY-----------
 \section{Professional Summary}
+Full-Stack AI Engineer capable of delivering end-to-end SaaS solutions. Proven ability to architect complex workflow engines (DAGs) and AI-powered platforms using the \textbf{MERN Stack} and \textbf{FastAPI}. Skilled in modern Cloud DevOps (\textbf{AWS/CI/CD}) and API design. Passionate about leveraging Large Language Models (LLMs) to solve complex business problems through intelligent, human-in-the-loop automation.
+
+%-----------TECHNICAL SKILLS (Fixed & Complete)-----------
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Python, JavaScript (ES6+), TypeScript, SQL, Java} \\
+     \textbf{Backend \& AI}{: FastAPI, Node.js, Express.js, Microservices, Gemini API, Kafka, WebSockets, Webhook}
+     \\
+     \textbf{Frontend}{: React.js, Next.js, Tailwindcss, Bootstrap Css, HTML, CSS}
+     \textbf{Database \& Infra}{: Supabase(PostgreSQL), MongoDB, Docker, AWS (EC2), CI/CD (GitHub Actions), Prisma ORM} \\
+     \textbf{Tools \& Traits}{: Playwright, Redux, Postman, Git, Agile, Teamwork, Problem Solving}
+    }}
+ \end{itemize}
+
+%-----------PROJECTS-----------
+\section{Key Projects}
 \resumeSubHeadingListStart
-\resumeItem{
-Enthusiastic Software Developer with proven experience in designing and implementing \textbf{end-to-end applications} across web and desktop platforms. Proficient in \textbf{React.js, Node.js, Express.js, MongoDB, Python, and Java}, with expertise in RESTful API design, authentication, and scalable architectures. Strong understanding of \textbf{OOP, algorithms, database management, and MVC frameworks}. Recognized for building projects that combine innovation and practicality, from AI-driven content generators to automation platforms for recruitment and faculty performance tracking.
-}
+
+    % PROJECT 1: BuildFlow (N8N Clone)
+    \resumeProjectHeading
+    {\textbf{BuildFlow} $|$ \emph{Workflow Automation Engine}}
+    {\href{https://github.com/Dev-Pross/BuildFlow}{Github}}
+    \resumeItemListStart
+        \resumeItem{\textbf{Spearheaded} the architecture of a low-code platform capable of executing \textbf{Directed Acyclic Graphs (DAGs)}, targeting sub-200ms latency per node.}
+        \resumeItem{\textbf{Orchestrated} a distributed task processing system using \textbf{TypeScript} and \textbf{Kafka}, enabling asynchronous execution of concurrent workflows.}
+        \resumeItem{\textbf{Formulated} a resilient state management module to handle execution context, mitigating workflow failures by \textbf{40\%} via automated error propagation.}
+    \resumeItemListEnd
+
+    % PROJECT 2: HireHawk
+    \resumeProjectHeading
+    {\textbf{HireHawk} $|$ \emph{AI Job Automation Agent}}
+    {\href{https://dev-hire-znlr.vercel.app/}{Live Link}}
+    \resumeItemListStart
+        \resumeItem{\textbf{Devised} an AI Agent that curtails manual job application time by \textbf{80\%} using a "Human-in-the-Loop" architecture with \textbf{Playwright}.}
+        \resumeItem{\textbf{Embedded} a \textbf{Context-Aware Resume Engine} that parses JDs and user data to dynamically synthesize tailored resumes using \textbf{Gemini API}.}
+        \resumeItem{\textbf{Engineered} a high-volume batch processing pipeline capable of sustaining \textbf{10+ sequential applications} per session without IP throttling.}
+    \resumeItemListEnd
+
+    % PROJECT 3: Ainfinity
+    \resumeProjectHeading
+    {\textbf{Ainfinity} $|$ \emph{Generative AI Content SaaS}}
+    {\href{https://post-generator-iota.vercel.app/}{Live Link}}
+    \resumeItemListStart
+        \resumeItem{\textbf{Constructed} a full-stack content generation platform using the \textbf{MERN Stack}, accelerating RESTful API response times to under \textbf{300ms}.}
+        \resumeItem{\textbf{Fortified} secure session management using \textbf{HTTP-Only Cookies}, eliminating potential XSS and CSRF vulnerabilities.}
+        \resumeItem{\textbf{Synchronized} global application state using \textbf{Redux Toolkit}, ensuring seamless data consistency across the frontend.}
+    \resumeItemListEnd
+
 \resumeSubHeadingListEnd
 
+%-----------PROFESSIONAL EXPERIENCE-----------
+\section{Professional Experience}
+\resumeSubHeadingListStart
 
-%-----------TECHNICAL SKILLS-----------
-\section{Technical Skills}
-\resumeItemListStart
-  \resumeItem{\textbf{Programming Languages:} JavaScript (ES6+), Python, Java, SQL}
-  \resumeItem{\textbf{Frontend:} React.js, Redux, HTML5, CSS3}
-  \resumeItem{\textbf{Backend:} Node.js, Express.js, REST APIs}
-  \resumeItem{\textbf{Databases and Automation tools:} MongoDB, MySQL, Supabase and Playwright}
-  \resumeItem{\textbf{Version Control:} Git, GitHub}
-  \resumeItem{\textbf{Concepts:} OOP, Data Structures, DBMS, MVC architecture, Agile, Clean Code Practices}
-  \resumeItem{\textbf{Soft Skills:} Problem Solving, Quick Learning, Effective Communication, Team Collaboration}
-\resumeItemListEnd
+    \resumeSubheading
+      {Backend API Engineer}{Remote}
+      {Freelance Project: Resume Tailoring \& Portfolio Engine}{Nov 2025 -- Present}
+      \resumeItemListStart
+        \resumeItem{\textbf{Tailored} a production-ready API for generating ATS-friendly resumes, optimizing dynamic templates to reduce document generation latency by \textbf{40\%}.}
+        \resumeItem{\textbf{Unified} data ingestion pipelines by creating polymorphic endpoints that process both raw JSON and PDF inputs.}
+        \resumeItem{\textbf{Provisioned} production infrastructure on \textbf{AWS EC2} using Docker, ensuring \textbf{reliable 24/7 system availability} for client operations.}
+      \resumeItemListEnd
+
+\resumeSubHeadingListEnd
 
 %-----------EDUCATION-----------
 \section{Education}
-\resumeSubHeadingListStart
-  \resumeSubheading
-    {MVGR College of Engineering (A)}{Vizianagaram, India}
-    {B.Tech in Computer Science; GPA: 7.48/10}{May 2025}
-  \resumeSubheading
-    {Government Polytechnic College}{Anakapalle, India}
-    {Diploma in Computer Engineering; Final Grade: 82.09\%}{June 2022}
-\resumeSubHeadingListEnd
-
-%-----------PROJECTS-----------
-\section{Projects}
-\resumeSubHeadingListStart
-
-\resumeProjectHeading
-    {HireHawk – Fullstack Job Automation}{Ongoing}
-    \resumeItemListStart
-      \resumeItem{Conceptualized and developing an \textbf{AI-powered recruitment automation platform} aimed at reducing manual effort in job applications.}
-      \resumeItem{Designed workflows for \textbf{resume parsing, intelligent job matching, and auto-apply mechanisms}, allowing candidates to apply across multiple portals with minimal effort.}
-      \resumeItem{Building backend services with \textbf{Python, Next.js, Supabase} to manage job applying, tailoring resumes, and finding relavent jobs.}
-      \resumeItem{Building agents to maintain proper flow from finding titles to applying jobs using automation tool called \textbf{Playwright} in Python to create 4 agents called \textbf{Titles extraction, Scraping relavent jobs, Tailoring resume, Apply agent}}
-    \resumeItemListEnd
-
-\resumeProjectHeading
-    {Ainfity – AI-Powered Post Generator}{{\href{https://post-generator-iota.vercel.app/}{post-generator-iota.vercel.app}}}
-    \resumeItemListStart
-      \resumeItem{Developed a \textbf{MERN stack application} that generates AI-driven text and image content for social media posts, helping creators save time.}
-      \resumeItem{Implemented \textbf{RESTful APIs} using Express.js and MongoDB with nested JSON schemas for structured data handling.}
-      \resumeItem{Integrated \textbf{JWT-based authentication} for secure user sessions and scalable user management.}
-      \resumeItem{Designed a responsive \textbf{React.js frontend}, ensuring smooth experience across mobile and desktop devices.}
-      \resumeItem{Optimized performance by modularizing backend architecture and adopting Agile practices for rapid iteration.}
-    \resumeItemListEnd
-
-\resumeProjectHeading
-    {Faculty Performance Monitor}{}
-    \resumeItemListStart
-      \resumeItem{Developed a \textbf{Java-based web portal} using JSP and MySQL for tracking faculty workload and performance scores.}
-      \resumeItem{Implemented role-based access controls, enabling administrators to assign credits and generate evaluation reports.}
-      \resumeItem{Applied \textbf{MVC architecture} to ensure clean separation of logic, improving maintainability and scalability.}
-      \resumeItem{Optimized SQL queries to improve reporting efficiency and ensure quick data retrieval for administrators.}
-    \resumeItemListEnd
-
-\resumeProjectHeading
-    {Employee Management System}{}
-    \resumeItemListStart
-      \resumeItem{Created a \textbf{Python desktop application} with Tkinter GUI and MySQL backend for automating employee payroll processes.}
-      \resumeItem{Developed modules for \textbf{salary computation, tax deduction, and employee record management}.}
-      \resumeItem{Implemented validation and exception handling to ensure reliable data storage and reduce errors in payroll.}
-      \resumeItem{Minimized manual intervention, thereby reducing processing time and improving organizational efficiency.}
-    \resumeItemListEnd
-
-\resumeSubHeadingListEnd
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {MVGR College of Engineering (A)}{Vizianagaram}
+      {B.Tech in Computer Science and Engineering;}{May 2025}
+    \resumeSubheading
+      {Government Polytechnic College}{Anakapalle}
+      {Diploma in Computer Engineering; }{June 2022}
+  \resumeSubHeadingListEnd
 
 %-----------CERTIFICATIONS-----------
 \section{Certifications}
 \resumeSubHeadingListStart
-\resumeItem{AI and Machine Learning -- AICTE}
-\resumeItem{Cloud Computing -- NPTEL}
-\resumeItem{Java JUnit -- Infosys SpringBoard}
-\resumeItem{Foundations of Artificial Intelligence -- SkillUp}
+    \resumeItem{\textbf{Oracle Certified Generative AI Professional (2025)} -- \href{https://catalog-education.oracle.com/ords/certview/sharebadge?id=BD6B7CF412F7B7B177182CB5A13B29CE3218255114ABB2C19070B7B5A512E48F}{[Verify Badge]}}
+    \resumeItem{\textbf{Oracle Cloud Infrastructure Foundations Associate} -- \href{https://catalog-education.oracle.com/ords/certview/sharebadge?id=1DCE05167148ED0D0575B553F7110B6CACC6BFBA54E628910002B76EBE582144}{[Verify Badge]}}
 \resumeSubHeadingListEnd
 
-%-----------ACHIEVEMENTS-----------
-\section{Achievements}
-\resumeItemListStart
-  \resumeItem{Participated in Pega Systems Hackathon, demonstrating innovation, problem-solving, and teamwork skills.}
-
-  \resumeItem{Recognized for artistic achievements in drawing competitions (early academic years).}
-\resumeItemListEnd
-
-%-----------LANGUAGES-----------
-\section{Languages}
-\resumeSubHeadingListStart
-  \resumeItem{\textbf{English:} Advanced}
-  \resumeItem{\textbf{Telugu:} Native Proficiency}
-\resumeSubHeadingListEndNoSpace
-
 \end{document}
-
-
-"""
+    """
 
 _SAMPLE1 = r"""
 \documentclass[a4paper,10pt]{article}
@@ -713,7 +725,7 @@ This prompt provides detailed explanations for each step. Understanding the 'why
 1.  **Parse and Structure First**: Your initial and most critical task is to convert the unstructured, messy text from a PDF into a clean, structured internal representation. You cannot tailor content you do not understand.
     * **Rationale**: PDF text extraction is imperfect. Raw text will have random line breaks and spacing. You must intelligently group this text into logical resume sections (Summary, Skills, Projects, etc.) before any tailoring can begin.
 
-2.  **Tailor with Precision and Honesty**: You will strategically rewrite specific sections of the resume to align with the job description. However, you must never invent skills or experiences the candidate does not possess. Your goal is to highlight existing qualifications, not to fabricate new ones.
+2.  **Tailor with Precision and Honesty**: You will strategically rewrite specific sections of the resume to align with the job description. However, you must never invent skills or experiences the candidate does not possess. Your goal is to highlight existing qualifications, not to fabricate new ones. Don't use repeated verbs, use fancy verbs and make sure grammatical mistake free resume with short Professional Summary for single page resume(SPR) to fit all content in one page it self only for FRESHER /(NO PROFESSIONAL EXPERIENCED CANDIDATES)
     * **Rationale**: Honesty is paramount. While the goal is to pass ATS scans, the resume must be a truthful representation of the candidate for the human hiring manager who will read it next.
 
 3.  **Reconstruct with Flawless Code**: The final output must be a syntactically perfect LaTeX document formatted according to the provided template.
