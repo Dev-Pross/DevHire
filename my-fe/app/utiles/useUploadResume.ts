@@ -58,6 +58,7 @@ export function useResumeUpload(userId: string | undefined) {
       if (urlData?.signedUrl) {
         await resumePush(userId, urlData.signedUrl);
         sessionStorage.setItem("resume", urlData.signedUrl);
+        window.dispatchEvent(new CustomEvent("resume-uploaded"));
       }
     } catch (error: any) {
       setUploadError(`Upload failed: ${error.message || error.toString()}`);

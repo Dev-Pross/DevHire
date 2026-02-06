@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ToastBar, Toaster } from "react-hot-toast";
+import ToastProvider from "./Components/ToastProvider";
 import Navbar from "./Components/Navbar";
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,57 +27,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0A0A0A] text-white`}
       >
-
         {children}
-    <Toaster
-  toastOptions={{
-    position: "top-right",
-    style: {
-      fontSize: "1.2rem",
-      minWidth: "350px",
-      // padding: "20px 26px",
-      borderRadius: "5px",
-      // opacity:50,
-      boxShadow: "0 4px 22px 0 rgba(34,197,94,0.15)", // soft green shadow
-      border: "none",
-    },
-    success: {
-      style: {
-        background: "white",
-        color: "#2563eb", // blue-600 for text to pop
-        borderBottom: "5px solid #34d399", // underline: green-400
-        boxShadow: "0 4px 14px 0 rgba(59,130,246,0.08)", // soft blue
-        fontWeight: "600",
-        letterSpacing: "0.02em"
-      },
-    },
-    error: {
-      style: {
-        backgroundColor: "#ffffffb6",
-        color: "#ef4444", // red-500 for error text
-        borderBottom: "5px solid #ef4444", // vivid red underline
-        boxShadow: "0 4px 14px 0 rgba(239,68,68,0.10)", // soft red
-        fontWeight: "600",
-        letterSpacing: "0.02em",
-      },
-    },
-    // info: {
-    //   style: {
-    //     background: "white",
-    //     color: "#14b8a6", // teal-600 for info
-    //     borderBottom: "5px solid #38bdf8", // sky-400 underline
-    //     boxShadow: "0 2px 10px 0 rgba(16,185,129,0.09)", // soft teal
-    //     fontWeight: "600",
-    //     letterSpacing: "0.02em"
-    //   },
-    // }
-  }}
-/>
-      
+        <ToastProvider />
       </body>
     </html>
   );

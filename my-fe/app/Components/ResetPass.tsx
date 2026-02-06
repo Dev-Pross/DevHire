@@ -1,124 +1,111 @@
-import React, { useEffect, useState } from 'react'
-import { supabase } from '../utiles/supabaseClient'
-import { useRouter } from 'next/navigation'
+import React, { useEffect, useState } from "react";
+import { supabase } from "../utiles/supabaseClient";
 
-interface RestProps{
-    onBack: ()=> void
+interface RestProps {
+  onBack: () => void;
 }
 
-const ResetPass = ({onBack}:RestProps) => {
-    const [email, setEmail] = useState<string | null>(null)
-    const [error, setError] = useState<string | null>(null)
-    const [loading, setLoading] = useState(false)
-    const resendMailTime = 60000
-    const [buttonShow, setButtonShow] = useState(false)
-    const [resetTimer, setResetTimer] = useState(0)
-    
-    useEffect(()=>{
-      if(buttonShow && resetTimer>0){
-        const timer = setInterval(()=>{
-          setResetTimer((prev)=>prev-1)
-          console.log(`timer: ${resetTimer}`)
-        },1000)
-        return ()=> clearInterval(timer)
+const ResetPass = ({ onBack }: RestProps) => {
+  const [email, setEmail] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const resendMailTime = 60000;
+  const [buttonShow, setButtonShow] = useState(false);
+  const [resetTimer, setResetTimer] = useState(0);
+
+  useEffect(() => {
+    if (buttonShow && resetTimer > 0) {
+      const timer = setInterval(() => {
+        setResetTimer((prev) => prev - 1);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  });
+
+  const resetPassword = async () => {
+    setLoading(true);
+    try {
+      if (email) {
+        setError("Password reset link sent to your mail");
+        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `https://dev-hire-znlr.vercel.app/reset-password`,
+        });
+        if (error?.message) setError(error?.message);
+        setLoading(false);
       }
-    })
+    } catch (e) {
+      setLoading(false);
+      setError(e instanceof Error ? e.message : "Unknown Error");
+    }
+    setButtonShow(true);
+    setResetTimer(60);
+    setTimeout(() => {
+      setButtonShow(false);
+    }, resendMailTime);
+  };
 
-    const frontendURL = process.env.NEXT_PUBLIC_FRONT_URL as string || 'http://localhost:3000'
-    const resetPassword = async()=>{
-      
-        setLoading(true)
-        try{
-            if(email){
-                setError('Password reset link sent to your mail')
-                const {data, error} = await supabase.auth.resetPasswordForEmail(email,{
-                    redirectTo: `https://dev-hire-znlr.vercel.app/reset-password`
-                })
-                console.log(data)
-                console.log(error)
-                if(error?.message) setError(error?.message)
-                setLoading(false)
-            }
-        }catch(e){
-          setLoading(false)
-          setError(e instanceof Error ? e.message : "Unknown Error")
-        }
-        setButtonShow(true)
-        setResetTimer(60)
-        setTimeout(() => {
-          setButtonShow(false)
-        }, resendMailTime);
-  }
   return (
-    <>
-    <div className="min-h-screen flex items-center justify-center px-4 sm:px-6">
-      <div className="w-full max-w-md">
-        <div className="bg-white/5 backdrop-blur-lg p-6 sm:p-8 lg:p-10 rounded-2xl shadow-2xl border border-white/10">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center inline-flex text-white mb-6 lg:mb-8">
-          <button className='text-xl font-light relative px-5 cursor-pointer bg-white/5 rounded-full place-self-center mr-2' 
-            onClick={onBack}>&larr;</button>
-            Reset Password
-          </h2>
-          {error && (
-            <div className="w-full text-center mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-200 text-sm">
-              {error}
-            </div>
-          )}
-
-          <form className="space-y-4">
-            <div>
-              <input
-                className="shadow appearance-none border border-white/20 rounded-lg w-full bg-[#325b4b]/80 py-3 px-4 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-                id="username"
-                type="email"
-                placeholder="Email"
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div>
-            </div>
-            <div className="pt-2">
-              <button
-                onClick={resetPassword}
-                disabled={loading || buttonShow}
-                className="bg-[#27db78] hover:bg-[#159950] w-full text-black font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                type="button"
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg
-                      className="animate-spin h-5 w-5 text-black"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="black"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                      />
-                    </svg>
-                    Sending reset link...
-                  </span>
-                ) : (
-                  buttonShow && resetTimer>0 ? (<span>Resend in {resetTimer}s</span>) :
-                  (<span>Reset</span>)
-                )}
-              </button>
-            </div>
-          </form>
+    <div className="surface-card p-8 lg:p-10">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-8">
+        <button
+          className="w-9 h-9 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-gray-400 hover:text-white hover:border-white/[0.15] transition-all cursor-pointer"
+          onClick={onBack}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div>
+          <h2 className="text-xl font-bold text-white">Reset Password</h2>
+          <p className="text-gray-500 text-sm">We&apos;ll send a reset link to your email</p>
         </div>
       </div>
-    </div>
-    </>
-)
-}
 
-export default ResetPass
+      {error && (
+        <div className={`mb-6 p-3 rounded-xl text-sm text-center border ${
+          error.includes("sent") 
+            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+            : "bg-red-500/10 border-red-500/20 text-red-400"
+        }`}>
+          {error}
+        </div>
+      )}
+
+      <form className="space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-gray-400 mb-2">Email address</label>
+          <input
+            className="input-dark"
+            type="email"
+            placeholder="you@example.com"
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+
+        <button
+          onClick={resetPassword}
+          disabled={loading || buttonShow}
+          className="btn-primary w-full !rounded-xl !py-3.5"
+          type="button"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-5 w-5 text-black" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+              Sending...
+            </span>
+          ) : buttonShow && resetTimer > 0 ? (
+            `Resend in ${resetTimer}s`
+          ) : (
+            "Send Reset Link"
+          )}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+export default ResetPass;

@@ -1,47 +1,129 @@
 import React from "react";
+
+const plans = [
+  {
+    name: "Starter",
+    price: "FREE",
+    period: "",
+    description: "Perfect for exploring HireHawk's capabilities",
+    features: [
+      "Access to Standard Resume template",
+      "Tailor your resume 2 times/day",
+      "Build your Portfolio 3 times/day",
+      "Apply up to 5 applications/day",
+      "Limited access to Smart Applier",
+    ],
+    cta: "Get Started",
+    popular: false,
+  },
+  {
+    name: "Pro",
+    price: "₹199",
+    period: "/month",
+    description: "For serious job seekers who want maximum results",
+    features: [
+      "Access to all advanced resume templates",
+      "Tailor your resume 10 times/day",
+      "Build your Portfolio 10 times/day",
+      "Apply up to 20 applications/day",
+      "Full access to Smart Applier",
+      "Priority support",
+    ],
+    cta: "Upgrade to Pro",
+    popular: true,
+  },
+];
+
 export const Pricing = () => {
   return (
-    <div className="flex flex-col bg-white/90 items-center min-h-screen px-4 sm:px-6 lg:px-12 py-12 lg:py-20" id="pricing-section">
-      <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-8 lg:mb-12 text-center max-w-4xl">
-        Choose the perfect plan to streamline your hiring process
-      </h1>
-      <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 w-full max-w-6xl">
-        {/* Basic Plan */}
-        <div className="bg-black cursor-default w-full lg:w-1/2 p-6 lg:p-8 shadow-2xl text-white rounded-xl" id="pricing-card">
-          <h2 className="text-2xl lg:text-3xl font-semibold mb-4">Basic</h2>
-          <p className="text-4xl lg:text-5xl font-bold mb-6">
-            FREE<span className="text-base font-normal"></span>
+    <section className="py-24 px-5 lg:px-10 relative" id="pricing-section">
+      {/* Background glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-emerald-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
+
+      <div className="max-w-5xl mx-auto relative z-10">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium mb-6">
+            Pricing
+          </span>
+          <h2 className="text-3xl lg:text-5xl font-bold gradient-text mb-4">
+            Choose the perfect plan
+          </h2>
+          <p className="text-gray-400 text-lg max-w-xl mx-auto">
+            Start free and upgrade when you&apos;re ready for more power.
           </p>
-          <ul className="mb-8 space-y-4 text-sm lg:text-base">
-            <li>✔️ Access to Standard Resume template</li>
-            <li>✔️ Tailor your resume for 2 times/day</li>
-            <li>✔️ Build your Portfolio for 3 times/day</li>
-            <li>✔️ Apply upto 5 applications/day</li>
-            <li>✔️ Limited access to Smart Applier</li>
-          </ul>
-          <button className="border border-white hover:bg-[#159950] w-full text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline hover:scale-105 transition-transform duration-300 cursor-pointer">
-            Get started
-          </button>
         </div>
 
-        {/* Pro Plan */}
-        <div className="price-card w-full lg:w-1/2 shadow-2xl border-2 border-[#FFFF00] cursor-pointer hover:border-[#FFD700] hover:border-4 transition-all duration-300 p-6 lg:p-8 text-black rounded-xl">
-          <h2 className="text-2xl lg:text-3xl font-semibold mb-4">Pro</h2>
-          <p className="text-4xl lg:text-5xl font-bold mb-6 text-black">
-            ₹199<span className="text-base font-normal text-black">/month</span>
-          </p>
-          <ul className="mb-8 space-y-4 text-sm lg:text-base">
-            <li>✔️ Access to all advanced resume templates</li>
-            <li>✔️ Tailor your resume for 10 times/day</li>
-            <li>✔️ Build your Portfolio for 10 times/day</li>
-            <li>✔️ Apply upto 20 applications/day</li>
-            <li>✔️ Full access to Smart Applier</li>
-          </ul>
-          <button className="bg-black border hover:bg-gray-800 w-full text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline hover:scale-105 transition-transform duration-300 cursor-pointer">
-            Choose plan
-          </button>
+        {/* Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto" id="pricing-card">
+          {plans.map((plan) => (
+            <div
+              key={plan.name}
+              className={`relative rounded-2xl p-8 transition-all duration-300 ${
+                plan.popular
+                  ? "bg-emerald-500 text-black shadow-2xl shadow-emerald-500/20 scale-[1.02]"
+                  : "bg-[#1A1A1A] border border-white/[0.08] text-white hover:border-emerald-500/30"
+              }`}
+            >
+              {/* Popular badge */}
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="px-4 py-1 bg-black text-emerald-400 text-xs font-bold rounded-full uppercase tracking-wider">
+                    Most Popular
+                  </span>
+                </div>
+              )}
+
+              <h3 className={`text-xl font-semibold mb-2 ${plan.popular ? "text-black" : "text-white"}`}>
+                {plan.name}
+              </h3>
+              <p className={`text-sm mb-6 ${plan.popular ? "text-black/70" : "text-gray-400"}`}>
+                {plan.description}
+              </p>
+
+              <div className="flex items-baseline gap-1 mb-8">
+                <span className={`text-5xl font-bold ${plan.popular ? "text-black" : "text-white"}`}>
+                  {plan.price}
+                </span>
+                {plan.period && (
+                  <span className={`text-sm font-medium ${plan.popular ? "text-black/60" : "text-gray-500"}`}>
+                    {plan.period}
+                  </span>
+                )}
+              </div>
+
+              <ul className="space-y-4 mb-8">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3">
+                    <svg
+                      className={`w-5 h-5 flex-shrink-0 mt-0.5 ${plan.popular ? "text-black" : "text-emerald-400"}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className={`text-sm ${plan.popular ? "text-black/80" : "text-gray-300"}`}>
+                      {feature}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                className={`w-full py-3.5 px-6 rounded-xl font-semibold text-sm transition-all duration-300 cursor-pointer ${
+                  plan.popular
+                    ? "bg-black text-white hover:bg-gray-900 hover:shadow-lg"
+                    : "bg-white/[0.05] border border-white/[0.1] text-white hover:bg-emerald-500 hover:text-black hover:border-emerald-500"
+                }`}
+              >
+                {plan.cta}
+              </button>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 };

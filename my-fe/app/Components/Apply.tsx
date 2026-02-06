@@ -21,159 +21,90 @@ interface ApplyProps {
 
 const Apply: React.FC<ApplyProps> = () => {
   const steps = [
-    {
-      label: "Processing jobs",
-      description: "1%",
-      min: 0,
-    },
-    {
-      label: "Talioring Resume",
-      description: "10%",
-      min: 10,
-    },
-    {
-      label: "Proccessing Resumes",
-      description: "40%",
-      min: 20,
-    },
-    {
-      label: "Applying Jobs",
-      description: "85%",
-      min: 85,
-    },
-    {
-      label: "Applied Successfully",
-      description: "100%",
-      min: 100,
-    },
+    { label: "Processing jobs", description: "1%", min: 0 },
+    { label: "Tailoring Resume", description: "10%", min: 10 },
+    { label: "Processing Resumes", description: "40%", min: 20 },
+    { label: "Applying Jobs", description: "85%", min: 85 },
+    { label: "Applied Successfully", description: "100%", min: 100 },
   ];
   const intervalRef = useRef<number | null>(null);
-  const [currentStep, setCurrentStep] = useState(0); 
+  const [currentStep, setCurrentStep] = useState(0);
   const [response, setResponse] = useState<any>(null);
-  const [Progress_userId, setProgress_UserId]  =useState<string>("")
-  
-  const [jobs, setJobs] = useState<
-    { job_url: string; job_description: string }[]
-  >([]);
+  const [Progress_userId, setProgress_UserId] = useState<string>("");
+  const [jobs, setJobs] = useState<{ job_url: string; job_description: string }[]>([]);
   const router = useRouter();
-
   const [url, setUrl] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-
   const [user, setUser] = useState<string | null>(null);
   const [dbData, setDbData] = useState<any>();
 
-  const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456"; // ensure 32 bytes for AES-256
+  const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456";
   const IV = "741852963qwerty0";
 
-  function decryptData(
-    ciphertextBase64: string,
-    keyStr: string,
-    ivStr: string
-  ) {
+  function decryptData(ciphertextBase64: string, keyStr: string, ivStr: string) {
     const key = CryptoJS.enc.Utf8.parse(keyStr);
     const iv = CryptoJS.enc.Utf8.parse(ivStr);
-
     const decrypted = CryptoJS.AES.decrypt(ciphertextBase64, key, {
-      iv: iv,
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7,
+      iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7,
     });
     return decrypted.toString(CryptoJS.enc.Utf8);
   }
-  //  fetching resume, li_c, jobs, id, applied jobs
+
   useEffect(() => {
-    // fecthing resume
     const pdf = sessionStorage.getItem("resume");
-    const context = sessionStorage.getItem("Lcontext")
+    const context = sessionStorage.getItem("Lcontext");
     if (pdf) setUrl(pdf);
     else {
-      toast.error("Resume not found. Please upload your resume")
-      router.push("/Jobs/LinkedinUserDetails")
+      toast.error("Resume not found. Please upload your resume");
+      router.push("/Jobs/LinkedinUserDetails");
     }
-
-    // fecthing jobs, user id
     const job_data = sessionStorage.getItem("jobs");
     const id = sessionStorage.getItem("id");
-    if (job_data != null) {
-      setJobs(JSON.parse(job_data));
-    } else {
-      toast.error("No jobs found to proceed")
-      router.push("/Jobs")
+    if (job_data != null) setJobs(JSON.parse(job_data));
+    else {
+      toast.error("No jobs found to proceed");
+      router.push("/Jobs");
     }
-    if (id != null) {
-      setUser(id);
-    } else {
-      // throw new Error("no id found");
-      toast.error("Please Login to start")
-    }
+    if (id != null) setUser(id);
+    else toast.error("Please Login to start");
 
-    // console.log("jobs from ls: ", job_data);
-
-    // fetching li_c
     async function fetchEncryptedCredentials() {
       try {
-  const res = await fetch("/api/get-data", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
-
+        const res = await fetch("/api/get-data", { method: "GET", headers: { "Content-Type": "application/json" }, credentials: "include" });
         const json = await res.json();
-
         if (json.encryptedData) {
           const decrypted = decryptData(json.encryptedData, ENC_KEY, IV);
           const credentials = JSON.parse(decrypted);
           setUserId(credentials.username);
           setPassword(credentials.password);
         } else {
-          // console.error("No encryptedData in response");
-          toast.error("Linkedin credentials not provided")
-          router.push("/Jobs/LinkedinUserDetails")
+          toast.error("Linkedin credentials not provided");
+          router.push("/Jobs/LinkedinUserDetails");
         }
       } catch (error: any) {
-        // console.error("Error fetching or decrypting credentials:", error);
-        toast.error("Error caused by: ", error.message)
+        toast.error("Error caused by: ", error.message);
       }
     }
-    if(context != "true"){
-      console.log("no context present in session storage");
-      fetchEncryptedCredentials();
-    }
-    else{
-      console.log("context present in session storage");
-      
-    }
-    // fecthing applied jobs from database
+    if (context != "true") fetchEncryptedCredentials();
+
     async function getAppliedJobs() {
-      const res = await fetch(`/api/User?id=${user}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
+      const res = await fetch(`/api/User?id=${user}`, { method: "GET", headers: { "Content-Type": "application/json" }, credentials: "include" });
       const my_data = await res.json();
-      if (res) {
-        // console.log("mydata", my_data.user.applied_jobs);
-        setDbData(my_data.user.applied_jobs);
-      }
+      if (res) setDbData(my_data.user.applied_jobs);
     }
     if (user) getAppliedJobs();
   }, [user, router]);
 
-  useEffect(()=>{
-      async function user() {
-        const { data, error } = await getLoginUser();
-        if (data?.user){
-          setProgress_UserId(data.user.user_metadata.email);
-        }
-      }
-      user();
-    },[])
-  // Applying jobs
   useEffect(() => {
-    // console.log("apply called");
-    // console.log("Ready to apply: ", { jobs, userId, dbData });
+    async function user() {
+      const { data, error } = await getLoginUser();
+      if (data?.user) setProgress_UserId(data.user.user_metadata.email);
+    }
+    user();
+  }, []);
+
+  useEffect(() => {
     if (!jobs || jobs.length === 0) return;
     if (!user) return;
     if (!dbData) return;
@@ -183,62 +114,36 @@ const Apply: React.FC<ApplyProps> = () => {
       try {
         const { data, error } = await Apply_Jobs(jobs, url, userId, password);
         if (data) {
-          sessionStorage.setItem("applied", data.successful_applications.flat(Infinity).length)
-          const payload = [
-            ...new Set([
-              ...dbData,
-              ...data.successful_applications.flat(Infinity),
-            ]),
-          ];
+          sessionStorage.setItem("applied", data.successful_applications.flat(Infinity).length);
+          const payload = [...new Set([...dbData, ...data.successful_applications.flat(Infinity)])];
           const res = await fetch("/api/User?action=update", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: user,
-              data: { column: "applied_jobs", value: payload },
-            }),
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: user, data: { column: "applied_jobs", value: payload } }),
           });
-          // console.log(user);
-
-          if (res.ok) {
-            console.log("data pushed");
-          } else {
-            console.log("data pushed failed");
-          }
+          if (res.ok) console.log("data pushed");
+          else console.log("data pushed failed");
           setResponse(data);
         } else {
-          // console.log("error from fetching jobs ", error?.status);
-          toast.error("Error from fetching jobs: ", error?.status)
-          if (error.status === 500) {
-            // console.log("cant reach server, please try again");
-            toast.error("Can't reach server, please try again")
-          }
+          toast.error("Error from fetching jobs: ", error?.status);
+          if (error.status === 500) toast.error("Can't reach server, please try again");
         }
       } catch (error: any) {
         toast.error("Error in applying jobs ", error.message);
-
       }
     }
 
     apply();
 
     if (Progress_userId) {
-      // console.log("all set to start apply");
-
       intervalRef.current = window.setInterval(() => {
-  fetch(`${API_URL}/apply/${Progress_userId}/progress`)
+        fetch(`${API_URL}/apply/${Progress_userId}/progress`)
           .then((res) => res.json())
           .then((data) => {
-            // console.log("progress: ", data.progress);
             let stepIndex = 0;
             for (let i = 0; i < steps.length; i++) {
-              if (data.progress == 100) {
-                stepIndex = 110;
-              } else if (data.progress >= steps[i].min) {
-                stepIndex = i;
-              } else {
-                break;
-              }
+              if (data.progress == 100) stepIndex = 110;
+              else if (data.progress >= steps[i].min) stepIndex = i;
+              else break;
             }
             setCurrentStep(stepIndex);
             if (data.progress >= 100 && intervalRef.current) {
@@ -247,196 +152,113 @@ const Apply: React.FC<ApplyProps> = () => {
             }
           });
       }, 2000);
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-      };
+      return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
     } else {
-  toast.error("Linkedin credentials not provided")
-  router.push("/Jobs/LinkedinUserDetails")
+      toast.error("Linkedin credentials not provided");
+      router.push("/Jobs/LinkedinUserDetails");
     }
   }, [user, jobs, dbData, Progress_userId]);
 
   return (
-    <>
-      <div className="w-full min-h-screen overflow-x-hidden flex flex-col">
-        <div className='lg:hidden shrink-0 flex flex-col gap-0 bg-gradient-to-b from-[#244283] to-[#0e3661] p-4 md:p-6 lg:p-8 py-8 lg:py-20 shadow-lg shadow-[#052718]-500 w-full lg:w-auto lg:max-w-xs lg:sticky lg:top-15 lg:left-0 lg:h-screen rounded-b-lg lg:rounded-r-lg lg:rounded-b-none cursor-default'>
-          {steps.map((step, index) => (
-            <div className="flex items-start" key={step.label}>
-              {/* Connector Line & Circle Col */}
-              <div className="flex flex-col items-center mr-3 md:mr-4 h-fit">
-                {/* Circle */}
-                <div
-                  className={`
-                    w-5 h-5 md:w-6 md:h-6 rounded-full border-2 flex items-center justify-center transition-all duration-900 
-                    ${
-                      index < currentStep
-                        ? "bg-[#1ab5a9] border-[#1ab5a9]"
-                        : index === currentStep
-                        ? "border-[#1ab5a9] bg-white animate-bounce"
-                        : "border-gray-600 bg-[#13182c] animate-pulse"
-                    }
-                  `}
-                >
-                  {index < currentStep ? (
-                    <svg className="w-2.5 h-2.5 md:w-3 md:h-3" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="5" fill="#fff" /></svg>
-                  ) : index === currentStep ? (
-                    <div className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-[#1ab5a9] animate-spin" />
-                  ) : null}
-                </div>
-                {/* Vertical Line */}
-                {index < steps.length - 1 && (
-                  <div
-                    className={`
-                      w-0.5 md:w-1 h-8 md:h-10 pt-8 md:pt-14 transition-all duration-900
-                      ${
-                        index < currentStep - 1
-                          ? "bg-[#1ab5a9]"
-                          : index === currentStep - 1
-                          ? "bg-[#0f766e] animate-pulse"
-                          : "bg-gray-700 animate-pulse"
-                      }
-                    `}
-                  />
-                )}
+    <div className="w-full min-h-screen overflow-x-hidden flex flex-col">
+      {/* Mobile vertical stepper */}
+      <div className="lg:hidden shrink-0 flex flex-col gap-0 bg-[#111] border-b border-white/[0.06] p-5 py-8 w-full cursor-default">
+        {steps.map((step, index) => (
+          <div className="flex items-start" key={step.label}>
+            <div className="flex flex-col items-center mr-3 h-fit">
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-500 ${
+                index < currentStep ? "bg-emerald-500 border-emerald-500"
+                  : index === currentStep ? "border-emerald-400 bg-[#0A0A0A] animate-pulse"
+                  : "border-white/[0.15] bg-[#0A0A0A]"
+              }`}>
+                {index < currentStep ? (
+                  <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : index === currentStep ? (
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                ) : null}
               </div>
-              {/* Texts */}
-              <div className="pb-2 md:pb-2">
-                <div
-                  className={`font-bold text-sm md:text-base transition-colors duration-900
-                    ${index === currentStep
-                      ? "text-blue-400"
-                      : index < currentStep
-                      ? "text-white"
-                      : "text-gray-500 animate-pulse"
-                    }`}
-                >
-                  {step.label}
-                </div>
-                <div
-                  className={`text-xs md:text-sm transition-colors duration-900
-                    ${
-                      index === currentStep
-                        ? "text-blue-300"
-                        : index < currentStep
-                        ? "text-gray-300"
-                        : "text-gray-600 animate-pulse hidden"
-                    }`}
-                >
-                  {step.description}
-                </div>
-              </div>
+              {index < steps.length - 1 && (
+                <div className={`w-0.5 h-10 transition-all duration-500 ${
+                  index < currentStep ? "bg-emerald-500" : "bg-white/[0.08]"
+                }`} />
+              )}
             </div>
-          ))}
-        </div>
-
-        <div className="hidden lg:flex shrink-0 justify-center gap-0 bg-transparent p-18 py-20 shadow-lg shadow-[#052718]-500 w-screen max-w-screen sticky top-15 mt-10  rounded-r-lg cursor-default">
-          {steps.map((step, index) => (
-            <div className="flex flex-col item-start" key={step.label}>
-              <div className="flex  items-center mr-1 h-fit">
-                <div
-                  className={`
-                              w-15 h-15 rounded-full border-2 flex items-center justify-center transition-all duration-900 
-                              ${index < currentStep
-                      ? "bg-blue-600 border-blue-600"
-                      : index === currentStep
-                        ? "border-blue-500  shadow-white-500 bg-white "
-                        : "border-gray-600 bg-[#13182c] animate-pulse"
-                    }
-                              `}
-                >
-                  {index < currentStep ? (
-                    <svg width="30" height="30">
-                      <circle cx="15" cy="15" r="14" fill="#fff" />
-                    </svg>
-                  ) : index === currentStep ? (
-                    // <div className="w-3 h-10 rounded-full bg-blue-400 animate-spin" />
-                        <div className="flex-1 ">
-                      <div className={`bg-[url('/spinner.svg')] w-15 h-15 bg-no-repeat`}/>
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* Horixontal Line */}
-                {index < steps.length - 1 && (
-                  <div
-                    className={`
-                              lg:w-30 xl:w-50 h-2 transition-all duration-900
-                              ${index < currentStep - 1
-                        ? "bg-blue-600"
-                        : index === currentStep - 1
-                          ? "bg-blue-600 animate-pulse"
-                          : "bg-gray-700 animate-pulse"
-                      }
-                          `}
-                  />
-                )}
-              </div>
-              {/* Texts */}
-              <div className="">
-                <div
-                  className={`font-bold text-left pt-5 text-lg transition-colors duration-900
-                              ${index === currentStep
-                      ? "text-blue-400"
-                      : index < currentStep
-                        ? "text-white"
-                        : "text-gray-500 animate-pulse"
-                    }`}
-                >
-                  {step.label}
-                </div>
-              </div>
-
-              <div
-                className={`text-md transition-colors duration-900
-                            ${index === currentStep
-                    ? "text-blue-300"
-                    : index < currentStep
-                      ? "text-gray-300"
-                      : "text-gray-600 animate-pulse hidden"
-                  }`}
-              >
-                {step.description}
-              </div>
+            <div className="pb-2">
+              <p className={`font-medium text-sm ${
+                index === currentStep ? "text-emerald-400" : index < currentStep ? "text-white" : "text-gray-600"
+              }`}>{step.label}</p>
+              <p className={`text-xs mt-0.5 ${
+                index === currentStep ? "text-emerald-400/70" : index < currentStep ? "text-gray-400" : "text-gray-700 hidden"
+              }`}>{step.description}</p>
             </div>
-          ))}
-        </div>
-        {response && currentStep > 100 && (
-          <>
-            <div className="min-h-full">
-            <div className="flex md:flex-row flex-col p-16 md:px-32 justify-between">
-              <div className="flex md:justify-around">
-                <p className="text-white font-bold text-2xl ">Total: </p>
-                <p className="text-white font-lg px-2 text-2xl">
-                  {response.total_jobs}{" "}
-                </p>
-              </div>
-              <div className="flex ">
-                <p className="text-white font-bold text-2xl">Success:</p>
-                <p className="text-white font-lg px-2 text-2xl">
-                  {response.successful_applications.flat(Infinity).length}{" "}
-                </p>
-              </div>
-              <div className="flex ">
-                <p className="text-white font-bold text-2xl">Failed: </p>
-                <p className="text-white font-lg px-2 text-2xl">
-                  {response.failed_applications.flat(Infinity).length}{" "}
-                </p>
-              </div>
-            </div>
-            <div className="">
-              <a href="https://www.linkedin.com/my-items/saved-jobs/?cardType=APPLIED">
-                <h1 className="text-white text-2xl md:text-5xl text-center py-4">
-                  Track your application here
-                </h1>
-              </a>
-            </div>
-            </div>
-          </>
-        )}
+          </div>
+        ))}
       </div>
-    </>
+
+      {/* Desktop horizontal stepper */}
+      <div className="hidden lg:flex shrink-0 justify-center gap-0 p-12 py-16 w-full sticky top-[65px] bg-[#0A0A0A]/80 backdrop-blur-xl z-10 border-b border-white/[0.06] cursor-default">
+        {steps.map((step, index) => (
+          <div className="flex flex-col items-start" key={step.label}>
+            <div className="flex items-center mr-1 h-fit">
+              <div className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-500 ${
+                index < currentStep ? "bg-emerald-500 border-emerald-500"
+                  : index === currentStep ? "border-emerald-400 bg-[#0A0A0A]"
+                  : "border-white/[0.15] bg-[#0A0A0A]"
+              }`}>
+                {index < currentStep ? (
+                  <svg className="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : index === currentStep ? (
+                  <div className="w-4 h-4 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
+                ) : null}
+              </div>
+              {index < steps.length - 1 && (
+                <div className={`lg:w-28 xl:w-40 h-0.5 transition-all duration-500 ${
+                  index < currentStep ? "bg-emerald-500" : "bg-white/[0.08]"
+                }`} />
+              )}
+            </div>
+            <p className={`font-medium text-sm pt-3 ${
+              index === currentStep ? "text-emerald-400" : index < currentStep ? "text-white" : "text-gray-600"
+            }`}>{step.label}</p>
+            <p className={`text-xs mt-0.5 ${
+              index === currentStep ? "text-emerald-400/70" : index < currentStep ? "text-gray-400" : "text-gray-700 hidden"
+            }`}>{step.description}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Results */}
+      {response && currentStep > 100 && (
+        <div className="p-8 lg:p-16">
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {[
+              { label: "Total Jobs", value: response.total_jobs, color: "text-white" },
+              { label: "Successful", value: response.successful_applications.flat(Infinity).length, color: "text-emerald-400" },
+              { label: "Failed", value: response.failed_applications.flat(Infinity).length, color: "text-red-400" },
+            ].map((stat) => (
+              <div key={stat.label} className="surface-card p-6 text-center">
+                <p className="text-sm text-gray-400 mb-1">{stat.label}</p>
+                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+              </div>
+            ))}
+          </div>
+          <a
+            href="https://www.linkedin.com/my-items/saved-jobs/?cardType=APPLIED"
+            target="_blank"
+            className="block text-center"
+          >
+            <div className="surface-card p-6 hover:border-emerald-500/30 transition-all">
+              <p className="text-emerald-400 text-lg font-semibold">Track your applications on LinkedIn →</p>
+            </div>
+          </a>
+        </div>
+      )}
+    </div>
   );
 };
 
