@@ -137,7 +137,7 @@ const Tailor_resume = () => {
           <>
             {/* Resume file badge */}
             <div className="flex gap-3 justify-center items-center">
-              <div className="flex items-center surface-card px-5 py-3 gap-3 w-80">
+              <div className="flex items-center surface-card px-5 py-3 gap-3 w-full max-w-80">
                 <div className="bg-emerald-500/20 flex items-center justify-center w-10 h-10 rounded-lg">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-emerald-400">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />

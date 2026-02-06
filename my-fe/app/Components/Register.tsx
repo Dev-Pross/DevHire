@@ -98,7 +98,7 @@ const Register = () => {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 relative">
+    <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 relative overflow-hidden">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] bg-emerald-500/[0.06] rounded-full blur-[120px] pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">

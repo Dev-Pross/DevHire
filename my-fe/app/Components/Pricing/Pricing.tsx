@@ -36,7 +36,7 @@ const plans = [
 
 export const Pricing = () => {
   return (
-    <section className="py-24 px-5 lg:px-10 relative" id="pricing-section">
+    <section className="py-24 px-5 lg:px-10 relative overflow-hidden" id="pricing-section">
       {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-emerald-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
 

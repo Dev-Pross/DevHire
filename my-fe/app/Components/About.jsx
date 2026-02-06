@@ -2,7 +2,7 @@ import Image from "next/image";
 
 const About = () => {
   return (
-    <section className="py-24 px-5 lg:px-10 relative">
+    <section className="py-24 px-5 lg:px-10 relative overflow-hidden">
       {/* Background */}
       <div className="absolute bottom-0 left-0 w-[400px] h-[300px] bg-emerald-500/[0.04] rounded-full blur-[100px] pointer-events-none" />
 
