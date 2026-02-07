@@ -7,6 +7,10 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { API_URL } from "../utiles/api";
 import getLoginUser from "../utiles/getUserData";
+import { sampleJobs } from "./sampleJobs";
+
+// ⚠️  Set to `false` before deploying — sample data bypass
+const USE_SAMPLE_DATA = false;
 
 const steps = [
   { label: "Process started", description: "Fetching relevant Job Titles", min: 0 },
@@ -161,7 +165,9 @@ const Jobs = () => {
 
       {/* Job cards area */}
       <div className="flex-1 p-4 md:p-6 lg:p-8">
-        {currentStep > 100 ? (
+        {USE_SAMPLE_DATA ? (
+          <JobCards jobs={sampleJobs as any} />
+        ) : currentStep > 100 && jobs ? (
           <JobCards jobs={jobs} />
         ) : (
           <div className="flex items-center justify-center min-h-[60vh] lg:min-h-[80vh]">
