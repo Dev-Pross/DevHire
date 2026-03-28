@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from main.routes.progress_route import progress_router as progress_router 
+# from main.routes.progress_route import progress_router as progress_router 
 from database.db_engine import Base, engine
 from contextlib import asynccontextmanager
 from main.routes.cookie_receiver import router as cookie_router
@@ -36,7 +36,7 @@ app.add_middleware(
 app.include_router(cookie_router)
 app.include_router(list_jobs)
 app.include_router(apply_jobs)
-app.include_router(progress_router)
+# app.include_router(progress_router)
 app.include_router(debug_router)
 app.include_router(tailor)
 app.include_router(logout_route)

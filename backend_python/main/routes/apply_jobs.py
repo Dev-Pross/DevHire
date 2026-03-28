@@ -1,13 +1,14 @@
 import math
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, HttpUrl
 from typing import List, Dict, Any, Optional
 import asyncio
 import json
 import time
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from queue import Queue
+from concurrent.futures import Executor, ThreadPoolExecutor
+from queue import Queue, Empty
 import tempfile
 import os
 
@@ -36,84 +37,115 @@ class ApplyJobResponse(BaseModel):
 
 router = APIRouter()
 
-def run_applier_in_new_loop(applications, user_id=None, password=None,resum_url=None, progress_user=None):
-    """Run applier in a new event loop - same pattern as your list_jobs.py"""
+# apply_jobs.py
+def run_applier_in_new_loop(tailored_batch, user_id, password, resume_url, progress_user, pq, total_jobs, jobs_applied_counter):
+    # jobs_applied_counter is a list([0]) — mutable ref shared across batches
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(applier_main(applications,user_id,password,resum_url, progress_user))
-            return result
-        finally:
-            loop.close()
-    except Exception as e:
-        logging.error(f"Applier error: {e}")
-        return {"applied": 0, "failed": len(applications), "success_rate": 0}
+        result = loop.run_until_complete(
+            applier_main(tailored_batch, user_id, password, resume_url, progress_user, pq, total_jobs, jobs_applied_counter)
+        )
+        return result
+    finally:
+        loop.close()
 
-@router.post("/apply-jobs", response_model=ApplyJobResponse)
-async def apply_jobs_route(request: ApplyJobRequest):
-    """
-    Apply to jobs with tailored resumes - using same pattern as list_jobs.py
-    """
-    
-    try:
-        logging.info(f"Processing {len(request.jobs)} job applications for user {request.progress_user}")
-        
-        # Step 1: Prepare jobs data for resume tailoring
-        jobs_data = []
-        for job in request.jobs:
-            jobs_data.append({
-                "job_url": str(job.job_url),
-                "job_description": job.job_description
-            })
-        
-        # Step 2: Process batches and apply sequentially (like your original approach)
+@router.post('/apply-jobs')
+async def apply_jobs_stream(request: ApplyJobRequest):
+
+    pq: Queue = Queue()
+
+    async def event_stream():
+        loop = asyncio.get_event_loop()
+        total_jobs = len(request.jobs)
         batch_size = 15
+
         total_applied = []
         total_failed = []
+        jobs_applied_counter = [0]
 
-        apply_progress[request.progress_user] = 0
-        batches = math.ceil(len(request.jobs) / batch_size)
-        queue = asyncio.Queue()
+
+        yield f"data: {json.dumps({'progress': 0, 'status': 'starting', 'message': 'Starting job application...', 'total_jobs': total_jobs})}\n\n"
+
+        jobs_queue: asyncio.Queue = asyncio.Queue()
 
         async def tailor_producer():
-            loop = asyncio.get_running_loop()
-            for i in range(0, len(request.jobs), batch_size):
-                batch_jobs = jobs_data[i : i + batch_size]
-                logging.info(f"Tailoring batch: jobs {i + 1}-{min(i + batch_size, len(request.jobs))}")
 
-                # Run synchronous 'process_batch' in thread pool to avoid blocking event loop
-                tailored_batch = await loop.run_in_executor(
-                    None, process_batch, str(request.resume_url), batch_jobs
+            pq.put({
+                    'progress': 5,
+                    'status': 'tailoring',
+                    'message': f'Tailoring resumes for {total_jobs} jobs...'
+                })
+            
+            for i in range(0, total_jobs, batch_size):
+                batch_num = i // batch_size + 1
+
+                batch_jobs = [
+                    {
+                        'job_url' : str(j.job_url),
+                        'job_description': str(j.job_description)
+                    }
+                    for j in request.jobs[i: i + batch_size]
+                ] 
+
+
+                logging.info(
+                    f"Tailoring batch {batch_num}: "
+                    f"jobs {i + 1}-{min(i + batch_size, total_jobs)}"
                 )
 
-                await queue.put((i, tailored_batch))  # enqueue batch index and data
-            await queue.put(None)  # Sentinel to indicate no more batches
+                tailored_batch = await loop.run_in_executor(
+                    None,
+                    process_batch,
+                    str(request.resume_url),
+                    batch_jobs
+                )
 
-        # Consumer: Apply tailored batches
+                await jobs_queue.put(( batch_num, tailored_batch ))
+
+            pq.put({
+                    'progress': 10,
+                    'status': 'tailoring',
+                    'message': 'Resumes tailored — starting applications'
+                })
+            await jobs_queue.put(None)
+
+        executor = ThreadPoolExecutor(max_workers=1) 
+
+
         async def applier_consumer():
+            
             while True:
-                batch = await queue.get()
-                if batch is None:
-                    queue.task_done()
+                item = await jobs_queue.get()
+
+                if item is None:
+                    jobs_queue.task_done()
                     break
-                batch_idx, tailored_batch = batch
-                logging.info(f"Applying batch {batch_idx // batch_size +1} with {len(tailored_batch)} jobs")
-                with ThreadPoolExecutor(max_workers=1) as executor:
-                    batch_results = await asyncio.get_event_loop().run_in_executor(
-                        executor,
-                        run_applier_in_new_loop,
-                        tailored_batch,
-                        request.user_id,
-                        request.password,
-                        str(request.resume_url),
-                        request.progress_user
-                    )
-                if isinstance(batch_results, dict):
-                    applied_list = batch_results.get('applied', [])
-                    failed_list = batch_results.get('failed', [])
-                    
-                    # Ensure they are lists, not integers
+
+                batch_num, tailored_batch = item
+
+                logging.info(
+                    f"Applying batch {batch_num} with {len(tailored_batch)} jobs"
+                )
+
+                
+                batch_result = await loop.run_in_executor(
+                    executor,
+                    run_applier_in_new_loop,
+                    tailored_batch,
+                    request.user_id,
+                    request.password,
+                    str(request.resume_url),
+                    request.progress_user,
+                    pq,
+                    total_jobs, 
+                    jobs_applied_counter,
+                )
+
+                if isinstance(batch_result, dict):
+                    applied_list = batch_result.get('applied', [])
+                    failed_list = batch_result.get('failed', [])
+
                     if not isinstance(applied_list, list):
                         applied_list = []
                     if not isinstance(failed_list, list):
@@ -121,81 +153,65 @@ async def apply_jobs_route(request: ApplyJobRequest):
                     
                     total_applied.extend(applied_list)
                     total_failed.extend(failed_list)
-                    logging.info(f"Batch {batch_idx // batch_size +1} results: "
-                                 f"{len(applied_list)} applied, "
-                                 f"{len(failed_list)} failed")
-                else:
-                    applied_count = batch_results or 0
-                    total_applied.extend([None]*applied_count)  # or capture details if possible
-                    total_failed.extend([None]*(len(tailored_batch) - applied_count))
-                    logging.info(f"Batch {batch_idx // batch_size +1} results: {applied_count} applied")
+
+                    logging.info(
+                        f"Batch {batch_num} done: "
+                        f"{len(applied_list)} applied, {len(failed_list)} failed"
+                    )
                 
-                apply_progress[request.progress_user] += (100 / batches)
-                logging.info(f"Progress: {apply_progress[request.progress_user]:.2f}%")
-                queue.task_done()
+                jobs_queue.task_done()
+                
+        pipeline_task = asyncio.ensure_future(
+                asyncio.gather(tailor_producer(), applier_consumer())
+            )
 
-        # Run producer and consumer concurrently
-        await asyncio.gather(tailor_producer(), applier_consumer())
+        while not pipeline_task.done():
+            had_event = False
+            while True:
+                try:
+                    event = pq.get_nowait()
+                    yield f"data: {json.dumps(event)}\n\n"
+                    had_event = True
+                except Empty:
+                    break
+            # Always yield a keep-alive comment every poll cycle
+            # yield ": keep-alive\n\n"   # ← THIS forces a TCP chunk every 0.2s
+            await asyncio.sleep(0.2)
 
-        # for i in range(0, len(jobs_data), batch_size):
-        #     batch_jobs = jobs_data[i:i+batch_size]
-        #     batch_number = i//batch_size + 1
-        #     batches = math.ceil(len(jobs_data)/batch_size)
-            
-        #     logging.info(f"Processing batch {batch_number}: jobs {i+1}-{min(i+batch_size, len(jobs_data))}")
-            
-        #     # Tailor resumes for this batch
-        #     tailored_batch = process_batch(str(request.resume_url), batch_jobs)
-        #     logging.info(f"Batch {batch_number} tailored: {len(tailored_batch)} jobs")
-            
-        #     # Apply to jobs using ThreadPoolExecutor (same pattern as list_jobs.py)
-        #     logging.info(f"Applying to {len(tailored_batch)} jobs from batch {batch_number}")
-            
-        #     with ThreadPoolExecutor(max_workers=1) as executor:
-        #         batch_results = await asyncio.get_event_loop().run_in_executor(
-        #             executor,
-        #             run_applier_in_new_loop,
-        #             tailored_batch,
-        #             request.user_id,
-        #             request.password,
-        #             str(request.resume_url)
-        #         )
-            
-        #     # Accumulate results
-        #     if isinstance(batch_results, dict):
-        #         total_applied.append(batch_results.get('applied', 0))
-        #         total_failed.append(batch_results.get('failed', 0))
-        #         logging.info(f"Batch {batch_number} results: {len(batch_results.get('applied', 0))} applied, {len(batch_results.get('failed', 0))} failed")
-        #     else:
-        #         # If applier returns just a count
-        #         applied_count = batch_results if batch_results else 0
-        #         total_applied.append(applied_count)
-        #         total_failed.append(len(tailored_batch) - len(applied_count))
-        #         logging.info(f"Batch {batch_number} results: {len(applied_count)} applied")
-            
-        #     #update the progress dictionary
-        #     apply_progress[request.user_id] += 100 / batches
-        #     logging.info(f"progress: {apply_progress[request.user_id]}%")
-            
-        #     # Sleep between batches (except for last batch)
-        #     if i + batch_size < len(jobs_data):
-        #         logging.info("Pause 30s before next batch")
-        #         await asyncio.sleep(30)
+        while True:
+            try:
+                event = pq.get_nowait()
+                yield f"data: {json.dumps(event)}\n\n"
+                # yield ": keep-alive\n\n"
+            except Empty:
+                break
 
-        
-        success_rate = round((len(total_applied) / len(jobs_data)) * 100, 2) if jobs_data else 0
-        
-        return ApplyJobResponse(
-            success=True,
-            total_jobs=len(request.jobs),
-            successful_applications=total_applied,
-            failed_applications=total_failed,
-            message=f"Applied to {total_applied} out of {len(request.jobs)} jobs successfully. Success rate: {success_rate}%"
-        )
-        
-    except Exception as e:
-        logging.error(f"Error in apply_jobs_route: {e}")
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Error processing job applications: {str(e)}"
-        )
+        try:
+            await pipeline_task
+        except Exception as e:
+            logging.error(f"Pipeline error: {e}")
+            yield f"data: {json.dumps({'progress': 100, 'status': 'error', 'message': str(e)})}\n\n"
+            return    
+        finally:
+            executor.shutdown(wait=True)
+
+        yield f"data: {json.dumps({
+            'progress': 100,
+            'status': 'done',
+            'message': f'Done! Applied to {len(total_applied)}/{total_jobs} jobs.',
+            'applied': total_applied,
+            'failed': total_failed,
+            'total_jobs': total_jobs,
+        })}\n\n"
+
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+            "Transfer-Encoding": "chunked",
+        },
+    )                

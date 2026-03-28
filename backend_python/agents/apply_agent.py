@@ -8,11 +8,11 @@ LinkedIn Easy-Apply AUTO-APPLIER - ENHANCED VERSION
 • Improved Easy Apply button detection
 """
 
-import io
 import asyncio, json, logging, base64, mimetypes, re, os
 from pathlib import Path
 import fitz
 from playwright.async_api import (
+    FilePayload,
     async_playwright,
     Page,
     TimeoutError as PlaywrightTimeoutError,
@@ -24,8 +24,6 @@ from main.progress_dict import LINKEDIN_CONTEXT_OPTIONS
 from pdf2image import convert_from_bytes
 import pytesseract
 from playwright_stealth.stealth import Stealth
-from google.genai import types
-from google import genai
 from config import GOOGLE_API, GROQ_API
 from groq import Groq
 import requests
@@ -60,7 +58,7 @@ EMAIL = ""
 PHONE = ""
 
 # Personal location details - UPDATE THESE WITH YOUR INFO
-MY_CURRENT_CITY = "Visakhapatnam, Andhra Pradesh"
+MY_CURRENT_CITY = "Hyderabad, Andhra Pradesh"
 MY_CURRENT_STATE = "Andhra Pradesh"
 MY_CURRENT_COUNTRY = "India"
 MY_FULL_LOCATION = f"{MY_CURRENT_CITY}, {MY_CURRENT_COUNTRY}"
@@ -388,7 +386,7 @@ class EasyApplyAgent:
             log.debug(f"Error dismissing overlays: {e}")
 
 # ───────────────────────────────────────────────────────
-    async def _force_upload_resume(self, payload: dict):
+    async def _force_upload_resume(self, payload: FilePayload):
         """More aggressive resume upload - tries everything on every step"""
         if self._resume_uploaded:
             return
@@ -415,7 +413,7 @@ class EasyApplyAgent:
                         continue
 
                     # Try to upload regardless of visibility
-                    await fi.set_input_files(payload, timeout=3000, force=True)
+                    await fi.set_input_files(payload, timeout=3000)
                     log.info("📎 ✅ Resume uploaded successfully!")
                     self._resume_uploaded = True
                     return
@@ -475,7 +473,7 @@ class EasyApplyAgent:
         for tech in KNOWN_TECHNOLOGIES:
             if tech in q:
                 log.info(f"🔧 Found known technology '{tech}' in question")
-                return MY_KNOWN_TECH_EXPERIENCE
+                return str(MY_KNOWN_TECH_EXPERIENCE)
 
         log.info("❌ Unknown technology in question")
         return MY_UNKNOWN_TECH_EXPERIENCE
@@ -523,7 +521,7 @@ class EasyApplyAgent:
             if tech_experience != MY_UNKNOWN_TECH_EXPERIENCE:
                 return tech_experience
             elif any(word in q for word in ["total", "overall", "general", "programming", "development", "software"]):
-                return MY_GENERAL_EXPERIENCE
+                return str(MY_GENERAL_EXPERIENCE)
             else:
                 return tech_experience
 
@@ -534,17 +532,17 @@ class EasyApplyAgent:
             "expectations", "expectation"
         ]):
             if any(word in q for word in ["current", "present", "existing"]):
-                return MY_CURRENT_CTC
+                return str(MY_CURRENT_CTC)
             elif any(word in q for word in ["expected", "expect", "desired", "target"]):
-                return MY_EXPECTED_CTC
-            return MY_CURRENT_CTC
+                return str(MY_EXPECTED_CTC)
+            return str(MY_CURRENT_CTC)
 
         # Notice period
         if any(word in q for word in [
             "notice", "notice period", "joining", "available", "availability",
             "when can you join", "start date", "how soon"
         ]):
-            return MY_NOTICE_PERIOD
+            return str(MY_NOTICE_PERIOD)
 
         # Authorization/Visa questions
         if any(word in q for word in [
@@ -715,7 +713,7 @@ class EasyApplyAgent:
     async def fill_and_submit_modal(
     self,
     user: dict,
-    resume_payload: dict | None,
+    resume_payload: FilePayload | None,
     max_steps: int = 15,
     ) -> bool:
 
@@ -1106,12 +1104,12 @@ class EasyApplyAgent:
 # ╰──────────────────────────────────────────────────────────╯
 
 # ──────────────────────── HELPERS ─────────────────────────
-def make_resume_payload(b64: str) -> dict:
-    return {
-        "name": RESUME_FILENAME,
-        "mimeType": RESUME_MIMETYPE,
-        "buffer": base64.b64decode(b64),
-    }
+def make_resume_payload(b64: str) -> FilePayload:
+    return FilePayload(
+        name= RESUME_FILENAME,
+        mimeType= RESUME_MIMETYPE,
+        buffer=base64.b64decode(b64),
+    )
 
 async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     await page.goto(LINKEDIN_LOGIN_URL, wait_until="domcontentloaded")
@@ -1126,6 +1124,9 @@ async def login(page: Page, user_id: str|None, password: str| None) -> bool:
         LINKEDIN_PASSWORD = password
 
     log.info("🔐 Logging in...")
+    if not LINKEDIN_ID or not LINKEDIN_PASSWORD:
+        log.error("❌ LinkedIn credentials are missing")
+        return False
     await page.fill("#username", LINKEDIN_ID)
     await page.fill("#password", LINKEDIN_PASSWORD)
     await page.click('button[type="submit"]')
@@ -1164,6 +1165,12 @@ def extract_text_with_ocr_fallback(pdf_bytes: bytes):
     for page_num in range(len(doc)):
         page = doc.load_page(page_num)
         page_text = page.get_text()
+        # Ensure page_text is a string before calling strip()
+        if isinstance(page_text, str):
+            page_text = page_text
+        else:
+            page_text = str(page_text) if page_text else ""
+        
         if not page_text.strip():
             # Fallback to OCR if no text found
             images = convert_from_bytes(pdf_bytes, first_page=page_num+1, last_page=page_num+1)
@@ -1226,25 +1233,38 @@ def gemini_prompt_builder(resume_text):
 
 
 # ─────────────────────────── MAIN ──────────────────────────
-async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, password: str | None = None, resume_url: str | None = None, progress_user: str | None = None):
-    status=dict()
+async def main(
+    jobs_data: list[dict] | None = None,
+    user_id: str | None = None,
+    password: str | None = None,
+    resume_url: str | None = None,
+    progress_user: str | None = None,
+    pq=None,                         # queue.Queue — thread-safe, written here, drained in route
+    total_jobs: int = 0,             # total across ALL batches for % calculation
+    jobs_applied_counter: list | None = None
+):
+    if pq is None:
+        from queue import Queue
+        pq = Queue()
+    if jobs_applied_counter is None:
+        jobs_applied_counter = [0]
+
+
 
     global RESUME_FILENAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, MY_GENERAL_EXPERIENCE, MY_KNOWN_TECH_EXPERIENCE, MY_UNKNOWN_TECH_EXPERIENCE, MY_CURRENT_CTC, MY_EXPECTED_CTC, MY_NOTICE_PERIOD, MY_CURRENT_CITY, MY_CURRENT_STATE, MY_CURRENT_COUNTRY, MY_FULL_LOCATION ,KNOWN_TECHNOLOGIES
+    
     try:    
-        print(resume_url)
 
+        if not resume_url:
+            raise Exception("resume_url is required")
+        pq.put({"progress": 2, "status": "processing", "message": "Reading resume details..."})
         org_resume = (parse_pdf(resume_url))
         if org_resume is None:
             raise Exception("failed to parse resume")
-        # gemini to gett the user detils
+
+        pq.put({"progress": 4, "status": "processing", "message": "Extracting profile information..."})
         prompt = gemini_prompt_builder(org_resume)
 
-
-        # response = client.models.generate_content(
-        #     model="gemini-2.5-flash",
-        #     contents=prompt,
-        #     config=types.GenerateContentConfig(temperature=0.2)
-        # )
         res = client.chat.completions.create(
                 messages=[
                     {
@@ -1256,6 +1276,10 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
             )
         
         clean = res.choices[0].message.content
+        
+        if not clean:
+            raise Exception("Empty response from API")
+        
         if clean.startswith("```json"):
             clean = clean[7:].lstrip()
         elif clean.startswith("```"):
@@ -1267,7 +1291,7 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
 
         # with open("data_from_gemini.json","w") as f:
         #     json.dump(parsed, f, indent=4)
-        print(clean)
+        # print(clean)
 
         if parsed.get("candidate_name"):
             RESUME_FILENAME = parsed["candidate_name"]
@@ -1325,8 +1349,11 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
     except Exception as e:
         print(f"fetching details from resume failed in applier agent: {e}")
     
+ # ── Load jobs ─────────────────────────────────────────────────────────────
 
-    if not jobs_data:
+    if jobs_data :
+        jobs = jobs_data
+    else:
         with open("tailored_resumes_batch_kv.json", encoding="utf-8") as f:
             raw = json.load(f)
 
@@ -1336,10 +1363,14 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
             else list(raw.values()) if isinstance(raw, dict) else raw
         )
 
-    if jobs_data :
-        jobs = jobs_data
-    log.info(f"📋 Loaded {len(jobs)} job(s) to process")
+    if total_jobs == 0:
+        total_jobs = len(jobs)
 
+    log.info(f"📋 Loaded {total_jobs} job(s) to process")
+
+   # ── Browser setup ─────────────────────────────────────────────────────────
+
+    pq.put({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
     pw = await async_playwright().start()
     browser = await pw.chromium.launch(
         headless=True,
@@ -1349,10 +1380,14 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
                                        )
 
     try:
+        db_context = None
+        if not progress_user:
+            raise Exception("Progress user not found")
         db_context = get_linkedin_context(progress_user)
+        
         if db_context:
-            print(f"♻️ FOUND STORAGE STATE IN progress_dict!")
-            print(f"✅ Creating new context with current browser using saved state!")
+            print(f"FOUND STORAGE STATE IN progress_dict!")
+            print(f"Creating new context with current browser using saved state!")
             context = await browser.new_context(
                 storage_state=db_context,
                 **LINKEDIN_CONTEXT_OPTIONS,
@@ -1362,11 +1397,13 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
         page = await context.new_page()
         await Stealth().apply_stealth_async(page)
 
+
         if not await login(page, user_id, password):
             return
+        pq.put({"progress": 8, "status": "processing", "message": "LinkedIn session ready"})
 
         try:
-            save_linkedin_context(progress_user,await context.storage_state())
+            save_linkedin_context(progress_user,dict(await context.storage_state()))
         except Exception as e:
             log.warning(f"Could not persist LinkedIn storage state: {e}")
 
@@ -1374,10 +1411,35 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
         applied = []
         failed = []
 
+        # ── Helper: emit progress after each job outcome ──────────────
+        def emit(success: bool, reason: str =""):
+            jobs_applied_counter[0] += 1
+            progress = min(int((jobs_applied_counter[0] / total_jobs) * 89) + 11, 99)
+
+            try:
+                company = url.split("/")[-1] if url else url
+            except Exception:
+                company = url
+
+            pq.put({
+                "progress": progress,
+                "status":   "applied" if success else "skipped",
+                "message":  (
+                    f"Applied to {company} ({jobs_applied_counter[0]}/{total_jobs})"
+                    if success else
+                    f"Skipped{' — ' + reason if reason else ''}: {company} ({jobs_applied_counter[0]}/{total_jobs})"
+                ),
+                "job_url":  url,
+                "success":  success,
+            })
+
+        # ── Per-job apply loop ────────────────────────────────────────────────
+
         for idx, job in enumerate(jobs, 1):
             url, b64 = job.get("job_url"), job.get("resume_binary")
             if not url or not b64:
-                log.warning(f"⚠️ Job {idx}: missing data - skipped")
+                log.warning(f"Job {idx}: missing data - skipped")
+                emit(False, "incomplete job data") 
                 continue
 
             log.info(f"\n{'='*60}")
@@ -1385,19 +1447,25 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
             log.info(f"🔗 URL: {url}")
             log.info(f"{'='*60}")
 
+            
             if not await safe_goto(page, url):
                 failed.append(url)
+                emit(False, "page unavailable") 
                 continue
 
             
             payload = make_resume_payload(b64)
             agent.reset_for_new_job()
 
+            # ── Find Easy Apply button ────────────────────────────────────
 
             if not await agent.find_and_click_easy_apply():
-                log.warning("❌ No Easy Apply button found - skipping")
+                log.warning("No Easy Apply button found - skipping")
                 failed.append(url)
+                emit(False, "direct apply only")
                 continue
+
+            # ── Fill & submit modal ───────────────────────────────────────
 
             success = await agent.fill_and_submit_modal(
                 user={
@@ -1416,6 +1484,8 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
                 failed.append(url)
                 log.warning(f"❌ Job {idx} application failed")
 
+            emit(success)
+
             # Show questions captured
             if agent.collected_questions:
                 print(f"\n📝 Questions captured for Job {idx}:")
@@ -1423,6 +1493,8 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
                     print(f"  • [{q['type']}] {q['text']}...")
 
             await asyncio.sleep(3)
+
+        # ── Batch summary log ─────────────────────────────────────────────
 
         log.info(f"\n{'='*60}")
         log.info(f"🎯 FINAL RESULTS:")
@@ -1432,13 +1504,13 @@ async def main(jobs_data: list[dict] | None = None, user_id: str | None = None, 
         log.info(f"{'='*60}")
 
 
-        status = {
+        return {
             "applied": applied,
             "failed": failed,
-            "success_rate": (len(applied) / (len(applied) + len(failed)) * 100) if (len(applied) + len(failed)) > 0 else 0
+            "success_rate": round(
+                len(applied) / (len(applied) + len(failed)) * 100, 2
+            ) if (len(applied) + len(failed)) > 0 else 0,
         }
-
-        return status
 
     finally:
         try:

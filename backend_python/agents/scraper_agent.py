@@ -12,9 +12,6 @@ import main.progress_dict as progress_module
 from main.progress_dict import LINKEDIN_CONTEXT_OPTIONS
 from database.linkedin_context import save_linkedin_context, get_linkedin_context, clear_linkedin_context
 
-# Windows Playwright fix - MUST be at the top
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 from playwright.async_api import async_playwright
 # from concurrent.futures import ThreadPoolExecutor
@@ -193,6 +190,7 @@ async def ensure_logged_in(browser, user_id):
                 **LINKEDIN_CONTEXT_OPTIONS,
             )
             print(f"✅ New context created successfully with saved state!")
+            LOGGED_IN_CONTEXT = context
             return context
         except Exception as e:
             print(f"⚠️ Failed to restore context: {e}, logging in again...")
@@ -211,6 +209,7 @@ async def ensure_logged_in(browser, user_id):
 
         save_linkedin_context(user_id,storage_state)
         print(f"💾 Storage state saved to DB!")
+        LOGGED_IN_CONTEXT = context
     return context
 
 # ---------------------------------------------------------------------------
@@ -915,7 +914,9 @@ For each job entry provided:
 
 - Give full 200% attention and efforts to extract all fields properly. 
 
-If any field is not present, use null object or empty list [] accordingly only for "salary", "location", "experience", "posted_date", "source" and "relevance_score" remaining "job_id", "job_description" (use provided description directly here), title exatract mandatory no option for not avaliable or null values here these 3 are mandatory things.
+** Make sure extract data should be accurate and most relavant to candidate's profile **
+
+If any field is not present, use null object or empty list [] accordingly only for "salary", "location", "experience", "posted_date", "source" and "relevance_score" remaining "job_id", "job_description" (use provided description directly here), title extract mandatory no option for not avaliable or null values here these 3 are mandatory things.
 Make sure all fields should extracted properly don't give null or empty list without extrating data in rare cases use that null or empty list untill unless all fields are mandatory
 
 Example:
@@ -932,7 +933,7 @@ Example:
     "posted_at": "2 days ago",
     "job_description": "...",
     "source": "linkedin",
-    "relevance_score": "high"
+    "relevance_score": "98%"
   },
   ...
 ]
@@ -943,6 +944,8 @@ Example:
     for idx, (url, desc) in enumerate(jobs_dict.items(), 1):
         safe_desc = desc.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
         prompt += f'\n--- JOB {idx} ---\njob_url: "{url}"\njob_description: "{safe_desc[:1500]}"\n'
+    # with open(f"prompt-{time.time()}.txt", "w", encoding="utf-8") as f:
+    #     f.write(prompt)
     return prompt
 
 
@@ -1058,6 +1061,11 @@ async def extract_single_batch(batch_dict: dict) -> list:
                 contents=prompt,
                 config=types.GenerateContentConfig(temperature=0.2)
             ).text
+            
+            if res is None:
+                print(f"❌ Gemini returned None response on attempt {attempt}")
+                continue
+            
             # Path(f"gemini_debug_{int(time.time())}.txt").write_text(res, encoding="utf-8")
             # Path(f"gemini_debug_{int(time.time())}.json").write_text(res, encoding="utf-8")
 
@@ -1079,9 +1087,12 @@ async def extract_single_batch(batch_dict: dict) -> list:
             # Wait, then retry next attempt (do not break)
             time.sleep(delay)
             continue
+    
+    # Return fallback data if all attempts fail
+    return [create_fallback_data_from_dict(url, jd) for url, jd in batch_dict.items()]
 
 
-async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25) -> list:  # Increased batch size
+async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25, pq=None, total_jobs_so_far=0) -> list:  # Increased batch size
     all_extracted = []
     items = list(jobs_dict.items())
     total_batches = (len(items) + batch_size - 1) // batch_size
@@ -1095,10 +1106,30 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25) -> list
             result = await extract_single_batch(batch)
             all_extracted.extend(result)
             print(f"✅ Batch {batch_num} completed")
+
+            gemini_progress = 89 + int((batch_num / total_batches) * 10)
+            if pq:
+                pq.put({
+                    "progress": gemini_progress,
+                    "status": "batch_ready",
+                    "batch_num": batch_num,
+                    "total_batches": total_batches,
+                    "jobs": result,           # ← THIS batch's jobs sent immediately
+                    "message": f"Processed batch {batch_num}/{total_batches} — {len(result)} jobs ready"
+                })
         except Exception as e:
             print(f"❌ Batch {batch_num} error: {e}")
             result = [create_fallback_data_from_dict(url, jd) for url, jd in batch.items()]
             all_extracted.extend(result)
+            if pq:
+                pq.put({
+                    "progress": 89 + int((batch_num / total_batches) * 10),
+                    "status": "batch_ready",
+                    "batch_num": batch_num,
+                    "total_batches": total_batches,
+                    "jobs": result,
+                    "message": f"Batch {batch_num} used fallback data"
+                })
         
         await asyncio.sleep(0.1)  # Minimal wait between batches
     
@@ -1108,7 +1139,7 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25) -> list
 # 6. MAIN EXECUTION FUNCTIONS (SPEED OPTIMIZED)
 # ---------------------------------------------------------------------------
 
-async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progress=None,user_id=None):
+async def search_by_job_titles_speed_optimized(job_titles,platforms=None, pq=None,user_id=None):
     """SPEED OPTIMIZED: All fixes applied - faster execution"""
     global PROCESSED_JOB_URLS, LOGGED_IN_CONTEXT
     
@@ -1122,27 +1153,33 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False,
+            headless=True,
             args=[
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
             ]
         )
         
         try:
-            print("🔐 Performing LinkedIn login...")
+            if pq:
+                pq.put({"progress": 12, "status": "searching", "message": "Connecting to LinkedIn..."})
+            print("Performing LinkedIn login...")
             login_context = await ensure_logged_in(browser, user_id)
             
             if login_context is None:
-                print("❌ Failed to login to LinkedIn. Exiting...")
+                print("Failed to login to LinkedIn. Exiting...")
+                if pq:
+                    pq.put({"progress": -1, "status": "error", "message": "LinkedIn login failed"})
                 return {}
             
-            print("✅ Successfully logged in to LinkedIn!")
+            print("Successfully logged in to LinkedIn!")
+            if pq:
+                pq.put({"progress": 15, "status": "searching", "message": "LinkedIn session ready"})
             
             for i, job_title in enumerate(job_titles, 1):
                 print(f"\n{'='*70}")
                 print(f"⚡ SPEED-OPTIMIZED SEARCH {i}/{len(job_titles)}: '{job_title}'")
                 print(f"🔢 Processed URLs so far: {len(PROCESSED_JOB_URLS)}")
-                print(f"🔢 Progressed so far: {progress[user_id]}%")
+                # print(f"🔢 Progressed so far: {progress[user_id]}%")
                 print(f"{'='*70}")
                 
                 
@@ -1158,20 +1195,22 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
                     
                     await asyncio.sleep(0.5)  # Minimal wait between searches
                 
-                if len(job_title) == 5:
-                    progress[user_id] += 15
-                else:
-                    progress[user_id] += (75/len(job_titles))
+                current_percent = int(15 + (i / len(job_titles)) * 70)  # range 15-85
+                if pq:
+                    pq.put({"progress": current_percent, "status": "searching", "message": f"Scanned '{job_title}' -- {len(all_jobs)} listings found"})
                 print(f"📊 '{job_title}' complete. Total unique jobs: {len(all_jobs)}")
 
 
             
         finally:
             if LOGGED_IN_CONTEXT:
-                await LOGGED_IN_CONTEXT.close()
-                print("="*70)
-                print(f"context has been closed")
-                print("="*70)
+                try:
+                    await LOGGED_IN_CONTEXT.close()
+                    print("="*70)
+                    print(f"context has been closed")
+                    print("="*70)
+                except Exception as e:
+                    print(f"⚠️ Error closing context: {e}")
             await browser.close()
     
     print(f"\n{'='*70}")
@@ -1181,19 +1220,18 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, progre
     print(f"⚡ Speed optimization: MAXIMUM")
     print(f"🔧 All fixes applied: YES")
     print(f"🔐 Authentication: ENABLED")
-    print(f" progress percentage: {progress[user_id]}%")
     print(f"{'='*70}")
     
     return all_jobs
 
-def run_scraper_in_new_loop(titles, keywords, job_progress, user_id, password, progress_user):
+def run_scraper_in_new_loop(titles, keywords, pq, user_id, password, progress_user):
     """Run scraper in a fresh event loop - Production Ready"""
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
         try:
-            result = loop.run_until_complete(main(titles, keywords,job_progress, user_id, password, progress_user))
+            result = loop.run_until_complete(main(titles, keywords, pq, user_id, password, progress_user))
             return result
         finally:
             loop.close()
@@ -1201,7 +1239,7 @@ def run_scraper_in_new_loop(titles, keywords, job_progress, user_id, password, p
         print(f"Scraper error: {e}")
         return []
 
-async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=None, password=None, progress_user=None ):
+async def main(parsed_titles=None, parsed_keywords=None, pq=None, user_id=None, password=None, progress_user=None ):
     global JOB_TITLES, FILTERING_KEYWORDS, LINKEDIN_ID, LINKEDIN_PASSWORD
     if parsed_titles:
         JOB_TITLES = parsed_titles
@@ -1214,15 +1252,18 @@ async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=
 
     print("🧠 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
 
-    all_jobs = await search_by_job_titles_speed_optimized(JOB_TITLES,progress=progress, user_id=progress_user)
+    all_jobs = await search_by_job_titles_speed_optimized(JOB_TITLES,pq=pq, user_id=progress_user)
     
     if len(all_jobs) == 0:
         print("❌ No jobs found to analyze...")
-        progress[progress_user] = 100
+        if pq:
+            pq.put({'progress': -1, "message": "No jobs found"})
         return
     
-    print(f"🧠 Sending {len(all_jobs)} jobs to Gemini for extraction...")
-    extracted = await extract_jobs_in_batches(all_jobs, batch_size=25)  # Larger batches
+    print(f"Sending {len(all_jobs)} jobs to Gemini for extraction...")
+    if pq:
+        pq.put({"progress": 86, "status": "analyzing", "message": f"Analyzing {len(all_jobs)} job descriptions..."})
+    extracted = await extract_jobs_in_batches(all_jobs, batch_size=25, pq=pq)  # Larger batches
     
     # Save results
     # from datetime import datetime
@@ -1245,10 +1286,20 @@ async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=
         if job.get("company_name") and job["company_name"] != "Not extracted":
             companies.add(job["company_name"])
     
-    if(progress[progress_user] == 85):
-        progress[progress_user] += 15
-    else:
-        progress[progress_user] += (100-progress[progress_user])
+
+    if pq:
+        job_data_list = extracted  # already a list of dicts
+        pq.put({
+            'progress': 100,
+            'status': 'done',
+            'jobs': job_data_list,
+            'total': len(job_data_list),
+            # 'message': f'Found {len(job_data_list)} jobs for you!'
+        })
+    # if(progress[progress_user] == 85):
+    #     progress[progress_user] += 15
+    # else:
+    #     progress[progress_user] += (100-progress[progress_user])
 
     print(f"\n📊 FINAL SUMMARY:")
     print(f" 🏢 Companies: {len(companies)}")
@@ -1258,7 +1309,6 @@ async def main(parsed_titles=None, parsed_keywords=None, progress=None, user_id=
     print(f" 🔧 All fixes applied: YES")
     print(f" 🔵 Easy Apply enabled: YES")
     print(f" 🔐 Authenticated scraping: YES")
-    print(f" Progress: {progress[progress_user]}%")
 
     return extracted
 
