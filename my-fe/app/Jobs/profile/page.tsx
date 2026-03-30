@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 const ProfilePage = () => {
   const [data, setDbData] = useState<any | null>(null);
   const [jobCount, setJobCount] = useState<string | null>(null);
+  const [workflowHistory, setWorkflowHistory] = useState<any[]>([]);
 
   useEffect(() => {
     try {
@@ -71,6 +72,31 @@ const ProfilePage = () => {
 
             {/* Action Buttons */}
             <div className="flex flex-col gap-3 w-full">
+              <button
+                onClick={async () => {
+                  if (!data?.id && !data?.email) return;
+                  const userIdStr = data?.email || data?.id;
+                  const loadToast = toast.loading("Cleaning up old sessions...");
+                  try {
+                    const res = await fetch("/api/jobs/cleanup", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ user_id: userIdStr })
+                    });
+                    const result = await res.json();
+                    if (res.ok) {
+                      toast.success(`Cleaned up ${result.deleted_count} old sessions!`, { id: loadToast });
+                    } else {
+                      toast.error("Cleanup failed: " + (result.detail || "Unknown error"), { id: loadToast });
+                    }
+                  } catch (e: any) {
+                    toast.error("Cleanup failed: " + e.message, { id: loadToast });
+                  }
+                }}
+                className="bg-white/[0.05] hover:bg-emerald-500/20 border border-white/[0.08] hover:border-emerald-500/30 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 cursor-pointer"
+              >
+                Clean Old Sessions
+              </button>
               <button
                 onClick={logoutHandler}
                 className="bg-white/[0.05] hover:bg-red-500/20 border border-white/[0.08] hover:border-red-500/30 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 cursor-pointer"

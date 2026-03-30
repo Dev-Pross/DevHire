@@ -6,9 +6,37 @@ from google import genai
 from google.genai import types
 from pdf2image import convert_from_bytes
 import pytesseract
-# from groq import Groq
+from pydantic import BaseModel
+from typing import List, Optional
 
+class LocationSchema(BaseModel):
+    city: Optional[str]
+    state: Optional[str]
+    country: Optional[str]
+    full_location: Optional[str]
 
+class UserContactSchema(BaseModel):
+    first: Optional[str]
+    last: Optional[str]
+    email: Optional[str]
+    phone: Optional[str]
+
+class UserProfileSchema(BaseModel):
+    titles: List[str]
+    keywords: List[str]
+    candidate_name: Optional[str]
+    location: Optional[LocationSchema]
+    user: Optional[UserContactSchema]
+    general_experience_years: Optional[float]
+    known_tech_experience_years: Optional[float]
+    unknown_tech_experience_years: Optional[float]
+    current_ctc: Optional[str]
+    expected_ctc: Optional[str]
+    notice_period: Optional[str]
+    tech_stacks: List[str]
+    tools: List[str]
+    sure_skills: List[str]
+    additional_skills: List[str]
 client  = genai.Client(api_key= GOOGLE_API)
 model = 'gemini-2.5-flash-lite'
 # client = Groq(
@@ -54,152 +82,44 @@ def parse_pdf(url : str):
         return text
 
 system_instruction = """
-        You are an expert AI recruiter and resume analyzer.
+You are an expert AI recruiter and resume parser.
+Extract the comprehensive profile from the provided resume text.
+Your output MUST perfectly match the provided JSON schema.
 
-        Your task is to analyze the provided resume text and generate two outputs that maximize the candidate’s visibility and job matching potential:
-
-        1. Generate 5 high-quality, market-aligned job titles that reflect the candidate’s skills and experience.
-
-        2. Extract 20-25 precise keywords optimized for ATS and recruiter searches.
-
-        Important instructions for job titles:
-
-        - If the candidate does not have confirmed professional work experience or only lists academic or personal projects, classify them as "Fresher" or "Entry Level".
-        - Generate only junior-level job titles such as "Software Engineer", " Developer", "Frontend Developer","Full Stack Developer" dont use Senior as a prefix of Job titles untill unless candidate has professional work experience not personal project's experience thats it.
-        - Do NOT suggest "Senior", "Lead", "Manager", or other advanced roles unless there is clear evidence of such experience in the resume.
-        - Base the job title recommendations strictly on the experience and evidence provided in the resume.
-
-        For keywords extraction:
-
-        - Extract technical skills, domain knowledge, soft skills, certifications, emerging technologies, and business acumen terms.
-        - Include keywords that reflect the candidate’s actual experience without fabricating information.
-
-        Please return ONLY the following output format:
-
-        <Job Titles (comma separated)>~<Keywords (comma separated)>
-
-        Maintain the "~" separator without quotes and no additional text.
-        """
-            # for attempt in range(3):
-# def resumeNotExist(resume_id : str):
-
-#     resume = session.query(ParsedTitle).filter(ParsedTitle.resume_id == resume_id).first()
-#     if resume :
-        
-#         return False
-#     else:
-#         return True
-
+CRITICAL INSTRUCTIONS:
+- TITLES: You MUST generate exactly 5 distinct, highly relevant job titles that this candidate is best suited for based on their skills and experience. Do not provide less than 5.
+- ADDITIONAL SKILLS: You MUST strictly limit the `additional_skills` array to a MAXIMUM of 5 items. Do not output more than 5.
+- Use null for missing strings, [] for empty lists.
+- Do NOT invent any skills or tools not implied by or found in the resume text.
+- candidate_name must be a string with all spaces replaced by underscores.
+"""
               
 def main(url):
     response: any
-    # userID = user
     if url:
-        # UploadedResume = session.query(UploadedResume.file_url,UploadedResume.id).filter(UploadedResume.users_id== userID).first()
             resume_text = (parse_pdf(url))
-            contents=f"""You are an elite AI hiring strategist and career intelligence specialist with deep expertise in talent acquisition, market trends, and career optimization across the global technology sector.
-
-                    Your mission is to conduct a comprehensive analysis of the provided resume and generate TWO strategically curated outputs that maximize the candidate's market visibility and job matching potential:
-
-                    🎯 **PRIMARY OBJECTIVES:**
-                    1. **STRATEGIC JOB TITLES** - Generate 5 solid and quality, high-impact, market-aligned job titles that should align with candidate's skill and expertise spectrum
-                    2. **INTELLIGENT KEYWORDS** - Extract 20-25 precisely targeted keywords that create maximum ATS compatibility and recruiter appeal
-
-                    📊 **ADVANCED ANALYSIS FRAMEWORK:**
-
-                    **For JOB TITLES - Apply Multi-Dimensional Matching:**
-                    • **Experience Calibration**: Analyze years of experience, project complexity, and leadership indicators to determine accurate seniority levels (Freshers/Entry/Junior/Mid/Senior/Staff/Principal/Architect/VP) make sure to find the best match for the candidate's experience. If the candidate has only projects not having any work experinece he mentioned as fresher or entry level whatever the projects he done he has to mention his professional working experience like company name and duration all stiff orelse he mention only his personal projects he done consider him as fresher or entry level
-                    • **Skill Intersection Analysis**: Identify overlapping competencies to suggest hybrid roles (e.g., "Full Stack Engineer", "DevSecOps Specialist", "AI/ML Engineer") dont give the general titles unless the candidate has not worked on any specific domain or technology that may be a personal project or an organization project
-                    • **Market Positioning**: Include both traditional titles recruiters search for AND emerging/trendy titles gaining market traction
-                    • **Industry Verticals**: Consider domain expertise (FinTech, HealthTech, EdTech, E-commerce, Gaming, etc.) for specialized titles
-                    • **Role Evolution Path**: Include both current-level roles AND natural next-step positions for career growth
-                    • **Geographical Relevance**: Consider titles popular in target markets (US, Europe, India, etc.)
-
-                    **For KEYWORDS - Execute Comprehensive Extraction:**
-                    • **Technical Stack Taxonomy**: Programming languages, frameworks, libraries, databases, cloud platforms, tools, and methodologies
-                    • **Domain Intelligence**: Industry-specific terminology, business domains, and vertical expertise
-                    • **Soft Skills Mining**: Extract leadership, communication, problem-solving, and collaboration abilities from project descriptions and achievements
-                    • **Certification & Standards**: Professional certifications, compliance standards, and industry methodologies
-                    • **Emerging Technologies**: AI/ML, blockchain, IoT, edge computing, quantum computing if relevant
-                    • **Business Acumen**: Product management, strategy, analytics, and commercial awareness indicators
-                    • **Scale & Impact**: Keywords reflecting system scale, user base, performance metrics, and business impact
-                    • **Cross-Functional Abilities**: Keywords showing collaboration across teams, stakeholder management, and interdisciplinary skills
-
-                    ⚡ **STRATEGIC ENHANCEMENTS:**
-                    • **ATS Optimization**: Prioritize keywords frequently used in job descriptions for target roles
-                    • **Recruiter Psychology**: Include terms that trigger recruiter interest and convey seniority/expertise
-                    • **Competitive Differentiation**: Highlight unique combinations that set the candidate apart
-                    • **Future-Proofing**: Include emerging skills and technologies relevant to career trajectory
-                    • **Global Standards**: Use internationally recognized terminology and industry standards
-
-                    🎯 **QUALITY ASSURANCE CRITERIA:**
-                    • Job titles must be realistic, specific, and currently in-demand in the market
-                    • Keywords must be substantiated by actual resume evidence (no speculation)
-                    • Avoid company names, project codenames, or proprietary terminology
-                    • Ensure geographic and cultural relevance for target job markets
-                    • Balance technical depth with business relevance
-                    • Prioritize terms that maximize job matching algorithms
-
-                    📥 **Resume Content for Analysis:**
-                    {resume_text}
-
-                    🔥 **ENHANCED OUTPUT REQUIREMENTS:**
-                    • **Ranking Logic**: Order titles by market demand + skill alignment + experience match
-                    • **Keyword Weighting**: Prioritize by frequency in job descriptions + skill importance + uniqueness factor
-                    • **Completeness Check**: Ensure keywords support ALL listed job titles comprehensively
-                    • **Market Intelligence**: Reflect current industry trends and hiring patterns
-
-                    ✅ **Precise Output Format:**
-                    Return EXCLUSIVELY the analyzed content in this exact structure:
-
-                    Senior Full Stack Engineer, Web developer, DevOps Engineering Manager, Backend System Engineer, Frontend Technical Lead, Software Engineering Consultant, Platform Engineer, Site Reliability Engineer~JavaScript, TypeScript, React, Node.js, Python, AWS, Kubernetes, Docker, Microservices, GraphQL, PostgreSQL, MongoDB, Redis, Terraform, Jenkins, Git, Agile, Scrum, System Design, API Design, Cloud Architecture, DevOps, CI/CD, Monitoring, Performance Optimization, Team Leadership, Mentoring, Stakeholder Management, Problem Solving, Technical Documentation
-
-                    **Critical**: Maintain the "~" separator and ensure both lists flow from highest to lowest strategic value for the candidate's career positioning."""                       
-            #     print(f"Groq ({model}) attempt {attempt+1}/3")
-            #     try:
-            #         # res = client.models.generate_content(
-            #         #         model=model,
-            #         #         contents=prompt,
-            #         #         config= types.GenerateContentConfig(temperature=0.2)
-            #         #         ).text
-            #         res = client.chat.completions.create(
-            #             messages=[
-            #                 {
-            #                     "role": "system",
-            #                     "content": system_instruction
-            #                 },
-            #                 {
-            #                     "role": "user",
-            #                     "content": contents,
-            #                 }
-            #             ],
-            #             model=model,
-            #         )
-            #         response = res.choices[0].message.content
-            #         break
-            #     except Exception as e:
-            #         print(f"Gemini error: {e}")
+            contents = f"Resume Content for Analysis:\n{resume_text}"                       
             
             response = client.models.generate_content(
                 model=model,
                 contents=contents,
                 config=types.GenerateContentConfig(
-                temperature=0.3,
-                system_instruction=system_instruction
+                    temperature=0.2,
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=UserProfileSchema
                 )
             ).text
-            # print("="*30)
-            # print(response)
-            # print("="*30)
-            [titles,Keywords ]= response.split("~")
-            # titles = [title.strip() for title in titles if titles] 
-            # print((titles))
-            # print(Keywords)
-            title_keyword =[]
-            title_keyword.append(titles)
-            title_keyword.append(Keywords)
-            # print(title_keyword[0])
-            return title_keyword 
+            
+            import json
+            try:
+                parsed_json = json.loads(response)
+            except Exception as e:
+                # Fallback if markdown blocking occurs
+                clean = response.replace('```json', '').replace('```', '').strip()
+                parsed_json = json.loads(clean)
+                
+            return parsed_json 
 
         # inserting data into tables
             # if resumeNotExist(resume_id):

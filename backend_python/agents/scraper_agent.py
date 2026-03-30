@@ -8,10 +8,8 @@ import time
 import aiohttp
 from bs4 import BeautifulSoup
 
-import main.progress_dict as progress_module
-from main.progress_dict import LINKEDIN_CONTEXT_OPTIONS
+from config import LINKEDIN_CONTEXT_OPTIONS
 from database.linkedin_context import save_linkedin_context, get_linkedin_context, clear_linkedin_context
-
 
 from playwright.async_api import async_playwright
 # from concurrent.futures import ThreadPoolExecutor
@@ -105,7 +103,7 @@ async def debug_capture_page(page, step_name, job_title=""):
 
 
 
-async def linkedin_login(browser):
+async def linkedin_login(browser, email_val, password_val):
     """Login to LinkedIn with FORCED 50% zoom"""
     global LOGGED_IN_CONTEXT
     
@@ -129,11 +127,11 @@ async def linkedin_login(browser):
         
         print("📧 Entering email...")
         email_input = await page.wait_for_selector('#username', timeout=10000)
-        await email_input.fill(LINKEDIN_ID)
+        await email_input.fill(email_val)
         
         print("🔑 Entering password...")
         password_input = await page.wait_for_selector('#password', timeout=5000)
-        await password_input.fill(LINKEDIN_PASSWORD)
+        await password_input.fill(password_val)
         
         await debug_capture_page(page, "02_credentials_filled")
 
@@ -172,7 +170,7 @@ async def linkedin_login(browser):
         await context.close()
         return None
 
-async def ensure_logged_in(browser, user_id):
+async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_password=None):
     """Ensure we have a valid logged-in context"""
     global LOGGED_IN_CONTEXT
     
@@ -197,15 +195,16 @@ async def ensure_logged_in(browser, user_id):
             # clear_linkedin_context(user_id)
     
     # No saved state, perform login
-    print(f"🔐 No storage state in progress_dict, logging in...")
+    if not linkedin_email or not linkedin_password:
+        raise Exception("MISSING CREDENTIALS: No saved session found and no LinkedIn credentials provided in the payload.")
 
-    context = await linkedin_login(browser)
+    print(f"🔐 No storage state in DB, logging in using provided credentials...")
+
+    context = await linkedin_login(browser, linkedin_email, linkedin_password)
     
     if context:
         # ✅ SAVE STORAGE STATE (not the context itself!)
         storage_state = await context.storage_state()
-        progress_module.linkedin_login_context = storage_state
-        print(f"💾 Storage state saved to progress_dict for next request!")
 
         save_linkedin_context(user_id,storage_state)
         print(f"💾 Storage state saved to DB!")
@@ -222,7 +221,7 @@ async def load_all_available_jobs_fixed(page):
         print("🔄 Starting FIXED pagination job loading...")
         
         unique_job_urls = set()
-        max_pages = 3  # Limit pages for speed
+        max_pages = 6  # Increased pages to maximize job yield (75-110 unique)
         
         for page_num in range(max_pages):
             print(f"📄 Processing page {page_num + 1}/{max_pages}")
@@ -414,7 +413,14 @@ async def collect_jobs_from_current_page(page):
     await page.set_viewport_size({'width': 2562, 'height': 2000})
     
     # Scale content to 25% (shows 4x more content in same space)
-    await page.evaluate('() => { document.body.style.zoom = "0.25"; }')
+    try:
+        await page.evaluate('() => { document.body.style.zoom = "0.25"; }')
+    except Exception as e:
+        print(f"Zooming failed: {e}")
+        
+    # Scroll dynamically to force LinkedIn to fetch remaining lazy-loaded cards
+    await scroll_current_page(page)
+    await asyncio.sleep(1)
     
     # Extract all job URLs - simple and direct
     unique_urls = await page.evaluate('''
@@ -442,6 +448,15 @@ async def collect_jobs_from_current_page(page):
 async def click_next_page_and_wait(page):
     """FIXED: Click next page and wait for new jobs to load"""
     print("moving to next page, if available")
+    
+    # 1. First ensure 25% zoom to expose all lazy-loaded job cards without scroll bounding
+    try:
+        await page.evaluate("document.body.style.zoom='25%'")
+        # Give a moment for the new zoom scale to take effect
+        await asyncio.sleep(1)
+    except Exception as e:
+        print(f"Zoom out failed: {e}")
+
     try:
        
         
@@ -544,15 +559,17 @@ async def wait_for_page_change(page, prev_job_count):
     
     # Wait for page transition
     await asyncio.sleep(2)
+    # Ensure viewport stays maximized for next page card exposure
+    await page.evaluate("document.body.style.zoom='25%'")
     
     # Wait for job count to change (indicating new page loaded)
-    for attempt in range(10):  # Max 5 seconds wait
+    for attempt in range(15):  # Max 7.5 seconds wait
         current_jobs = await page.query_selector_all('a[href*="/jobs/view"]')
         current_count = len(current_jobs)
         
         if current_count != prev_job_count:
             print(f"✅ Page changed! Jobs: {prev_job_count} → {current_count}")
-            await asyncio.sleep(0.5)  # Extra wait for full load
+            await asyncio.sleep(1)  # Extra wait for full load
             return True
         
         await asyncio.sleep(0.5)
@@ -801,7 +818,7 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
             await page.close()
         if context:
             try:
-                progress_module.linkedin_login_context = await context.storage_state()
+                save_linkedin_context(user_id, await context.storage_state())
             except Exception as e:
                 print(f"⚠️ Unable to persist storage state: {e}")
             await context.close()
@@ -1092,7 +1109,7 @@ async def extract_single_batch(batch_dict: dict) -> list:
     return [create_fallback_data_from_dict(url, jd) for url, jd in batch_dict.items()]
 
 
-async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25, pq=None, total_jobs_so_far=0) -> list:  # Increased batch size
+async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25, log_callback=None, total_jobs_so_far=0) -> list:  # Increased batch size
     all_extracted = []
     items = list(jobs_dict.items())
     total_batches = (len(items) + batch_size - 1) // batch_size
@@ -1108,27 +1125,27 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25, pq=None
             print(f"✅ Batch {batch_num} completed")
 
             gemini_progress = 89 + int((batch_num / total_batches) * 10)
-            if pq:
-                pq.put({
+            if log_callback:
+                log_callback({
                     "progress": gemini_progress,
                     "status": "batch_ready",
                     "batch_num": batch_num,
                     "total_batches": total_batches,
-                    "jobs": result,           # ← THIS batch's jobs sent immediately
-                    "message": f"Processed batch {batch_num}/{total_batches} — {len(result)} jobs ready"
+                    "jobs": result,           
+                    "message": f"Processed batch {batch_num} of {total_batches}"
                 })
         except Exception as e:
             print(f"❌ Batch {batch_num} error: {e}")
             result = [create_fallback_data_from_dict(url, jd) for url, jd in batch.items()]
             all_extracted.extend(result)
-            if pq:
-                pq.put({
+            if log_callback:
+                log_callback({
                     "progress": 89 + int((batch_num / total_batches) * 10),
                     "status": "batch_ready",
                     "batch_num": batch_num,
                     "total_batches": total_batches,
                     "jobs": result,
-                    "message": f"Batch {batch_num} used fallback data"
+                    "message": f"Processed batch {batch_num} of {total_batches}"
                 })
         
         await asyncio.sleep(0.1)  # Minimal wait between batches
@@ -1139,7 +1156,7 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25, pq=None
 # 6. MAIN EXECUTION FUNCTIONS (SPEED OPTIMIZED)
 # ---------------------------------------------------------------------------
 
-async def search_by_job_titles_speed_optimized(job_titles,platforms=None, pq=None,user_id=None):
+async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_callback=None, user_id=None, linkedin_email=None, linkedin_password=None):
     """SPEED OPTIMIZED: All fixes applied - faster execution"""
     global PROCESSED_JOB_URLS, LOGGED_IN_CONTEXT
     
@@ -1160,34 +1177,34 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, pq=Non
         )
         
         try:
-            if pq:
-                pq.put({"progress": 12, "status": "searching", "message": "Connecting to LinkedIn..."})
+            if log_callback:
+                log_callback({"progress": 12, "status": "searching", "message": "Connecting to LinkedIn..."})
             print("Performing LinkedIn login...")
-            login_context = await ensure_logged_in(browser, user_id)
+            login_context = await ensure_logged_in(browser, user_id, linkedin_email, linkedin_password)
             
             if login_context is None:
                 print("Failed to login to LinkedIn. Exiting...")
-                if pq:
-                    pq.put({"progress": -1, "status": "error", "message": "LinkedIn login failed"})
+                if log_callback:
+                    log_callback({"progress": -1, "status": "error", "message": "LinkedIn login failed. Please review credentials."})
                 return {}
             
             print("Successfully logged in to LinkedIn!")
-            if pq:
-                pq.put({"progress": 15, "status": "searching", "message": "LinkedIn session ready"})
+            if log_callback:
+                log_callback({"progress": 15, "status": "searching", "message": "LinkedIn session ready"})
             
             for i, job_title in enumerate(job_titles, 1):
                 print(f"\n{'='*70}")
                 print(f"⚡ SPEED-OPTIMIZED SEARCH {i}/{len(job_titles)}: '{job_title}'")
                 print(f"🔢 Processed URLs so far: {len(PROCESSED_JOB_URLS)}")
-                # print(f"🔢 Progressed so far: {progress[user_id]}%")
                 print(f"{'='*70}")
                 
-                
+                title_result = {}
                 for platform_name in platforms:
                     try:
                         result = await scrape_platform_speed_optimized(
                             browser, platform_name, PLATFORMS[platform_name], job_title, user_id
                         )
+                        title_result.update(result)
                         all_jobs.update(result)
                         print(f"📈 Jobs from '{job_title}': {len(result)}")
                     except Exception as e:
@@ -1196,8 +1213,8 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, pq=Non
                     await asyncio.sleep(0.5)  # Minimal wait between searches
                 
                 current_percent = int(15 + (i / len(job_titles)) * 70)  # range 15-85
-                if pq:
-                    pq.put({"progress": current_percent, "status": "searching", "message": f"Scanned '{job_title}' -- {len(all_jobs)} listings found"})
+                if log_callback:
+                    log_callback({"progress": current_percent, "status": "searching", "message": f"Scraped {len(title_result)} jobs for {job_title}"})
                 print(f"📊 '{job_title}' complete. Total unique jobs: {len(all_jobs)}")
 
 
@@ -1224,103 +1241,106 @@ async def search_by_job_titles_speed_optimized(job_titles,platforms=None, pq=Non
     
     return all_jobs
 
-def run_scraper_in_new_loop(titles, keywords, pq, user_id, password, progress_user):
-    """Run scraper in a fresh event loop - Production Ready"""
+def run_scraper_pipeline(job_id: str, job_data: dict, log_callback):
+    """
+    Entry point for the fetch_jobs Worker.
+    Implements idempotency and recovery using `scraper_raw` status.
+    """
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
         try:
-            result = loop.run_until_complete(main(titles, keywords, pq, user_id, password, progress_user))
-            return result
+            loop.run_until_complete(_async_scraper_pipeline(job_id, job_data, log_callback))
         finally:
             loop.close()
     except Exception as e:
-        print(f"Scraper error: {e}")
-        return []
+        import traceback
+        traceback.print_exc()
+        raise e
 
-async def main(parsed_titles=None, parsed_keywords=None, pq=None, user_id=None, password=None, progress_user=None ):
-    global JOB_TITLES, FILTERING_KEYWORDS, LINKEDIN_ID, LINKEDIN_PASSWORD
-    if parsed_titles:
-        JOB_TITLES = parsed_titles
-    if parsed_keywords:
-        FILTERING_KEYWORDS = parsed_keywords
-    if user_id and password:
-        LINKEDIN_ID = user_id
-        LINKEDIN_PASSWORD = password
-        print(f"login user id configured to {LINKEDIN_ID}")
+async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback):
+    from config import supabase
+    from agents.parse_agent import main as parse_main
 
-    print("🧠 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
+    user_id = job_data["user_id"]
+    status_db = job_data["status"]
+    input_data = job_data.get("input_data", {})
+    output_data = job_data.get("output_data") or {}
 
-    all_jobs = await search_by_job_titles_speed_optimized(JOB_TITLES,pq=pq, user_id=progress_user)
-    
-    if len(all_jobs) == 0:
-        print("❌ No jobs found to analyze...")
-        if pq:
-            pq.put({'progress': -1, "message": "No jobs found"})
-        return
-    
-    print(f"Sending {len(all_jobs)} jobs to Gemini for extraction...")
-    if pq:
-        pq.put({"progress": 86, "status": "analyzing", "message": f"Analyzing {len(all_jobs)} job descriptions..."})
-    extracted = await extract_jobs_in_batches(all_jobs, batch_size=25, pq=pq)  # Larger batches
-    
-    # Save results
-    # from datetime import datetime
-    # timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    # filename = f"linkedin_jobs_ALL_FIXES_{timestamp}.json"
-    
-    # with open(filename, "w", encoding="utf-8") as f:
-    #     json.dump(extracted, f, indent=2, ensure_ascii=False)
-    
-    # print(f"✅ Successfully extracted data for {len(extracted)} jobs")
-    # print(f"📁 Results saved to {filename}")
-    
-    # Print summary
-    total_skills = set()
-    companies = set()
-    
-    for job in extracted:
-        if job.get("key_skills"):
-            total_skills.update(job["key_skills"])
-        if job.get("company_name") and job["company_name"] != "Not extracted":
-            companies.add(job["company_name"])
-    
+    email = input_data.get("user_id") # frontend passes email as user_id usually
 
-    if pq:
-        job_data_list = extracted  # already a list of dicts
-        pq.put({
-            'progress': 100,
-            'status': 'done',
-            'jobs': job_data_list,
-            'total': len(job_data_list),
-            # 'message': f'Found {len(job_data_list)} jobs for you!'
-        })
-    # if(progress[progress_user] == 85):
-    #     progress[progress_user] += 15
-    # else:
-    #     progress[progress_user] += (100-progress[progress_user])
+    # Phase 1: Recovery Check
+    if status_db == "scraper_raw" and output_data:
+        log_callback({"progress": 50, "status": "in_progress", "message": "Recovering from scraper_raw state. Skipping Playwright."})
+        raw_jobs = output_data
+    else:
+        # Phase 2: User Data / Parsing
+        user_res = supabase.table("User").select("user_data, resume_url").eq("id", user_id).execute()
+        if not user_res.data:
+            raise Exception("User not found in DB")
+            
+        user_record = user_res.data[0]
+        user_data_parsed = user_record.get("user_data")
+        
+        if not user_data_parsed:
+            log_callback({"progress": 15, "status": "in_progress", "message": "Parsing resume using Gemini..."})
+            
+            # The active resume URL is passed from the frontend payload or DB fallback
+            resume_url = input_data.get("resume_url") or user_record.get("resume_url")
+            if not resume_url:
+                raise Exception("No resume URL available for parsing")
+                
+            user_data_parsed = parse_main(resume_url)
+            
+            # Save fresh parse result and active URL back to DB
+            supabase.table("User").update({
+                "user_data": user_data_parsed,
+                "resume_url": resume_url
+            }).eq("id", user_id).execute()
+        
+        titles = user_data_parsed.get("titles", [])
+        
+        # Phase 3: Playwright Scraping
+        log_callback({"progress": 20, "status": "in_progress", "message": "Initiating Playwright to scrape LinkedIn..."})
+        
+        # Extract credentials from payload
+        l_email = input_data.get("linkedin_id")
+        l_pass = input_data.get("linkedin_password")
+        
+        raw_jobs = await search_by_job_titles_speed_optimized(titles, log_callback=log_callback, user_id=email, linkedin_email=l_email, linkedin_password=l_pass)
+        
+        if not raw_jobs:
+            log_callback({"progress": -1, "status": "error", "message": "No jobs found or login failed. Need new session."})
+            supabase.table("workflow_sessions").update({
+                "status": "failed",
+                "output_data": {"error": "Scraping yielded no results or login failed"}
+            }).eq("id", job_id).execute()
+            
+            # Clear context if failed to force re-login next time
+            clear_linkedin_context(email)
+            raise Exception("No jobs scraped - clearing context")
+            
+        # Success pulling raw jobs. Save raw state for idempotency.
+        log_callback({"progress": 50, "status": "in_progress", "message": f"Saved {len(raw_jobs)} raw descriptions. Triggering Gemini categorization."})
+        
+        supabase.table("workflow_sessions").update({
+            "status": "scraper_raw",
+            "output_data": raw_jobs
+        }).eq("id", job_id).execute()
 
-    print(f"\n📊 FINAL SUMMARY:")
-    print(f" 🏢 Companies: {len(companies)}")
-    print(f" 🛠️ Unique skills found: {len(total_skills)}")
-    print(f" 📄 Total jobs extracted: {len(extracted)}")
-    print(f" ⚡ Speed optimized: YES")
-    print(f" 🔧 All fixes applied: YES")
-    print(f" 🔵 Easy Apply enabled: YES")
-    print(f" 🔐 Authenticated scraping: YES")
-
-    return extracted
-
-if __name__ == "__main__":
-    from datetime import datetime
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    print(f"🚀 Starting SPEED-OPTIMIZED LinkedIn Job Scraper with ALL FIXES at {timestamp}...")
-    print(f"📋 Job Titles to search: {len(JOB_TITLES)}")
-    print(f"🔍 Filtering keywords: {len(FILTERING_KEYWORDS)}")
-    print(f"🔵 Easy Apply: ENABLED")
-    print(f"⚡ Speed optimization: MAXIMUM")
-    print(f"🔧 All fixes applied: YES")
-    print(f"🔐 LinkedIn Authentication: ENABLED")
-    
-    asyncio.run(main())
+    # Phase 4: Gemini Batching
+    if raw_jobs:
+        log_callback({"progress": 55, "status": "in_progress", "message": f"Analyzing {len(raw_jobs)} job descriptions with Gemini..."})
+        
+        structured_jobs = await extract_jobs_in_batches(raw_jobs, batch_size=25, log_callback=log_callback)
+        
+        # Write final structured data to output_data and mark completed
+        supabase.table("workflow_sessions").update({
+            "status": "completed",
+            "output_data": structured_jobs
+        }).eq("id", job_id).execute()
+        
+        log_callback({"progress": 100, "status": "done", "message": f"Successfully processed {len(structured_jobs)} completely structured jobs!"})
+    else:
+        raise Exception("No raw jobs found to process")

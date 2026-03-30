@@ -20,6 +20,16 @@ export function useResumeUpload(userId: string | undefined) {
           data: { column: "resume_url", value: link },
         }),
       });
+      // Clear user_data so the backend parser knows to run Gemini for fresh details
+      // on the next pipeline execution
+      await fetch("/api/User?action=update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: userid,
+          data: { column: "user_data", value: null },
+        }),
+      });
     } catch (err) {
       toast.error("Something went wrong, please try again later")
     }

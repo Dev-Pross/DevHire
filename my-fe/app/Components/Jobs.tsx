@@ -177,75 +177,116 @@ const Jobs = () => {
     else setCredentialsReady(true);
   }, [router]);
 
-  // Effect 3 — open SSE stream
+  // Effect 3 — Start Job & Open SSE stream
   useEffect(() => {
     if (!url || !Progress_userId || !credentialsReady) return;
     if (hasStarted.current) return;
     hasStarted.current = true;
     startTime.current = Date.now();
 
-    const params = new URLSearchParams({
-      file_url: url,
-      progress_user: Progress_userId,
-      ...(userId && { user_id: userId }),
-      ...(password && { password: password }),
-    });
-
-    const es = new EventSource(`${API_URL}/get-jobs?${params}`);
-
-    es.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      // Fatal error
-      if (data.progress === -1 || data.status === "error") {
-        es.close();
-        setError(data.error || data.message || "Failed to fetch jobs");
-        pushLog(data.message || data.error || "Process interrupted", "error");
-        toast.error(data.error || data.message || "Something went wrong");
-        setIsDone(true);
-        return;
-      }
-
-      // Update progress
-      if (data.progress !== undefined) setProgress(data.progress);
-
-      // Push message to activity log
-      if (data.message) {
-        pushLog(data.message, data.status || "processing");
-      }
-
-      // Batch of jobs ready
-      if (data.status === "batch_ready" && data.jobs?.length) {
-        accumulatedJobs.current = [...accumulatedJobs.current, ...data.jobs];
-        setJobs([...accumulatedJobs.current]);
-      }
-
-      // Done
-      if (data.status === "done") {
-        es.close();
-        if (data.jobs?.length) {
-          accumulatedJobs.current = [...accumulatedJobs.current, ...data.jobs];
+    async function triggerJob() {
+      try {
+        let savedJobId = localStorage.getItem("fetch_jobs_id");
+        if (!savedJobId) {
+            savedJobId = crypto.randomUUID();
+            localStorage.setItem("fetch_jobs_id", savedJobId);
         }
-        setJobs([...accumulatedJobs.current]);
+
+        pushLog("Initiating job container...", "processing");
+        const res = await fetch(`${API_URL}/api/jobs/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: Progress_userId,
+                workflow_type: 'fetch_jobs',
+                job_id: savedJobId,
+                input_data: {
+                    user_id: Progress_userId,
+                    resume_url: url,
+                    ...(userId && { linkedin_id: userId }),
+                    ...(password && { linkedin_password: password })
+                }
+            })
+        });
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.detail || "Failed to start job");
+        }
+
+        const data = await res.json();
+        const jobId = data.job_id;
+        
+        // If server provided a different active job ID (auto-recover), update it
+        if (jobId && jobId !== savedJobId) {
+            localStorage.setItem("fetch_jobs_id", jobId);
+            savedJobId = jobId;
+        }
+        
+        pushLog("Job container started. Connecting to stream...", "processing");
+
+        const es = new EventSource(`${API_URL}/api/jobs/stream?job_id=${savedJobId}`);
+
+        es.onmessage = (event) => {
+            const evData = JSON.parse(event.data);
+            
+            if (evData.error || evData.progress === -1 || evData.status === "error") {
+                es.close();
+                localStorage.removeItem("fetch_jobs_id");
+                setError(evData.error || evData.message || "Failed to fetch jobs");
+                pushLog(evData.message || evData.error || "Process interrupted", "error");
+                toast.error(evData.error || evData.message || "Something went wrong");
+                setIsDone(true);
+                return;
+            }
+
+            if (evData.progress !== undefined) setProgress(evData.progress);
+
+            if (evData.message) {
+                pushLog(evData.message, evData.status || "processing");
+            }
+
+            if (evData.status === "batch_ready" && evData.jobs?.length) {
+                accumulatedJobs.current = [...accumulatedJobs.current, ...evData.jobs];
+                setJobs([...accumulatedJobs.current]);
+            }
+
+            if (evData.status === "done" && evData.jobs?.length) {
+                accumulatedJobs.current = [...accumulatedJobs.current, ...evData.jobs];
+                setJobs([...accumulatedJobs.current]);
+                es.close();
+                localStorage.removeItem("fetch_jobs_id");
+                setIsDone(true);
+            } else if (evData.status === "done") {
+                es.close();
+                localStorage.removeItem("fetch_jobs_id");
+                setIsDone(true);
+            }
+        };
+
+        es.onerror = () => {
+            es.close();
+            if (!jobs) {
+                setError("Connection lost. Please try again.");
+                pushLog("Connection lost", "error");
+                toast.error("Connection dropped. Please try again.");
+                setIsDone(true);
+            }
+        };
+      } catch (err: any) {
+        setError(err.message || "Failed to initialize pipeline");
+        pushLog(err.message || "Initialization failed", "error");
         setIsDone(true);
       }
-    };
+    }
 
-    es.onerror = () => {
-      es.close();
-      if (!jobs) {
-        setError("Connection lost. Please try again.");
-        pushLog("Connection lost", "error");
-        toast.error("Connection dropped. Please try again.");
-        setIsDone(true);
-      }
-    };
+    triggerJob();
 
-    return () => es.close();
   }, [url, Progress_userId, credentialsReady, retryCount]);
 
   /* ── Retry handler ── */
   function handleRetry() {
+    localStorage.removeItem("fetch_jobs_id");
     hasStarted.current = false;
     accumulatedJobs.current = [];
     setError(null);

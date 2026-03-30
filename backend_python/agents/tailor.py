@@ -986,11 +986,14 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
         except Exception as e:
             log.error("Failed to download original PDF: %s", str(e))
             raise
-        try:
-            original_txt = extract_resume_text(resume_url)
-        except Exception as e:
-            log.error("Failed to extract resume text: %s", str(e))
-            raise
+        if user_data:
+            original_txt = user_data
+        else:
+            try:
+                original_txt = extract_resume_text(resume_url)
+            except Exception as e:
+                log.error("Failed to extract resume text: %s", str(e))
+                raise
     else:
         original_txt = user_data
     try:

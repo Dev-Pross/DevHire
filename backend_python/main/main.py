@@ -1,42 +1,56 @@
 from fastapi import FastAPI
-# from main.routes.progress_route import progress_router as progress_router 
-from database.db_engine import Base, engine
 from contextlib import asynccontextmanager
-from main.routes.cookie_receiver import router as cookie_router
-from main.routes.list_jobs import router as list_jobs
-from main.routes.apply_jobs import router as apply_jobs
+from fastapi.middleware.cors import CORSMiddleware
+
+# Import active routes
 from main.routes.debug_routes import router as debug_router
 from main.routes.logout import logout_route
 from main.routes.portfolio_generator import router as portfolio
-from fastapi.middleware.cors import CORSMiddleware
 from main.routes.get_resume import router as tailor
+from main.routes.jobs_api import router as jobs_api
+
+from config import redis_client
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    print("db schema created!!")
+    # Startup: Ensure Redis connection works
+    if redis_client:
+        try:
+            redis_client.ping()
+            print("🚀 Successfully connected to Redis.")
+        except Exception as e:
+            print(f"⚠️ Redis connection failed: {e}")
+    else:
+        print("⚠️ No Redis URL provided, running without Redis (SSE won't work).")
+    
     yield
-
+    
+    # Shutdown
+    if redis_client:
+        redis_client.close()
+        print("🛑 Redis connection closed.")
 
 app = FastAPI(lifespan=lifespan)
-app.state.job_progress = {}
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["chrome-extension://ibdbgaedlhhpekneidifacdbjnpacfdd",  # Your extension ID
-        "chrome-extension://*",  # Allow any Chrome extension (less secure)
+    allow_origins=[
+        "chrome-extension://ibdbgaedlhhpekneidifacdbjnpacfdd",  # Extension
+        "chrome-extension://*",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
         "http://localhost:3000",
-        "https://dev-hire-znlr.vercel.app"],  # or ["http://localhost"] for strict control
+        "https://dev-hire-znlr.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(cookie_router)
-app.include_router(list_jobs)
-app.include_router(apply_jobs)
-# app.include_router(progress_router)
+# New workflow routes
+app.include_router(jobs_api)
+
+# Retained stateless routes
 app.include_router(debug_router)
 app.include_router(tailor)
 app.include_router(logout_route)
@@ -44,7 +58,4 @@ app.include_router(portfolio)
 
 @app.get("/")
 def root():
-    return {"message": "DevHire Python API is live"}
-
-
-    
+    return {"message": "DevHire Serverless Python API is live"}

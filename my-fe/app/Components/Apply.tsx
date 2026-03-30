@@ -214,103 +214,112 @@ const Apply: React.FC = () => {
     hasStarted.current = true;
     startTime.current = Date.now();
 
-    const controller = new AbortController();
-    abortRef.current  = controller;
-
     async function startStream() {
       try {
-        const res = await fetch(`${API_URL}/apply-jobs`, {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          signal:  controller.signal,
-          body: JSON.stringify({
-            resume_url:    url,
-            jobs:          jobs,
-            progress_user: Progress_userId,
-            user_id:       userId   || undefined,
-            password:      password || undefined,
-          }),
+        let savedJobId = localStorage.getItem("apply_jobs_id");
+        if (!savedJobId) {
+            savedJobId = crypto.randomUUID();
+            localStorage.setItem("apply_jobs_id", savedJobId);
+        }
+
+        pushLog("Initiating job container...", "processing");
+        const res = await fetch(`${API_URL}/api/jobs/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: Progress_userId,
+                workflow_type: 'apply_jobs',
+                job_id: savedJobId,
+                input_data: {
+                    user_id: Progress_userId,
+                    resume_url: url,
+                    jobs: jobs,
+                    ...(userId && { linkedin_id: userId }),
+                    ...(password && { linkedin_password: password })
+                }
+            })
         });
 
-        if (!res.ok || !res.body) {
-          setError("Failed to start application process");
-          pushLog("Connection failed — please try again", "error");
-          return;
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.detail || "Failed to start application process");
         }
 
-        const reader  = res.body.getReader();
-        const decoder = new TextDecoder();
-        let   buffer  = "";
+        const data = await res.json();
+        const jobId = data.job_id;
+        
+        // If server provided a different active job ID (auto-recover), update it
+        if (jobId && jobId !== savedJobId) {
+            localStorage.setItem("apply_jobs_id", jobId);
+            savedJobId = jobId;
+        }
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        pushLog("Job container started. Connecting to stream...", "processing");
 
-          buffer += decoder.decode(value, { stream: true });
+        const es = new EventSource(`${API_URL}/api/jobs/stream?job_id=${savedJobId}`);
 
-          const parts = buffer.split("\n\n");
-          buffer = parts.pop() ?? "";
-
-          for (const part of parts) {
-            const line = part.trim();
-            if (!line || line.startsWith(":")) continue;
-            if (!line.startsWith("data: ")) continue;
-
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              // Fatal error — progress -1 or status error
-              if (data.progress === -1 || data.status === "error") {
-                setError(data.error || data.message || "Application process failed");
-                pushLog(data.message || data.error || "Process interrupted", "error");
-                toast.error(data.error || data.message || "Something went wrong");
+        es.onmessage = async (event) => {
+            const evData = JSON.parse(event.data);
+            
+            if (evData.error || evData.progress === -1 || evData.status === "error") {
+                es.close();
+                localStorage.removeItem("apply_jobs_id");
+                setError(evData.error || evData.message || "Application process failed");
+                pushLog(evData.message || evData.error || "Process interrupted", "error");
+                toast.error(evData.error || evData.message || "Something went wrong");
                 setIsDone(true);
                 return;
-              }
-
-              // Non-fatal warning
-              if (data.warning) toast.error(data.message);
-
-              // Update progress
-              if (data.progress !== undefined) setProgress(data.progress);
-
-              // Push message to activity log
-              if (data.message) {
-                pushLog(data.message, data.status || "processing", data.success);
-              }
-
-              // Final event
-              if (data.progress === 100 && data.status === "done") {
-                const applied = (data.applied ?? []).flat(Infinity);
-                sessionStorage.setItem("applied", String(applied.length));
-
-                const payload = [...new Set([...dbData, ...applied])];
-                const dbRes   = await fetch("/api/User?action=update", {
-                  method:  "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body:    JSON.stringify({ id: user, data: { column: "applied_jobs", value: payload } }),
-                });
-                if (dbRes.ok) console.log("Applied jobs saved");
-                else console.error("Failed to save applied jobs");
-
-                setResults(data);
-                setIsDone(true);
-              }
-            } catch {
-              // malformed JSON line — skip
             }
-          }
-        }
-      } catch (e: any) {
-        if (e.name === "AbortError") return;
-        toast.error("Stream error: " + e.message);
-        setError(e.message);
-        pushLog("Connection lost — please try again", "error");
+
+            if (evData.warning) toast.error(evData.message);
+
+            if (evData.progress !== undefined) setProgress(evData.progress);
+
+            if (evData.message) {
+                pushLog(evData.message, evData.status || "processing");
+            }
+
+            if (evData.progress === 100 && evData.status === "done") {
+                es.close();
+                localStorage.removeItem("apply_jobs_id");
+                
+                // Fetch the final output_data from the DB using the fallback route
+                try {
+                    const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${jobId}`);
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        const finalResult = statusData.output_data;
+                        
+                        const applied = (finalResult.applied ?? []).flat(Infinity);
+                        sessionStorage.setItem("applied", String(applied.length));
+                        
+                        setResults(finalResult);
+                    }
+                } catch (e: any) {
+                    console.error("Failed to fetch final status:", e);
+                }
+                
+                setIsDone(true);
+            }
+        };
+
+        es.onerror = () => {
+            es.close();
+            if (!results) {
+                setError("Connection lost. Please try again.");
+                pushLog("Connection lost", "error");
+                toast.error("Connection dropped. Please try again.");
+                setIsDone(true);
+            }
+        };
+      } catch (err: any) {
+        setError(err.message || "Failed to initialize pipeline");
+        pushLog(err.message || "Initialization failed", "error");
+        setIsDone(true);
       }
     }
 
     startStream();
-    return () => controller.abort();
   }, [user, jobs, dbData, Progress_userId, url, credentialsReady, retryCount]);
 
   /* ── Count applied/skipped from log ── */
@@ -394,7 +403,7 @@ const Apply: React.FC = () => {
             <p className="text-red-400 font-medium mb-2">Something went wrong</p>
             <p className="text-gray-400 text-sm">{error}</p>
             <button
-              onClick={() => { hasStarted.current = false; setError(null); setResults(null); setActivityLog([]); setProgress(0); setElapsed(0); setIsDone(false); startTime.current = Date.now(); setRetryCount(c => c + 1); }}
+              onClick={() => { localStorage.removeItem("apply_jobs_id"); hasStarted.current = false; setError(null); setResults(null); setActivityLog([]); setProgress(0); setElapsed(0); setIsDone(false); startTime.current = Date.now(); setRetryCount(c => c + 1); }}
               className="mt-4 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/20 transition"
             >
               Try Again
@@ -418,7 +427,7 @@ const Apply: React.FC = () => {
         <div className="p-6 sm:p-8 lg:p-16">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {[
-              { label: "Total Jobs",  value: results.total_jobs,                         color: "text-white"       },
+              { label: "Total Jobs",  value: results.total_jobs || jobs.length,                         color: "text-white"       },
               { label: "Successful",  value: (results.applied  ?? []).flat(Infinity).length, color: "text-emerald-400" },
               { label: "Skipped",     value: (results.failed   ?? []).flat(Infinity).length, color: "text-amber-400"  },
             ].map((stat) => (

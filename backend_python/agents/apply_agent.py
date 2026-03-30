@@ -9,6 +9,7 @@ LinkedIn Easy-Apply AUTO-APPLIER - ENHANCED VERSION
 """
 
 import asyncio, json, logging, base64, mimetypes, re, os
+import asyncio, json, logging, base64, mimetypes, re, os, random
 from pathlib import Path
 import fitz
 from playwright.async_api import (
@@ -19,8 +20,7 @@ from playwright.async_api import (
 )
 
 from database.linkedin_context import get_linkedin_context, save_linkedin_context
-import main.progress_dict as progress_module
-from main.progress_dict import LINKEDIN_CONTEXT_OPTIONS
+from config import LINKEDIN_CONTEXT_OPTIONS
 from pdf2image import convert_from_bytes
 import pytesseract
 from playwright_stealth.stealth import Stealth
@@ -1117,18 +1117,14 @@ async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     if "/feed" in page.url:
         log.info("✅ Already logged in")
         return True
-    if user_id and password :
-        print("user and password provided")
-        global LINKEDIN_ID, LINKEDIN_PASSWORD
-        LINKEDIN_ID = user_id
-        LINKEDIN_PASSWORD = password
 
-    log.info("🔐 Logging in...")
-    if not LINKEDIN_ID or not LINKEDIN_PASSWORD:
-        log.error("❌ LinkedIn credentials are missing")
+    log.info("🔐 Logging in using provided payload credentials...")
+    if not user_id or not password:
+        log.error("❌ MISSING CREDENTIALS: No saved session found and no LinkedIn credentials provided in payload.")
         return False
-    await page.fill("#username", LINKEDIN_ID)
-    await page.fill("#password", LINKEDIN_PASSWORD)
+        
+    await page.fill("#username", user_id)
+    await page.fill("#password", password)
     await page.click('button[type="submit"]')
 
     for _ in range(30):
@@ -1234,18 +1230,16 @@ def gemini_prompt_builder(resume_text):
 
 # ─────────────────────────── MAIN ──────────────────────────
 async def main(
-    jobs_data: list[dict] | None = None,
+    jobs_queue: asyncio.Queue = None,
     user_id: str | None = None,
     password: str | None = None,
     resume_url: str | None = None,
     progress_user: str | None = None,
-    pq=None,                         # queue.Queue — thread-safe, written here, drained in route
-    total_jobs: int = 0,             # total across ALL batches for % calculation
-    jobs_applied_counter: list | None = None
+    log_callback = None,
+    total_jobs: int = 0,
+    jobs_applied_counter: list | None = None,
+    user_profile: dict = None
 ):
-    if pq is None:
-        from queue import Queue
-        pq = Queue()
     if jobs_applied_counter is None:
         jobs_applied_counter = [0]
 
@@ -1257,41 +1251,13 @@ async def main(
 
         if not resume_url:
             raise Exception("resume_url is required")
-        pq.put({"progress": 2, "status": "processing", "message": "Reading resume details..."})
-        org_resume = (parse_pdf(resume_url))
-        if org_resume is None:
-            raise Exception("failed to parse resume")
-
-        pq.put({"progress": 4, "status": "processing", "message": "Extracting profile information..."})
-        prompt = gemini_prompt_builder(org_resume)
-
-        res = client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
-                ],
-                model=model,
-            )
+            
         
-        clean = res.choices[0].message.content
+        parsed = user_profile or {}
         
-        if not clean:
-            raise Exception("Empty response from API")
-        
-        if clean.startswith("```json"):
-            clean = clean[7:].lstrip()
-        elif clean.startswith("```"):
-            clean = clean[3:].lstrip()
-        if clean.endswith("```"):
-            clean = clean[:-3].rstrip()
+        if not parsed:
+            raise Exception("No user profile found in DB. Please run job search first to parse resume.")
 
-        parsed = json.loads(clean)
-
-        # with open("data_from_gemini.json","w") as f:
-        #     json.dump(parsed, f, indent=4)
-        # print(clean)
 
         if parsed.get("candidate_name"):
             RESUME_FILENAME = parsed["candidate_name"]
@@ -1351,26 +1317,15 @@ async def main(
     
  # ── Load jobs ─────────────────────────────────────────────────────────────
 
-    if jobs_data :
-        jobs = jobs_data
-    else:
-        with open("tailored_resumes_batch_kv.json", encoding="utf-8") as f:
-            raw = json.load(f)
-
-        jobs = (
-            [raw]
-            if isinstance(raw, dict) and "job_url" in raw
-            else list(raw.values()) if isinstance(raw, dict) else raw
-        )
-
     if total_jobs == 0:
-        total_jobs = len(jobs)
+        total_jobs = 1
 
-    log.info(f"📋 Loaded {total_jobs} job(s) to process")
+    log.info(f"📋 Loaded {total_jobs} job(s) to process via Queue")
 
    # ── Browser setup ─────────────────────────────────────────────────────────
 
-    pq.put({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
+    if log_callback:
+        log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
     pw = await async_playwright().start()
     browser = await pw.chromium.launch(
         headless=True,
@@ -1386,7 +1341,7 @@ async def main(
         db_context = get_linkedin_context(progress_user)
         
         if db_context:
-            print(f"FOUND STORAGE STATE IN progress_dict!")
+            print(f"FOUND STORAGE STATE IN DB!")
             print(f"Creating new context with current browser using saved state!")
             context = await browser.new_context(
                 storage_state=db_context,
@@ -1400,7 +1355,8 @@ async def main(
 
         if not await login(page, user_id, password):
             return
-        pq.put({"progress": 8, "status": "processing", "message": "LinkedIn session ready"})
+        if log_callback:
+            log_callback({"progress": 8, "status": "processing", "message": "LinkedIn session ready"})
 
         try:
             save_linkedin_context(progress_user,dict(await context.storage_state()))
@@ -1421,78 +1377,84 @@ async def main(
             except Exception:
                 company = url
 
-            pq.put({
-                "progress": progress,
-                "status":   "applied" if success else "skipped",
-                "message":  (
-                    f"Applied to {company} ({jobs_applied_counter[0]}/{total_jobs})"
-                    if success else
-                    f"Skipped{' — ' + reason if reason else ''}: {company} ({jobs_applied_counter[0]}/{total_jobs})"
-                ),
-                "job_url":  url,
-                "success":  success,
-            })
+            if success:
+                msg = f"Applied to {jobs_applied_counter[0]} / {total_jobs} jobs - {company}"
+            else:
+                reason_part = f" ({reason})" if reason else ""
+                msg = f"Failed {jobs_applied_counter[0]} / {total_jobs} jobs - {company}{reason_part}"
+
+            if log_callback:
+                log_callback({
+                    "progress": progress,
+                    "status":   "applied" if success else "skipped",
+                    "message":  msg,
+                    "job_url":  url,
+                    "success":  success,
+                })
 
         # ── Per-job apply loop ────────────────────────────────────────────────
-
-        for idx, job in enumerate(jobs, 1):
-            url, b64 = job.get("job_url"), job.get("resume_binary")
-            if not url or not b64:
-                log.warning(f"Job {idx}: missing data - skipped")
-                emit(False, "incomplete job data") 
-                continue
-
-            log.info(f"\n{'='*60}")
-            log.info(f"📍 Processing Job {idx}/{len(jobs)}")
-            log.info(f"🔗 URL: {url}")
-            log.info(f"{'='*60}")
-
+        while True:
+            batch = await jobs_queue.get()
+            if batch is None:
+                # Poison pill received
+                break
             
-            if not await safe_goto(page, url):
-                failed.append(url)
-                emit(False, "page unavailable") 
-                continue
+            for idx, job in enumerate(batch, 1):
+                url, b64 = job.get("job_url"), job.get("resume_binary")
+                if not url or not b64:
+                    log.warning(f"Job {idx}: missing data - skipped")
+                    emit(False, "incomplete job data") 
+                    continue
 
-            
-            payload = make_resume_payload(b64)
-            agent.reset_for_new_job()
+                log.info(f"\n{'='*60}")
+                log.info(f"📍 Processing Job {idx}/{len(batch)}")
+                log.info(f"🔗 URL: {url}")
+                log.info(f"{'='*60}")
+                
+                if not await safe_goto(page, url):
+                    failed.append(url)
+                    emit(False, "page unavailable") 
+                    continue
+                
+                payload = make_resume_payload(b64)
+                agent.reset_for_new_job()
 
-            # ── Find Easy Apply button ────────────────────────────────────
+                # ── Find Easy Apply button ────────────────────────────────────
 
-            if not await agent.find_and_click_easy_apply():
-                log.warning("No Easy Apply button found - skipping")
-                failed.append(url)
-                emit(False, "direct apply only")
-                continue
+                if not await agent.find_and_click_easy_apply():
+                    log.warning("No Easy Apply button found - skipping")
+                    failed.append(url)
+                    emit(False, "direct apply only")
+                    continue
 
-            # ── Fill & submit modal ───────────────────────────────────────
+                # ── Fill & submit modal ───────────────────────────────────────
 
-            success = await agent.fill_and_submit_modal(
-                user={
-                    "first": FIRST_NAME,
-                    "last": LAST_NAME,
-                    "email": EMAIL,
-                    "phone": PHONE,
-                },
-                resume_payload=payload,
-            )
+                success = await agent.fill_and_submit_modal(
+                    user={
+                        "first": FIRST_NAME,
+                        "last": LAST_NAME,
+                        "email": EMAIL,
+                        "phone": PHONE,
+                    },
+                    resume_payload=payload,
+                )
 
-            if success:
-                applied.append(url)
-                log.info(f"✅ Job {idx} applied successfully! Total: {applied}")
-            else:
-                failed.append(url)
-                log.warning(f"❌ Job {idx} application failed")
+                if success:
+                    applied.append(url)
+                    log.info(f"✅ Job {idx} applied successfully! Total: {applied}")
+                else:
+                    failed.append(url)
+                    log.warning(f"❌ Job {idx} application failed")
 
-            emit(success)
+                emit(success)
 
-            # Show questions captured
-            if agent.collected_questions:
-                print(f"\n📝 Questions captured for Job {idx}:")
-                for q in agent.collected_questions:
-                    print(f"  • [{q['type']}] {q['text']}...")
+                # Show questions captured
+                if agent.collected_questions:
+                    print(f"\n📝 Questions captured for Job {idx}:")
+                    for q in agent.collected_questions:
+                        print(f"  • [{q['type']}] {q['text']}...")
 
-            await asyncio.sleep(3)
+                await asyncio.sleep(3)
 
         # ── Batch summary log ─────────────────────────────────────────────
 
@@ -1513,13 +1475,115 @@ async def main(
         }
 
     finally:
-        try:
-            progress_module.linkedin_login_context = await context.storage_state()
-        except Exception as e:
-            log.warning(f"Could not persist LinkedIn storage state during cleanup: {e}")
         await context.close()
         await browser.close()
         await pw.stop()
 
 if __name__ == "__main__":
     asyncio.run(main(resume_url="https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1756181362034_Sai%20%20Balaji%20.Net%20AWS.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzU2MTgxMzYyMDM0X1NhaSAgQmFsYWppIC5OZXQgQVdTLnBkZiIsImlhdCI6MTc1NjE4MTM2MywiZXhwIjoxNzU2MjY3NzYzfQ.t1ovmlXr_dpQJSVJFe-6cFsiysReflatBIv3UjlBBUw"))
+
+def run_apply_pipeline(job_id: str, job_data: dict, log_callback):
+    """
+    Entry point for the apply_jobs Worker.
+    Orchestrates the resume parsing and Playwright auto-apply.
+    """
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_async_apply_pipeline(job_id, job_data, log_callback))
+        finally:
+            loop.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise e
+
+async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
+    from config import supabase
+    
+    user_id = job_data["user_id"]
+    status_db = job_data["status"]
+    input_data = job_data.get("input_data", {})
+    output_data = job_data.get("output_data") or {}
+    
+    email = input_data.get("user_id") # email is passed
+    resume_url = input_data.get("resume_url")
+    jobs_to_apply = input_data.get("jobs", [])
+    
+    # Extract credentials from payload
+    l_email = input_data.get("linkedin_id")
+    l_pass = input_data.get("linkedin_password")
+    
+    if not jobs_to_apply:
+        raise Exception("No jobs provided to apply to")
+        
+    log_callback({"progress": 2, "status": "in_progress", "message": "Initializing auto-applier pipeline..."})
+    
+    # Track metrics
+    jobs_applied = 0
+    total_jobs = len(jobs_to_apply)
+    
+    log_callback({"progress": 5, "status": "in_progress", "message": f"Starting application parallel pipeline for {total_jobs} jobs..."})
+    
+    # Fetch pre-parsed user profile from Supabase instead of re-parsing
+    user_res = supabase.table("User").select("user_data").eq("id", user_id).execute()
+    user_profile = user_res.data[0].get("user_data", {}) if user_res.data else {}
+    
+    jobs_queue = asyncio.Queue()
+    
+    # ── Producer function: Batched Tailoring ──
+    async def tailor_producer():
+        try:
+            from agents.tailor import process_batch
+            import json
+            user_data_str = json.dumps(user_profile) if user_profile else None
+            batch_size = 15
+            for i in range(0, total_jobs, batch_size):
+                batch_jobs = jobs_to_apply[i:i+batch_size]
+                log_callback({"progress": 10, "status": "in_progress", "message": f"Tailoring batch {(i//batch_size)+1} of {((total_jobs-1)//batch_size)+1}..."})
+                # process_batch is synchronous logic running outside loop
+                tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0) # template=0 explicitly
+                await jobs_queue.put(tailored_batch)
+            # Send poison pill to signal queue exhaustion
+            await jobs_queue.put(None)
+        except Exception as e:
+            print(f"Producer thread died: {e}")
+            await jobs_queue.put(None)
+
+    # Launch Producer in background
+    producer_task = asyncio.create_task(tailor_producer())
+    
+    # Consumer (Playwright Application Loop)
+    result = await main(
+        jobs_queue=jobs_queue,
+        user_id=l_email,
+        password=l_pass,
+        progress_user=email, 
+        resume_url=resume_url,
+        log_callback=log_callback,
+        total_jobs=total_jobs,
+        user_profile=user_profile
+    )
+    
+    # Await producer to gracefully stop
+    await producer_task
+    
+    # Result contains "applied" and "failed" lists
+    log_callback({"progress": 100, "status": "done", "message": f"Workflow Complete! Applied: {len(result.get('applied', []))}, Failed: {len(result.get('failed', []))}"})
+    
+    # Update DB state
+    supabase.table("workflow_sessions").update({
+        "status": "completed",
+        "output_data": result
+    }).eq("id", job_id).execute()
+    
+    # Append successful applications to User.applied_jobs
+    if result.get("applied") and user_id:
+        try:
+            user_row = supabase.table("User").select("applied_jobs").eq("id", user_id).execute()
+            existing = user_row.data[0].get("applied_jobs") or [] if user_row.data else []
+            merged = list(set(existing + result["applied"]))
+            supabase.table("User").update({"applied_jobs": merged}).eq("id", user_id).execute()
+        except Exception as e:
+            print(f"Failed to update User.applied_jobs: {e}")

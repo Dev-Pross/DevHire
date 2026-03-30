@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgobject-2.0-0 \
     libnspr4 \
     libnss3 \
-    # libnssutil3 \
     libdbus-1-3 \
     libexpat1 \
     libatspi2.0-0 \
@@ -52,15 +51,13 @@ RUN groupadd -r app && useradd -r -g app -d /home/app -m app \
 # ensure runtime directories exist for Chromium / Playwright
 RUN mkdir -p /home/app/.cache /home/app/.config \
     && chown -R app:app /home/app/.cache /home/app/.config
+
 USER app
 
 COPY --chown=app:app . .
 
+# Informational only — Cloud Run controls the actual port via $PORT
 EXPOSE 8000
 
-# optional: replace /health with your real health endpoint
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD curl -f http://127.0.0.1:8000/ || exit 1
-
-# dev: use --reload; production: use gunicorn + uvicorn workers
-CMD ["uvicorn", "main.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use shell form to support dual-mode execution (API vs Worker)
+CMD ["sh", "-c", "if [ \"$MODE\" = \"WORKER\" ]; then python worker.py; else uvicorn main.main:app --host 0.0.0.0 --port ${PORT:-8000} --timeout-keep-alive 0; fi"]
