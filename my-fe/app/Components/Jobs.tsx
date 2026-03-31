@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { API_URL } from "../utiles/api";
 import getLoginUser from "../utiles/getUserData";
 import { sampleJobs } from "./sampleJobs";
+import { SSEManager } from "../utiles/sseManager";
+import { appendFetchedJobs, clearFetchedJobs, getFetchedJobs, saveFetchedJobs } from "../utiles/jobStorage";
 
 const USE_SAMPLE_DATA = false;
 
@@ -37,6 +39,20 @@ function formatElapsed(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+function formatCacheAge(ageMs: number | null): string {
+  if (ageMs === null || !Number.isFinite(ageMs)) return "some time ago";
+
+  const minutes = Math.floor(ageMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
 /* ── SVG icons ──────────────────────────────────────────── */
 const CheckIcon = () => (
   <svg className="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -54,6 +70,26 @@ const SpinnerIcon = () => (
 const DotIcon = () => (
   <div className="w-2 h-2 rounded-full bg-gray-500 shrink-0 mt-[3px]" />
 );
+
+function buildJobKey(job: any, index: number): string {
+  if (job && typeof job === "object") {
+    if (typeof job.job_url === "string" && job.job_url.trim()) {
+      return `url:${job.job_url.trim()}`;
+    }
+    if (typeof job.job_id === "string" && job.job_id.trim()) {
+      return `id:${job.job_id.trim()}`;
+    }
+  }
+  return `fallback:${index}`;
+}
+
+function mergeUniqueJobs(current: any[], incoming: any[]): any[] {
+  const map = new Map<string, any>();
+  [...current, ...incoming].forEach((job, index) => {
+    map.set(buildJobKey(job, index), job);
+  });
+  return Array.from(map.values());
+}
 
 /* ── Log entry component ─────────────────────────────────── */
 const LogItem = ({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) => {
@@ -93,10 +129,15 @@ const Jobs = () => {
   const [elapsed, setElapsed]         = useState(0);
   const [retryCount, setRetryCount]   = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+  const [cacheCheckComplete, setCacheCheckComplete] = useState(false);
+  const [recentCachedJobs, setRecentCachedJobs] = useState<any[] | null>(null);
+  const [recentCacheAgeLabel, setRecentCacheAgeLabel] = useState("some time ago");
 
   const logEndRef  = useRef<HTMLDivElement>(null);
   const startTime  = useRef(Date.now());
   const accumulatedJobs = useRef<any[]>([]);
+  const sseRef = useRef<SSEManager | null>(null);
 
   const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456";
   const IV = "741852963qwerty0";
@@ -177,8 +218,59 @@ const Jobs = () => {
     else setCredentialsReady(true);
   }, [router]);
 
-  // Effect 3 — Start Job & Open SSE stream
+  // Effect 3 — restore cached jobs if no active stream id
   useEffect(() => {
+    let cancelled = false;
+
+    async function restoreCachedJobs() {
+      const activeJobId = localStorage.getItem("fetch_jobs_id");
+      if (activeJobId) {
+        if (!cancelled) setCacheCheckComplete(true);
+        return;
+      }
+
+      try {
+        const cached = await getFetchedJobs();
+        if (cancelled) {
+          return;
+        }
+
+        if (!cached?.jobs?.length) {
+          setCacheCheckComplete(true);
+          return;
+        }
+
+        const fetchedAt = typeof cached.fetchedAt === "number" ? cached.fetchedAt : 0;
+        const ageMs = fetchedAt > 0 ? Math.max(0, Date.now() - fetchedAt) : null;
+
+        setRecentCachedJobs(cached.jobs);
+        setRecentCacheAgeLabel(formatCacheAge(ageMs));
+
+        setCacheCheckComplete(true);
+      } catch (err) {
+        console.error("Failed to restore cached jobs:", err);
+        if (!cancelled) setCacheCheckComplete(true);
+      }
+    }
+
+    restoreCachedJobs();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Effect 4 — cleanup stream resources on unmount
+  useEffect(() => {
+    return () => {
+      sseRef.current?.destroy();
+      sseRef.current = null;
+    };
+  }, []);
+
+  // Effect 5 — Start Job & Open SSE stream
+  useEffect(() => {
+    if (!cacheCheckComplete) return;
+    if (recentCachedJobs) return;
     if (!url || !Progress_userId || !credentialsReady) return;
     if (hasStarted.current) return;
     hasStarted.current = true;
@@ -225,53 +317,61 @@ const Jobs = () => {
         
         pushLog("Job container started. Connecting to stream...", "processing");
 
-        const es = new EventSource(`${API_URL}/api/jobs/stream?job_id=${savedJobId}`);
+        sseRef.current?.destroy();
+        const manager = new SSEManager({
+          url: `${API_URL}/api/jobs/stream?job_id=${savedJobId}`,
+          staleThresholdMs: 90_000,
+          reconnectBaseDelayMs: 1_500,
+          reconnectMaxDelayMs: 12_000,
+          withCredentials: true,
+        });
+        sseRef.current = manager;
 
-        es.onmessage = (event) => {
-            const evData = JSON.parse(event.data);
-            
-            if (evData.error || evData.progress === -1 || evData.status === "error") {
-                es.close();
-                localStorage.removeItem("fetch_jobs_id");
-                setError(evData.error || evData.message || "Failed to fetch jobs");
-                pushLog(evData.message || evData.error || "Process interrupted", "error");
-                toast.error(evData.error || evData.message || "Something went wrong");
-                setIsDone(true);
-                return;
-            }
-
-            if (evData.progress !== undefined) setProgress(evData.progress);
-
-            if (evData.message) {
-                pushLog(evData.message, evData.status || "processing");
-            }
-
-            if (evData.status === "batch_ready" && evData.jobs?.length) {
-                accumulatedJobs.current = [...accumulatedJobs.current, ...evData.jobs];
-                setJobs([...accumulatedJobs.current]);
-            }
-
-            if (evData.status === "done" && evData.jobs?.length) {
-                accumulatedJobs.current = [...accumulatedJobs.current, ...evData.jobs];
-                setJobs([...accumulatedJobs.current]);
-                es.close();
-                localStorage.removeItem("fetch_jobs_id");
-                setIsDone(true);
-            } else if (evData.status === "done") {
-                es.close();
-                localStorage.removeItem("fetch_jobs_id");
-                setIsDone(true);
-            }
+        manager.onTerminalError = (message) => {
+          localStorage.removeItem("fetch_jobs_id");
+          setError(message);
+          pushLog(message, "error");
+          toast.error(message);
+          setIsDone(true);
         };
 
-        es.onerror = () => {
-            es.close();
-            if (!jobs) {
-                setError("Connection lost. Please try again.");
-                pushLog("Connection lost", "error");
-                toast.error("Connection dropped. Please try again.");
-                setIsDone(true);
+        manager.onEvent = async (evData: any) => {
+          if (evData?.error || evData?.progress === -1 || evData?.status === "error") {
+            manager.destroy();
+            localStorage.removeItem("fetch_jobs_id");
+            setError(evData.error || evData.message || "Failed to fetch jobs");
+            pushLog(evData.message || evData.error || "Process interrupted", "error");
+            toast.error(evData.error || evData.message || "Something went wrong");
+            setIsDone(true);
+            return;
+          }
+
+          if (typeof evData?.progress === "number") {
+            setProgress(evData.progress);
+          }
+
+          if (evData?.message) {
+            pushLog(evData.message, evData.status || "processing");
+          }
+
+          if (evData?.status === "batch_ready" && Array.isArray(evData.jobs) && evData.jobs.length > 0) {
+            accumulatedJobs.current = mergeUniqueJobs(accumulatedJobs.current, evData.jobs);
+            setJobs([...accumulatedJobs.current]);
+            await appendFetchedJobs(evData.jobs);
+          }
+
+          if (evData?.status === "done") {
+            if (Array.isArray(evData.jobs) && evData.jobs.length > 0) {
+              accumulatedJobs.current = mergeUniqueJobs(accumulatedJobs.current, evData.jobs);
+              setJobs([...accumulatedJobs.current]);
             }
+
+            await saveFetchedJobs(accumulatedJobs.current);
+            manager.destroy();
+            localStorage.removeItem("fetch_jobs_id");
+            setProgress(100);
+            setIsDone(true);
+          }
         };
       } catch (err: any) {
         setError(err.message || "Failed to initialize pipeline");
@@ -282,13 +382,38 @@ const Jobs = () => {
 
     triggerJob();
 
-  }, [url, Progress_userId, credentialsReady, retryCount]);
+  }, [cacheCheckComplete, recentCachedJobs, url, Progress_userId, credentialsReady, retryCount]);
+
+  function handleUseRecentJobs() {
+    if (!recentCachedJobs?.length) return;
+
+    accumulatedJobs.current = recentCachedJobs;
+    setJobs(recentCachedJobs);
+    setProgress(100);
+    setIsDone(true);
+    setShowRestorePrompt(true);
+    setRecentCachedJobs(null);
+    pushLog("Showing recently fetched jobs from your previous session.", "done");
+    hasStarted.current = true;
+  }
+
+  function handleFreshRequestFromPrompt() {
+    setRecentCachedJobs(null);
+    setRecentCacheAgeLabel("some time ago");
+    handleRetry();
+  }
 
   /* ── Retry handler ── */
   function handleRetry() {
+    sseRef.current?.destroy();
+    sseRef.current = null;
     localStorage.removeItem("fetch_jobs_id");
     hasStarted.current = false;
     accumulatedJobs.current = [];
+    void clearFetchedJobs();
+    setShowRestorePrompt(false);
+    setRecentCachedJobs(null);
+    setRecentCacheAgeLabel("some time ago");
     setError(null);
     setJobs(null);
     setIsDone(false);
@@ -397,8 +522,49 @@ const Jobs = () => {
               </button>
             </div>
           </div>
+        ) : recentCachedJobs && recentCachedJobs.length > 0 ? (
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="surface-card p-7 sm:p-8 border border-emerald-500/30 bg-emerald-500/[0.03] max-w-lg w-full">
+              <p className="text-emerald-300 font-semibold text-lg">Saved jobs are available</p>
+              <p className="text-gray-300/90 text-sm mt-2 leading-relaxed">
+                We found previously fetched jobs from {recentCacheAgeLabel}. Do you want to continue with these saved results or run a fresh search now?
+              </p>
+              <div className="mt-5 flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleUseRecentJobs}
+                  className="px-4 py-2.5 rounded-lg border border-white/[0.12] bg-white/[0.04] text-gray-200 text-sm font-medium hover:bg-white/[0.08] transition"
+                >
+                  Continue with Saved Jobs
+                </button>
+                <button
+                  onClick={handleFreshRequestFromPrompt}
+                  className="px-4 py-2.5 rounded-lg border border-emerald-400/40 bg-emerald-500/10 text-emerald-300 text-sm font-medium hover:bg-emerald-500/20 transition"
+                >
+                  Fetch Fresh Jobs
+                </button>
+              </div>
+            </div>
+          </div>
         ) : jobs && jobs.length > 0 ? (
           <>
+            {showRestorePrompt && (
+              <div className="mb-5 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] px-4 py-3 sm:px-5 sm:py-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-emerald-300">Showing saved results from your previous search</p>
+                    <p className="mt-1 text-xs text-emerald-200/75">
+                      Want the latest listings? Start a fresh request to run a new job search.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRetry}
+                    className="inline-flex items-center justify-center rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 hover:text-emerald-200"
+                  >
+                    Request Fresh Jobs
+                  </button>
+                </div>
+              </div>
+            )}
             {!isDone && (
               <p className="text-xs text-emerald-400/60 mb-4">
                 {jobs.length} jobs found — still searching for more...

@@ -5,10 +5,21 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { API_URL } from "../utiles/api";
 import getLoginUser from "../utiles/getUserData";
+import { SSEManager } from "../utiles/sseManager";
+import {
+  clearApplyProgress,
+  finalizeApplyProgress,
+  getApplyProgress,
+  initApplyProgress,
+  recordApplied,
+  recordFailed,
+  syncApplyProgressFromFinal,
+} from "../utiles/jobStorage";
 
 interface JobsData {
   job_url: string;
   job_description: string;
+  company_name?: string;
 }
 
 interface LogEntry {
@@ -107,6 +118,7 @@ const Apply: React.FC = () => {
 
   const logEndRef   = useRef<HTMLDivElement>(null);
   const startTime   = useRef(Date.now());
+  const sseRef      = useRef<SSEManager | null>(null);
 
 
   const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456";
@@ -143,48 +155,79 @@ const Apply: React.FC = () => {
 
   // Effect 1 — session data + credentials + db jobs
   useEffect(() => {
-    const pdf     = sessionStorage.getItem("resume");
-    const context = sessionStorage.getItem("Lcontext");
-    const jobData = sessionStorage.getItem("jobs");
-    const id      = sessionStorage.getItem("id");
+    let cancelled = false;
 
-    if (!pdf) {
-      toast.error("Resume not found");
-      router.push("/Jobs/LinkedinUserDetails");
-      return;
-    }
-    setUrl(pdf);
+    async function bootstrap() {
+      const pdf     = sessionStorage.getItem("resume");
+      const context = sessionStorage.getItem("Lcontext");
+      const jobData = sessionStorage.getItem("jobs");
+      const id      = sessionStorage.getItem("id");
 
-    if (!jobData) {
-      toast.error("No jobs found to proceed");
-      router.push("/Jobs");
-      return;
-    }
-    setJobs(JSON.parse(jobData));
-
-    if (!id) { toast.error("Please login to start"); return; }
-    setUser(id);
-
-    async function fetchCredentials() {
-      try {
-        const res  = await fetch("/api/get-data", { method: "GET", credentials: "include" });
-        const json = await res.json();
-        if (json.encryptedData) {
-          const creds = JSON.parse(decryptData(json.encryptedData, ENC_KEY, IV));
-          setUserId(creds.username);
-          setPassword(creds.password);
-          setCredentialsReady(true);
-        } else {
-          toast.error("LinkedIn credentials not provided");
-          router.push("/Jobs/LinkedinUserDetails");
-        }
-      } catch (e: any) {
-        toast.error("Error fetching credentials: " + e.message);
+      if (!pdf) {
+        toast.error("Resume not found");
+        router.push("/Jobs/LinkedinUserDetails");
+        return;
       }
+      setUrl(pdf);
+
+      if (!jobData) {
+        const persisted = await getApplyProgress().catch(() => null);
+        if (!cancelled && persisted && (persisted.applied.length > 0 || persisted.failed.length > 0)) {
+          const appliedUrls = persisted.applied.map((item) => item.job_url);
+          const failedUrls = persisted.failed.map((item) => item.job_url);
+
+          setResults({
+            applied: appliedUrls,
+            failed: failedUrls,
+            total_jobs: persisted.total || appliedUrls.length + failedUrls.length,
+          });
+          setProgress(100);
+          setIsDone(true);
+          hasStarted.current = true;
+          pushLog("Loaded saved application progress from previous session.", "done");
+          return;
+        }
+
+        toast.error("No jobs found to proceed");
+        router.push("/Jobs");
+        return;
+      }
+
+      setJobs(JSON.parse(jobData));
+
+      if (!id) {
+        toast.error("Please login to start");
+        return;
+      }
+      setUser(id);
+
+      async function fetchCredentials() {
+        try {
+          const res  = await fetch("/api/get-data", { method: "GET", credentials: "include" });
+          const json = await res.json();
+          if (json.encryptedData) {
+            const creds = JSON.parse(decryptData(json.encryptedData, ENC_KEY, IV));
+            setUserId(creds.username);
+            setPassword(creds.password);
+            setCredentialsReady(true);
+          } else {
+            toast.error("LinkedIn credentials not provided");
+            router.push("/Jobs/LinkedinUserDetails");
+          }
+        } catch (e: any) {
+          toast.error("Error fetching credentials: " + e.message);
+        }
+      }
+
+      if (context !== "true") await fetchCredentials();
+      else setCredentialsReady(true);
     }
 
-    if (context !== "true") fetchCredentials();
-    else setCredentialsReady(true);
+    bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   // Effect 2 — progress user id
@@ -207,6 +250,13 @@ const Apply: React.FC = () => {
     getAppliedJobs();
   }, [user]);
 
+  useEffect(() => {
+    return () => {
+      sseRef.current?.destroy();
+      sseRef.current = null;
+    };
+  }, []);
+
   // Effect 4 — POST + fetch stream
   useEffect(() => {
     if (!user || !jobs.length || dbData === null || !Progress_userId || !url || !credentialsReady) return;
@@ -217,9 +267,12 @@ const Apply: React.FC = () => {
     async function startStream() {
       try {
         let savedJobId = localStorage.getItem("apply_jobs_id");
+        const isFreshStart = !savedJobId;
+
         if (!savedJobId) {
             savedJobId = crypto.randomUUID();
             localStorage.setItem("apply_jobs_id", savedJobId);
+            await initApplyProgress(jobs.length);
         }
 
         pushLog("Initiating job container...", "processing");
@@ -256,62 +309,102 @@ const Apply: React.FC = () => {
 
         pushLog("Job container started. Connecting to stream...", "processing");
 
-        const es = new EventSource(`${API_URL}/api/jobs/stream?job_id=${savedJobId}`);
+        sseRef.current?.destroy();
+        const manager = new SSEManager({
+          url: `${API_URL}/api/jobs/stream?job_id=${savedJobId}`,
+          staleThresholdMs: 90_000,
+          reconnectBaseDelayMs: 1_500,
+          reconnectMaxDelayMs: 12_000,
+          withCredentials: true,
+        });
+        sseRef.current = manager;
 
-        es.onmessage = async (event) => {
-            const evData = JSON.parse(event.data);
-            
-            if (evData.error || evData.progress === -1 || evData.status === "error") {
-                es.close();
-                localStorage.removeItem("apply_jobs_id");
-                setError(evData.error || evData.message || "Application process failed");
-                pushLog(evData.message || evData.error || "Process interrupted", "error");
-                toast.error(evData.error || evData.message || "Something went wrong");
-                setIsDone(true);
-                return;
-            }
-
-            if (evData.warning) toast.error(evData.message);
-
-            if (evData.progress !== undefined) setProgress(evData.progress);
-
-            if (evData.message) {
-                pushLog(evData.message, evData.status || "processing");
-            }
-
-            if (evData.progress === 100 && evData.status === "done") {
-                es.close();
-                localStorage.removeItem("apply_jobs_id");
-                
-                // Fetch the final output_data from the DB using the fallback route
-                try {
-                    const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${jobId}`);
-                    if (statusRes.ok) {
-                        const statusData = await statusRes.json();
-                        const finalResult = statusData.output_data;
-                        
-                        const applied = (finalResult.applied ?? []).flat(Infinity);
-                        sessionStorage.setItem("applied", String(applied.length));
-                        
-                        setResults(finalResult);
-                    }
-                } catch (e: any) {
-                    console.error("Failed to fetch final status:", e);
-                }
-                
-                setIsDone(true);
-            }
+        manager.onTerminalError = async (message) => {
+          localStorage.removeItem("apply_jobs_id");
+          await finalizeApplyProgress();
+          setError(message);
+          pushLog(message, "error");
+          toast.error(message);
+          setIsDone(true);
         };
 
-        es.onerror = () => {
-            es.close();
-            if (!results) {
-                setError("Connection lost. Please try again.");
-                pushLog("Connection lost", "error");
-                toast.error("Connection dropped. Please try again.");
-                setIsDone(true);
+        manager.onEvent = async (evData: any) => {
+          if (evData?.error || evData?.progress === -1 || evData?.status === "error") {
+            manager.destroy();
+            localStorage.removeItem("apply_jobs_id");
+            await finalizeApplyProgress();
+            setError(evData.error || evData.message || "Application process failed");
+            pushLog(evData.message || evData.error || "Process interrupted", "error");
+            toast.error(evData.error || evData.message || "Something went wrong");
+            setIsDone(true);
+            return;
+          }
+
+          if (evData?.warning) toast.error(evData.message);
+
+          if (typeof evData?.progress === "number") {
+            setProgress(evData.progress);
+          }
+
+          if (evData?.message) {
+            pushLog(evData.message, evData.status || "processing");
+          }
+
+          if (evData?.status === "applied" && evData?.job_url) {
+            await recordApplied(evData.job_url, evData.job_company || evData.company_name);
+          }
+
+          if (evData?.status === "skipped" && evData?.job_url) {
+            await recordFailed(evData.job_url, evData.job_company || evData.company_name, evData.message);
+          }
+
+          if (evData?.progress === 100 && evData?.status === "done") {
+            manager.destroy();
+            localStorage.removeItem("apply_jobs_id");
+
+            let finalResult: any = null;
+            try {
+              const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${jobId}`);
+              if (statusRes.ok) {
+                const statusData = await statusRes.json();
+                finalResult = statusData.output_data;
+              }
+            } catch (e: any) {
+              console.error("Failed to fetch final status:", e);
             }
+
+            if (finalResult) {
+              const applied = (finalResult.applied ?? []).flat(Infinity);
+              const failed = (finalResult.failed ?? []).flat(Infinity);
+              sessionStorage.setItem("applied", String(applied.length));
+              setResults(finalResult);
+              await syncApplyProgressFromFinal(applied, failed, finalResult.total_jobs || jobs.length);
+            } else {
+              const persisted = await getApplyProgress();
+              if (persisted) {
+                const applied = persisted.applied.map((item) => item.job_url);
+                const failed = persisted.failed.map((item) => item.job_url);
+                setResults({
+                  applied,
+                  failed,
+                  total_jobs: persisted.total || jobs.length,
+                });
+                sessionStorage.setItem("applied", String(applied.length));
+              }
+            }
+
+            await finalizeApplyProgress();
+            setProgress(100);
+            setIsDone(true);
+          }
         };
+
+        if (!isFreshStart) {
+          const existingProgress = await getApplyProgress();
+          if (!existingProgress) {
+            await initApplyProgress(jobs.length);
+          }
+        }
       } catch (err: any) {
         setError(err.message || "Failed to initialize pipeline");
         pushLog(err.message || "Initialization failed", "error");
@@ -403,7 +496,21 @@ const Apply: React.FC = () => {
             <p className="text-red-400 font-medium mb-2">Something went wrong</p>
             <p className="text-gray-400 text-sm">{error}</p>
             <button
-              onClick={() => { localStorage.removeItem("apply_jobs_id"); hasStarted.current = false; setError(null); setResults(null); setActivityLog([]); setProgress(0); setElapsed(0); setIsDone(false); startTime.current = Date.now(); setRetryCount(c => c + 1); }}
+              onClick={() => {
+                sseRef.current?.destroy();
+                sseRef.current = null;
+                localStorage.removeItem("apply_jobs_id");
+                void clearApplyProgress();
+                hasStarted.current = false;
+                setError(null);
+                setResults(null);
+                setActivityLog([]);
+                setProgress(0);
+                setElapsed(0);
+                setIsDone(false);
+                startTime.current = Date.now();
+                setRetryCount(c => c + 1);
+              }}
               className="mt-4 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/20 transition"
             >
               Try Again

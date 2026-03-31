@@ -1020,10 +1020,18 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
                     else:
                         log.warning("Failed to generate PDF")
                     log.warning("Job %d: fallback to original PDF", i)
-            out.append({"job_url": job["job_url"], "resume_binary": base64.b64encode(pdf).decode()})
+            out.append({
+                "job_url": job["job_url"],
+                "resume_binary": base64.b64encode(pdf).decode(),
+                "company_name": job.get("company_name"),
+            })
         except Exception as e:
             log.error("Job %d error %s – using original", i, e)
-            out.append({"job_url": job["job_url"], "resume_binary": base64.b64encode(original_pdf).decode()})
+            out.append({
+                "job_url": job["job_url"],
+                "resume_binary": base64.b64encode(original_pdf).decode(),
+                "company_name": job.get("company_name"),
+            })
     return out
 # ╰───────────────────────────────────────────────────────────────╯
 

@@ -3,7 +3,8 @@ import uuid
 import json
 import time
 import asyncio
-from typing import Dict, Any, Optional
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional, cast
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -17,6 +18,194 @@ class JobStartRequest(BaseModel):
     workflow_type: str     # 'fetch_jobs' or 'apply_jobs'
     input_data: Dict[str, Any]
     job_id: Optional[str] = None
+
+
+SESSION_STALE_SECONDS = int(os.getenv("SESSION_STALE_SECONDS", "45"))
+
+
+def _worker_heartbeat_key(job_id: str) -> str:
+    return f"worker_heartbeat:{job_id}"
+
+
+def _stream_key(job_id: str) -> str:
+    return f"stream:{job_id}"
+
+
+def _get_stream_start_index(job_id: str) -> int:
+    return _redis_llen_sync(_stream_key(job_id))
+
+
+def _redis_llen_sync(key: str) -> int:
+    if not redis_client:
+        return 0
+
+    try:
+        length = redis_client.llen(key)
+        if asyncio.iscoroutine(length):
+            return 0
+        return int(cast(Any, length))
+    except Exception:
+        return 0
+
+
+def _redis_get_sync(key: str) -> Optional[str]:
+    if not redis_client:
+        return None
+
+    try:
+        value = redis_client.get(key)
+        if asyncio.iscoroutine(value):
+            return None
+        if value is None:
+            return None
+        return str(cast(Any, value))
+    except Exception:
+        return None
+
+
+def _redis_lrange_sync(key: str, start: int, end: int) -> list:
+    if not redis_client:
+        return []
+
+    try:
+        values = redis_client.lrange(key, start, end)
+        if asyncio.iscoroutine(values):
+            return []
+        if isinstance(values, list):
+            return values
+        return list(cast(Any, values))
+    except Exception:
+        return []
+
+
+def _parse_iso_timestamp(value: Optional[str]) -> Optional[float]:
+    if not value:
+        return None
+
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.timestamp()
+    except Exception:
+        return None
+
+
+def _is_worker_heartbeat_fresh(job_id: str, stale_after_seconds: int = SESSION_STALE_SECONDS) -> bool:
+    try:
+        raw = _redis_get_sync(_worker_heartbeat_key(job_id))
+        if not raw:
+            return False
+
+        try:
+            heartbeat_at = float(raw)
+        except (TypeError, ValueError):
+            # Backward compatibility: any value means liveness signal exists.
+            return True
+
+        return (time.time() - heartbeat_at) <= stale_after_seconds
+    except Exception:
+        return False
+
+
+def _should_resume_active_session(status: str, job_id: str, last_active_at: Optional[str]) -> bool:
+    # scraper_raw sessions are resumable checkpoints by design.
+    if status == "scraper_raw":
+        return True
+
+    if status not in ("pending", "running"):
+        return False
+
+    if _is_worker_heartbeat_fresh(job_id):
+        return False
+
+    last_active_ts = _parse_iso_timestamp(last_active_at)
+    if last_active_ts is None:
+        return True
+
+    return (time.time() - last_active_ts) > SESSION_STALE_SECONDS
+
+
+def _trigger_worker(job_id: str):
+    """Start worker process/job for a workflow session id."""
+    if DEV_MODE:
+        import subprocess
+
+        env = os.environ.copy()
+        env["JOB_ID"] = job_id
+        subprocess.Popen(["python", "worker.py"], env=env)
+        print(f"🔧 DEV MODE: Started worker.py subprocess for JOB_ID={job_id}")
+        return
+
+    from google.cloud import run_v2
+
+    print(f"☁️ Triggering Cloud Run Job '{WORKER_JOB_NAME}' for JOB_ID={job_id}")
+    if not GCP_PROJECT_ID:
+        raise RuntimeError("GCP_PROJECT_ID is not configured")
+
+    client = run_v2.JobsClient()
+    job_name = client.job_path(GCP_PROJECT_ID, GCP_REGION, WORKER_JOB_NAME)
+
+    request = run_v2.RunJobRequest(
+        name=job_name,
+        overrides={
+            "container_overrides": [
+                {
+                    "env": [
+                        {"name": "JOB_ID", "value": job_id}
+                    ]
+                }
+            ]
+        }
+    )
+    client.run_job(request=request)
+
+
+async def _wait_for_worker_started(job_id: str, timeout_seconds: int = 30, start_index: int = 0) -> bool:
+    """Wait for a worker 'started' event in Redis. Returns False on timeout."""
+    if not redis_client:
+        return True
+
+    stream_key = _stream_key(job_id)
+    start_time = time.time()
+
+    while time.time() - start_time < timeout_seconds:
+        events = _redis_lrange_sync(stream_key, start_index, -1)
+        for event in events:
+            try:
+                ev_data = json.loads(event)
+                if ev_data.get("status") == "started":
+                    return True
+            except Exception:
+                continue
+        await asyncio.sleep(0.5)
+
+    return False
+
+
+async def _resume_existing_active_session(job_id: str, previous_status: str):
+    """Re-launch worker for an existing active session when heartbeat is stale."""
+    stream_start_index = _get_stream_start_index(job_id)
+
+    try:
+        _trigger_worker(job_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to resume existing {previous_status} job: {str(e)}")
+
+    started = await _wait_for_worker_started(job_id, timeout_seconds=15, start_index=stream_start_index)
+    if started:
+        return {
+            "job_id": job_id,
+            "status": "running",
+            "message": f"Resumed existing {previous_status} job"
+        }
+
+    # Keep session state intact; frontend can still stream/status-poll while worker boot catches up.
+    return {
+        "job_id": job_id,
+        "status": previous_status,
+        "message": f"Reattached to {previous_status} job. Worker resume signal pending"
+    }
 
 @router.post("/start")
 async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
@@ -41,15 +230,30 @@ async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
         if not user_res.data:
             raise HTTPException(status_code=404, detail=f"User {req.user_id} not found in DB")
     
-    internal_user_id = user_res.data[0]["id"]
+    user_row = cast(Dict[str, Any], user_res.data[0])
+    internal_user_id = str(user_row["id"])
 
     # Reconnection handling: if frontend provides a job_id, check if it's already running
     job_id = req.job_id
     if job_id:
-        existing = supabase.table("workflow_sessions").select("status").eq("id", job_id).execute()
+        existing = supabase.table("workflow_sessions").select("status, workflow_type, last_active_at").eq("id", job_id).execute()
         if existing.data:
-            status = existing.data[0]["status"]
+            existing_row = cast(Dict[str, Any], existing.data[0])
+            status = str(existing_row.get("status") or "")
+            existing_workflow = existing_row.get("workflow_type")
+            existing_last_active_at = cast(Optional[str], existing_row.get("last_active_at"))
+
+            if existing_workflow and existing_workflow != req.workflow_type:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Provided job_id belongs to workflow '{existing_workflow}', not '{req.workflow_type}'."
+                )
+
             if status in ("pending", "running", "scraper_raw"):
+                if _should_resume_active_session(status, job_id, existing_last_active_at):
+                    print(f"🔁 Resuming stale {status} job: {job_id}")
+                    return await _resume_existing_active_session(job_id, status)
+
                 print(f"🔄 Reattaching to existing active job: {job_id}")
                 return {"job_id": job_id, "status": status, "message": "Reattached to existing job"}
             else:
@@ -70,89 +274,54 @@ async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
         error_msg = str(e)
         if "one_active_job_per_user" in error_msg or "429" in error_msg:
             # Let's see if we can find the active job for this user to return it
-            active_res = supabase.table("workflow_sessions").select("id, workflow_type").eq("user_id", internal_user_id).neq("status", "completed").neq("status", "failed").execute()
+            active_res = supabase.table("workflow_sessions").select("id, workflow_type, status, last_active_at").eq("user_id", internal_user_id).neq("status", "completed").neq("status", "failed").execute()
             if active_res.data:
-                 active_job = active_res.data[0]
-                 
-                 # Only auto-reconnect if it's the exact same workflow type
-                 if active_job["workflow_type"] == req.workflow_type:
-                     print(f"🔄 Providing active job for auto-reconnect: {active_job['id']}")
-                     return {"job_id": active_job["id"], "status": "running", "message": "Reattached to user's active job"}
-                 else:
-                     raise HTTPException(
-                         status_code=429, 
-                         detail=f"Another workflow ({active_job['workflow_type']}) is currently running. Please wait for it to finish before starting {req.workflow_type}."
-                     )
+                active_job = cast(Dict[str, Any], active_res.data[0])
+
+                # Only auto-reconnect if it's the exact same workflow type
+                if active_job["workflow_type"] == req.workflow_type:
+                    active_status = str(active_job.get("status") or "running")
+                    active_job_id = str(active_job.get("id") or "")
+                    if _should_resume_active_session(active_status, active_job_id, cast(Optional[str], active_job.get("last_active_at"))):
+                        print(f"🔁 Resuming user's stale {active_status} active job: {active_job_id}")
+                        return await _resume_existing_active_session(active_job_id, active_status)
+
+                    print(f"🔄 Providing active job for auto-reconnect: {active_job_id}")
+                    return {
+                        "job_id": active_job_id,
+                        "status": active_status,
+                        "message": "Reattached to user's active job"
+                    }
+                else:
+                    raise HTTPException(
+                        status_code=429,
+                        detail=f"Another workflow ({active_job['workflow_type']}) is currently running. Please wait for it to finish before starting {req.workflow_type}."
+                    )
             raise HTTPException(status_code=429, detail="A job is already running for this user.")
         raise HTTPException(status_code=500, detail=f"Database error: {error_msg}")
 
     # Prepare Redis stream
-    stream_key = f"stream:{job_id}"
+    stream_key = _stream_key(job_id)
     if redis_client:
         # Clean up any old data randomly, though UUIDs are unique
         redis_client.delete(stream_key)
-        
+
     # Trigger Worker
-    if DEV_MODE:
-        import subprocess
-        # Pass required env variables to subprocess
-        env = os.environ.copy()
-        env["JOB_ID"] = job_id
-        subprocess.Popen(["python", "worker.py"], env=env)
-        print(f"🔧 DEV MODE: Started worker.py subprocess for JOB_ID={job_id}")
-    else:
-        # Trigger GCP Cloud Run Job
-        from google.cloud import run_v2
-        print(f"☁️ Triggering Cloud Run Job '{WORKER_JOB_NAME}' for JOB_ID={job_id}")
-        
-        client = run_v2.JobsClient()
-        job_name = client.job_path(GCP_PROJECT_ID, GCP_REGION, WORKER_JOB_NAME)
-        
-        request = run_v2.RunJobRequest(
-            name=job_name,
-            overrides={
-                "container_overrides": [
-                    {
-                        "env": [
-                            {"name": "JOB_ID", "value": job_id}
-                        ]
-                    }
-                ]
-            }
-        )
-        try:
-            # We don't wait for completion, just trigger it
-            client.run_job(request=request)
-        except Exception as e:
-            # Mark failed
-            supabase.table("workflow_sessions").update({"status": "failed"}).eq("id", job_id).execute()
-            raise HTTPException(status_code=500, detail=f"Failed to trigger Cloud Run Job: {str(e)}")
+    try:
+        _trigger_worker(job_id)
+    except Exception as e:
+        # Mark failed
+        supabase.table("workflow_sessions").update({"status": "failed"}).eq("id", job_id).execute()
+        raise HTTPException(status_code=500, detail=f"Failed to trigger worker: {str(e)}")
 
     # Redis Latch - Wait up to 30 seconds for worker to start
     # The worker pushes 'started' into the stream upon initialization.
-    if redis_client:
-        timeout = 30
-        start_time = time.time()
-        worker_started = False
-        
-        while time.time() - start_time < timeout:
-            events = redis_client.lrange(stream_key, 0, -1)
-            for event in events:
-                try:
-                    ev_data = json.loads(event)
-                    if ev_data.get("status") == "started":
-                        worker_started = True
-                        break
-                except:
-                    pass
-            if worker_started:
-                break
-            await asyncio.sleep(0.5)
-            
-        if not worker_started:
+    worker_started = await _wait_for_worker_started(job_id, timeout_seconds=30)
+    if not worker_started:
+        if redis_client:
             # If we timeout, we mark it failed so that worker will abort on boot.
             supabase.table("workflow_sessions").update({"status": "failed"}).eq("id", job_id).execute()
-            raise HTTPException(status_code=504, detail="Worker initialization timeout")
+        raise HTTPException(status_code=504, detail="Worker initialization timeout")
     
     return {"message": "Job started successfully", "job_id": job_id}
 
@@ -176,7 +345,7 @@ async def stream_job(job_id: str):
                     yield {"data": json.dumps({"error": "Redis not configured", "status": "error"})}
                     break
 
-                events = redis_client.lrange(stream_key, last_index, -1)
+                events = _redis_lrange_sync(stream_key, last_index, -1)
                 for event in events:
                     yield {"data": event}
                     last_index += 1

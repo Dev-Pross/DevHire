@@ -34,14 +34,24 @@ const cardVariants: Variants = {
   show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
-function parseScore(raw: string): number {
-  const n = parseInt(raw, 10);
-  return isNaN(n) ? 0 : Math.min(100, Math.max(0, n));
+function parseScore(raw: string): number | null {
+  const value = String(raw || "").trim().toLowerCase();
+  if (!value || ["unknown", "not specified", "n/a", "na", "null"].includes(value)) {
+    return null;
+  }
+
+  const match = value.match(/\d+/);
+  if (!match) {
+    return null;
+  }
+
+  const n = parseInt(match[0], 10);
+  return isNaN(n) ? null : Math.min(100, Math.max(0, n));
 }
 
 const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
   const router = useRouter();
-  const [selectedIds, setSelectedIds] = useState<{ job_id: string; job_url: string; job_description: string }[]>([]);
+  const [selectedIds, setSelectedIds] = useState<{ job_id: string; job_url: string; job_description: string; company_name?: string }[]>([]);
   const [layout, setLayout] = useState<"grid" | "list">("grid");
 
   const isSelected = (id: string) => selectedIds.some((s) => s.job_id === id);
@@ -51,7 +61,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
       setSelectedIds([]);
       return;
     }
-    setSelectedIds(jobs.map(({ job_id, job_description, job_url }) => ({ job_id, job_description, job_url })));
+    setSelectedIds(jobs.map(({ job_id, job_description, job_url, company_name }) => ({ job_id, job_description, job_url, company_name })));
   };
 
   const ApplierHandler = () => {
@@ -61,12 +71,12 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
     }
     sessionStorage.setItem(
       "jobs",
-      JSON.stringify(selectedIds.map(({ job_url, job_description }) => ({ job_url, job_description })))
+      JSON.stringify(selectedIds.map(({ job_url, job_description, company_name }) => ({ job_url, job_description, company_name })))
     );
     router.push("/apply");
   };
 
-  const cardHandler = (e: React.MouseEvent<HTMLLabelElement>, job: { job_id: string; job_url: string; job_description: string }) => {
+  const cardHandler = (e: React.MouseEvent<HTMLLabelElement>, job: { job_id: string; job_url: string; job_description: string; company_name?: string }) => {
     e.preventDefault();
     setSelectedIds((prev) =>
       prev.some((s) => s.job_id === job.job_id)
@@ -149,6 +159,8 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
         {jobs.map((job) => {
           const selected = isSelected(job.job_id);
           const score = parseScore(job.relevance_score);
+          const hasNumericScore = score !== null;
+          const scoreLabel = hasNumericScore ? `${score}%` : "Score pending";
 
           return (
             <motion.label
@@ -160,7 +172,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
                     ? "border-emerald-500/40 bg-emerald-500/[0.03] shadow-[0_0_30px_-8px_rgba(16,185,129,0.12)]"
                     : "border-white/[0.06] bg-[#111]/80 hover:border-emerald-500/20 hover:shadow-[0_0_40px_-12px_rgba(16,185,129,0.06)]"
                 }`}
-              onClick={(e) => cardHandler(e, { job_id: job.job_id, job_url: job.job_url, job_description: job.job_description })}
+              onClick={(e) => cardHandler(e, { job_id: job.job_id, job_url: job.job_url, job_description: job.job_description, company_name: job.company_name })}
             >
               <input type="checkbox" name="job_selector" className="sr-only" checked={selected} onChange={() => {}} />
 
@@ -261,21 +273,29 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
                 {/* Relevance score bar */}
                 {job.relevance_score && (
                   <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                    <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden max-w-[80px]">
-                      <motion.div
-                        className={`h-full rounded-full ${
-                          score >= 80 ? "bg-emerald-400" : score >= 60 ? "bg-yellow-400" : "bg-orange-400"
-                        }`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${score}%` }}
-                        transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-                      />
-                    </div>
-                    <span className={`text-xs font-semibold tabular-nums ${
-                      score >= 80 ? "text-emerald-400" : score >= 60 ? "text-yellow-400" : "text-orange-400"
-                    }`}>
-                      {job.relevance_score}
-                    </span>
+                    {hasNumericScore ? (
+                      <>
+                        <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden max-w-[80px]">
+                          <motion.div
+                            className={`h-full rounded-full ${
+                              score >= 80 ? "bg-emerald-400" : score >= 60 ? "bg-yellow-400" : "bg-orange-400"
+                            }`}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${score}%` }}
+                            transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+                          />
+                        </div>
+                        <span className={`text-xs font-semibold tabular-nums ${
+                          score >= 80 ? "text-emerald-400" : score >= 60 ? "text-yellow-400" : "text-orange-400"
+                        }`}>
+                          {scoreLabel}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-white/[0.08] bg-white/[0.04] text-[11px] text-gray-400">
+                        {scoreLabel}
+                      </span>
+                    )}
                   </div>
                 )}
 

@@ -5,6 +5,7 @@ import tempfile
 import os
 from datetime import datetime
 import time
+import re
 import aiohttp
 from bs4 import BeautifulSoup
 
@@ -67,6 +68,50 @@ model_1 = 'gemini-2.5-flash'
 model_4 = 'gemini-robotics-er-1.5-preview'
 
 MODELS = [model_1, model_2, model_3, model_4]
+
+MAX_PAGES = 3
+
+
+def normalize_job_url(url: str) -> str:
+    return (url or "").split('?')[0].strip()
+
+
+def normalize_text(value) -> str:
+    if value is None:
+        return ""
+    return " ".join(str(value).split())
+
+
+def has_meaningful_value(value) -> bool:
+    normalized = normalize_text(value).lower()
+    if not normalized:
+        return False
+
+    placeholders = {
+        "not specified",
+        "not available",
+        "unknown",
+        "n/a",
+        "none",
+        "null",
+        "title not extracted",
+        "company not extracted",
+        "id not extracted",
+    }
+    return normalized not in placeholders
+
+
+def extract_job_id_from_url(url: str) -> str:
+    match = re.search(r"/jobs/view/(\d+)", url or "")
+    return match.group(1) if match else "ID not extracted"
+
+
+def is_valid_raw_jobs_payload(payload) -> bool:
+    if not isinstance(payload, dict) or not payload:
+        return False
+
+    sample_value = next(iter(payload.values()))
+    return isinstance(sample_value, (str, dict))
 
 # ---------------------------------------------------------------------------
 # 1. ENHANCED LOGIN FUNCTIONALITY
@@ -216,28 +261,32 @@ async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_passw
 # ---------------------------------------------------------------------------
 
 async def load_all_available_jobs_fixed(page):
-    """FIXED: Proper pagination with page-by-page job loading - returns unique URLs"""
+    """FIXED: Proper pagination with page-by-page job loading - returns unique job entries."""
     try:
         print("🔄 Starting FIXED pagination job loading...")
         
-        unique_job_urls = set()
-        max_pages = 6  # Increased pages to maximize job yield (75-110 unique)
+        unique_job_map = {}
+        max_pages = MAX_PAGES
         
         for page_num in range(max_pages):
             print(f"📄 Processing page {page_num + 1}/{max_pages}")
             
-            # Collect job URLs from current page
-            current_page_urls = await collect_jobs_from_current_page(page)
+            # Collect job entries from current page
+            current_page_jobs = await collect_jobs_from_current_page(page)
             
             # Add new unique jobs
             new_jobs_count = 0
-            for url in current_page_urls:
-                clean_url = url.split('?')[0].strip()
-                if clean_url not in unique_job_urls:
-                    unique_job_urls.add(clean_url)
+            for job in current_page_jobs:
+                raw_url = job.get("url", "") if isinstance(job, dict) else ""
+                clean_url = normalize_job_url(raw_url)
+                if clean_url and clean_url not in unique_job_map:
+                    unique_job_map[clean_url] = {
+                        "url": clean_url,
+                        "card_title": normalize_text(job.get("card_title", "")),
+                    }
                     new_jobs_count += 1
             
-            print(f"✅ Page {page_num + 1}: Added {new_jobs_count} new jobs (Total: {len(unique_job_urls)})")
+            print(f"✅ Page {page_num + 1}: Added {new_jobs_count} new jobs (Total: {len(unique_job_map)})")
             
             # Try to navigate to next page
             next_clicked = await click_next_page_and_wait(page)
@@ -245,8 +294,8 @@ async def load_all_available_jobs_fixed(page):
                 print(f"🛑 No next page available, stopping at page {page_num + 1}")
                 break
         
-        print(f"✅ FIXED pagination complete: {len(unique_job_urls)} unique jobs from multiple pages")
-        return list(unique_job_urls)
+        print(f"✅ FIXED pagination complete: {len(unique_job_map)} unique jobs from multiple pages")
+        return list(unique_job_map.values())
         
     except Exception as e:
         print(f"❌ FIXED pagination error: {e}")
@@ -407,7 +456,7 @@ async def force_layout_fix(page):
 
 
 async def collect_jobs_from_current_page(page):
-    """Collect all unique job URLs - 1920x1080 viewport with 4x content visibility"""
+    """Collect all unique job URLs with lightweight card metadata from current page."""
 
     # Set standard viewport: 1920x1080
     await page.set_viewport_size({'width': 2562, 'height': 2000})
@@ -422,10 +471,10 @@ async def collect_jobs_from_current_page(page):
     await scroll_current_page(page)
     await asyncio.sleep(1)
     
-    # Extract all job URLs - simple and direct
-    unique_urls = await page.evaluate('''
+    # Extract all job URLs and card titles
+    job_entries = await page.evaluate('''
         () => {
-            const urls = new Set();
+            const urlMap = new Map();
             // Find all links containing /jobs/view
             const links = document.querySelectorAll('a[href*="/jobs/view"]');
             
@@ -434,16 +483,30 @@ async def collect_jobs_from_current_page(page):
                 if (href) {
                     // Remove query parameters
                     const cleanUrl = href.split('?')[0];
-                    urls.add(cleanUrl);
+
+                    const card = link.closest('li') || link.closest('.job-card-container') || link.parentElement;
+                    const titleNode =
+                        card?.querySelector('.job-card-list__title') ||
+                        card?.querySelector('.job-card-container__link') ||
+                        card?.querySelector('strong') ||
+                        link;
+
+                    const cardTitle = (titleNode?.textContent || '').trim();
+                    if (!urlMap.has(cleanUrl)) {
+                        urlMap.set(cleanUrl, {
+                            url: cleanUrl,
+                            card_title: cardTitle
+                        });
+                    }
                 }
             });
             
-            return Array.from(urls);
+            return Array.from(urlMap.values());
         }
     ''')
     
-    print(f"✅ Found {len(unique_urls)} unique job URLs at 4x visibility in 1920x1080")
-    return unique_urls
+    print(f"✅ Found {len(job_entries)} unique job URLs at 4x visibility in 1920x1080")
+    return job_entries
 
 async def click_next_page_and_wait(page):
     """FIXED: Click next page and wait for new jobs to load"""
@@ -578,7 +641,96 @@ async def wait_for_page_change(page, prev_job_count):
     return True
 
 
-async def extract_job_description_fixed(session: aiohttp.ClientSession, url, max_retries=3):
+def extract_first_text(soup: BeautifulSoup, selectors: list[str]) -> str:
+    for selector in selectors:
+        node = soup.select_one(selector)
+        if node:
+            value = normalize_text(node.get_text(" ", strip=True))
+            if value:
+                return value
+    return ""
+
+
+def detect_job_type_from_text(page_text: str) -> str:
+    lower = (page_text or "").lower()
+    if "hybrid" in lower:
+        return "Hybrid"
+    if "remote" in lower:
+        return "Remote"
+    if "on-site" in lower or "onsite" in lower or "on site" in lower:
+        return "On-site"
+    return ""
+
+
+def extract_job_metadata_from_html(html_content: str, fallback_title: str = "") -> dict:
+    soup = BeautifulSoup(html_content, 'lxml')
+
+    description = ""
+    for selector in [
+        'div.show-more-less-html__markup',
+        'section.show-more-less-html',
+        'div.jobs-description__content',
+        '#job-details',
+    ]:
+        node = soup.select_one(selector)
+        if node:
+            description = normalize_text(node.get_text(" ", strip=True))
+            if description:
+                break
+
+    title = extract_first_text(soup, [
+        'h1.t-24.t-bold.inline',
+        'h1.top-card-layout__title',
+        '.job-details-jobs-unified-top-card__job-title h1',
+        'h1',
+    ])
+    if not title:
+        title = normalize_text(fallback_title)
+
+    company_name = extract_first_text(soup, [
+        'a.topcard__org-name-link',
+        '.topcard__flavor-row a',
+        '.job-details-jobs-unified-top-card__company-name a',
+        '.job-details-jobs-unified-top-card__company-name',
+    ])
+
+    location = extract_first_text(soup, [
+        'span.topcard__flavor.topcard__flavor--bullet',
+        '.job-details-jobs-unified-top-card__bullet',
+        '.jobs-unified-top-card__bullet',
+    ])
+
+    posted_at = extract_first_text(soup, [
+        'span.posted-time-ago__text',
+        '.jobs-unified-top-card__posted-date',
+        'span.tvm__text.tvm__text--low-emphasis',
+    ])
+
+    criteria_type = ""
+    for item in soup.select('.description__job-criteria-item, .jobs-unified-top-card__job-insight, .job-details-jobs-unified-top-card__job-insight'):
+        text = normalize_text(item.get_text(" ", strip=True))
+        if not text:
+            continue
+
+        if "employment type" in text.lower():
+            criteria_type = normalize_text(text.replace("Employment type", "").strip(" :|-"))
+            if criteria_type:
+                break
+
+    page_text = normalize_text(soup.get_text(" ", strip=True))
+    job_type = criteria_type or detect_job_type_from_text(page_text)
+
+    return {
+        "job_description": description,
+        "title": title,
+        "company_name": company_name,
+        "location": location,
+        "posted_at": posted_at,
+        "job_type": job_type,
+    }
+
+
+async def extract_job_description_fixed(session: aiohttp.ClientSession, url, fallback_title="", max_retries=3):
     """
     Fetches the HTML of a URL and then parses it to extract
     the text content of the element with id='job-details'.
@@ -599,26 +751,18 @@ async def extract_job_description_fixed(session: aiohttp.ClientSession, url, max
                     html_content = await response.text()
                     print(f"   ✅ HTML fetched successfully (attempt {attempt + 1})")
 
-                    # --- PARSING STEP ---
                     print("   🥣 Parsing HTML with Beautiful Soup...")
-                    soup = BeautifulSoup(html_content, 'lxml')
+                    metadata = extract_job_metadata_from_html(html_content, fallback_title=fallback_title)
 
-                    # Find the specific element by its ID
-                    # On LinkedIn, the job description is in a div with a class, not an ID.
-                    # Let's use the class from your previous scraper for a real example.
-                    job_details_div = soup.find('div', class_='show-more-less-html__markup')
+                    if metadata.get("job_description"):
+                        print("   ✅ Extracted metadata and description successfully!")
+                        return metadata
 
-                    if job_details_div:
-                        # Get all the text from the element, stripped of HTML tags
-                        job_text = job_details_div.get_text(separator=' ', strip=True)
-                        print("   ✅ Extracted content successfully!")
-                        return job_text
-                    else:
-                        print(f"   ⚠️ Job description element not found (attempt {attempt + 1})")
-                        if attempt < max_retries - 1:
-                            await asyncio.sleep(2)  # Wait before retry
-                            continue
-                        return "Failed: Could not find the job description element in the HTML."
+                    print(f"   ⚠️ Job description element not found (attempt {attempt + 1})")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(2)  # Wait before retry
+                        continue
+                    return "Failed: Could not find the job description element in the HTML."
                 else:
                     print(f"   ⚠️ HTTP {response.status} (attempt {attempt + 1}/{max_retries})")
                     if attempt < max_retries - 1:
@@ -650,7 +794,7 @@ async def extract_job_description_fixed(session: aiohttp.ClientSession, url, max
 
 
 async def scrape_platform_speed_optimized(browser, platform_name, config, job_title, user_id):
-    """SPEED OPTIMIZED: More lenient filtering to process more jobs"""
+    """SPEED OPTIMIZED: URL-deduped collection with raw metadata capture."""
     global PROCESSED_JOB_URLS
     
     context = None
@@ -693,22 +837,32 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
             return {}
         
         print(f"📊 Processing {len(job_cards)} unique job URLs")
-        
+
         valid_job_links = []
-        
-        # job_cards now contains URLs directly, not elements
-        for i, url in enumerate(job_cards, 1):
+        duplicate_count = 0
+
+        for i, card in enumerate(job_cards, 1):
             try:
-                full_url = url if url.startswith('http') else config["base_url"] + url
-                clean_url = full_url.split('?')[0]
-                
-                if clean_url not in PROCESSED_JOB_URLS:
-                    PROCESSED_JOB_URLS.add(clean_url)
-                    valid_job_links.append(clean_url)
-                    print(f"   ✅ Job {i}: Added to processing queue")
-                else:
+                raw_url = card.get("url", "") if isinstance(card, dict) else ""
+                card_title = normalize_text(card.get("card_title", "")) if isinstance(card, dict) else ""
+
+                full_url = raw_url if raw_url.startswith('http') else config["base_url"] + raw_url
+                clean_url = normalize_job_url(full_url)
+                if not clean_url:
+                    continue
+
+                if clean_url in PROCESSED_JOB_URLS:
+                    duplicate_count += 1
                     print(f"   🔄 Job {i}: Duplicate URL, skipping")
-                        
+                    continue
+
+                PROCESSED_JOB_URLS.add(clean_url)
+                valid_job_links.append({
+                    "url": clean_url,
+                    "card_title": card_title,
+                })
+                print(f"   ✅ Job {i}: Added to processing queue")
+
             except Exception as e:
                 print(f"   ❌ Job {i}: Processing error: {e}")
                 continue
@@ -717,7 +871,7 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
         print(f"\n📊 FILTERING SUMMARY:")
         print(f"   📁 Total URLs collected: {len(job_cards)}")
         print(f"   ✅ Valid jobs: {len(valid_job_links)}")
-        print(f"   🔄 Duplicates skipped: {len(job_cards) - len(valid_job_links)}")
+        print(f"   🔄 Duplicates skipped: {duplicate_count}")
         
         print(f"✅ {len(valid_job_links)} jobs ready for OPTIMIZED processing")
         
@@ -765,8 +919,12 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
                     print(f"   📦 Processing batch {batch_num}/{total_batches} ({len(batch_urls)} jobs)...")
                     
                     batch_tasks = [
-                        extract_job_description_fixed(session, url) 
-                        for url in batch_urls
+                        extract_job_description_fixed(
+                            session,
+                            job_entry.get("url", ""),
+                            fallback_title=job_entry.get("card_title", ""),
+                        )
+                        for job_entry in batch_urls
                     ]
                     
                     batch_results = await asyncio.gather(*batch_tasks)
@@ -786,15 +944,29 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
             failed_count = 0
             failed_urls = []
             
-            # Pair the URLs with their fetched descriptions
-            for url, description in zip(valid_job_links, results):
-                if description and not description.startswith("Failed"):
-                    job_dict[url] = description
+            # Pair job metadata with fetched raw payload
+            for job_entry, raw_payload in zip(valid_job_links, results):
+                url = job_entry.get("url", "")
+                fallback_title = job_entry.get("card_title", "")
+
+                if isinstance(raw_payload, dict) and raw_payload.get("job_description"):
+                    job_dict[url] = {
+                        "job_url": url,
+                        "job_id": extract_job_id_from_url(url),
+                        "job_description": raw_payload.get("job_description", ""),
+                        "title": raw_payload.get("title") or fallback_title,
+                        "company_name": raw_payload.get("company_name", ""),
+                        "location": raw_payload.get("location", ""),
+                        "posted_at": raw_payload.get("posted_at", ""),
+                        "job_type": raw_payload.get("job_type", ""),
+                        "source": "linkedin",
+                    }
                     processed_count += 1
                 else:
                     failed_count += 1
                     failed_urls.append(url)
-                    print(f"   ❌ Failed to fetch: {url[:80]}... - Reason: {description[:50] if description else 'No response'}")
+                    reason = raw_payload[:50] if isinstance(raw_payload, str) else "No response"
+                    print(f"   ❌ Failed to fetch: {url[:80]}... - Reason: {reason}")
 
             print(f"\n📊 EXTRACTION SUMMARY:")
             print(f"   ✅ Successfully processed: {processed_count}/{len(valid_job_links)}")
@@ -802,7 +974,7 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
             # Remove all failed URLs from processed set and valid list
             failed_set = set(failed_urls)
             PROCESSED_JOB_URLS.difference_update(failed_set)
-            valid_job_links = [url for url in valid_job_links if url not in failed_set]
+            valid_job_links = [job for job in valid_job_links if job.get("url") not in failed_set]
             if failed_urls:
                 print(f"   ⚠️ Failed URLs saved for debugging")
             # with open("scrapped_jobs", "w", encoding="utf-8") as f:
@@ -914,27 +1086,76 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
 
 client = genai.Client(api_key=GOOGLE_API)
 
+
+def normalize_raw_job_payload(url: str, raw_payload) -> dict:
+    normalized = {
+        "job_url": url,
+        "job_id": extract_job_id_from_url(url),
+        "title": "",
+        "company_name": "",
+        "location": "",
+        "posted_at": "",
+        "job_type": "",
+        "job_description": "",
+        "source": "linkedin",
+    }
+
+    if isinstance(raw_payload, str):
+        normalized["job_description"] = normalize_text(raw_payload)
+    elif isinstance(raw_payload, dict):
+        normalized["job_id"] = normalize_text(raw_payload.get("job_id")) or normalized["job_id"]
+        normalized["title"] = normalize_text(raw_payload.get("title"))
+        normalized["company_name"] = normalize_text(raw_payload.get("company_name"))
+        normalized["location"] = normalize_text(raw_payload.get("location"))
+        normalized["posted_at"] = normalize_text(raw_payload.get("posted_at"))
+        normalized["job_type"] = normalize_text(raw_payload.get("job_type"))
+        normalized["job_description"] = normalize_text(
+            raw_payload.get("job_description") or raw_payload.get("description") or ""
+        )
+
+    return normalized
+
+
+def coerce_list(value) -> list:
+    return value if isinstance(value, list) else []
+
+
+def merge_gemini_with_raw(raw_job: dict, llm_job) -> dict:
+    llm_job = llm_job if isinstance(llm_job, dict) else {}
+
+    merged = {
+        "title": raw_job.get("title") if has_meaningful_value(raw_job.get("title")) else normalize_text(llm_job.get("title")) or "Title not extracted",
+        "job_id": normalize_text(raw_job.get("job_id")) or normalize_text(llm_job.get("job_id")) or extract_job_id_from_url(raw_job.get("job_url", "")),
+        "company_name": raw_job.get("company_name") if has_meaningful_value(raw_job.get("company_name")) else normalize_text(llm_job.get("company_name")) or "Company not extracted",
+        "location": raw_job.get("location") if has_meaningful_value(raw_job.get("location")) else normalize_text(llm_job.get("location")) or "Not specified",
+        "experience": normalize_text(llm_job.get("experience")) or "Not specified",
+        "salary": normalize_text(llm_job.get("salary")) or "Not specified",
+        "key_skills": coerce_list(llm_job.get("key_skills")),
+        "job_url": raw_job.get("job_url"),
+        "posted_at": raw_job.get("posted_at") if has_meaningful_value(raw_job.get("posted_at")) else normalize_text(llm_job.get("posted_at")) or "Not specified",
+        "job_description": raw_job.get("job_description") or "Description not available",
+        "source": "linkedin",
+        "relevance_score": normalize_text(llm_job.get("relevance_score")) or "unknown",
+        "job_type": raw_job.get("job_type") if has_meaningful_value(raw_job.get("job_type")) else normalize_text(llm_job.get("job_type")) or "",
+    }
+
+    if not merged["key_skills"] and isinstance(raw_job.get("key_skills"), list):
+        merged["key_skills"] = raw_job.get("key_skills")
+
+    return merged
+
+
 def create_bulk_prompt(jobs_dict: dict) -> str:
     system_instruction = """
 You are a professional job data extractor.
 
 For each job entry provided:
-
-- Extract and output all the following fields exactly as named: "title", "job_id", "company_name", "location", "experience", "salary", 
-  "key_skills", "job_url", "posted_at", "job_description", "source", and "relevance_score".
-
-- Extract the job_id from the URL after '/jobs/view/'.
-
-- Use the job description text to find all other fields.
-
-- Provide the output only as a pure JSON array, no explanations or extra text.
-
-- Give full 200% attention and efforts to extract all fields properly. 
-
-** Make sure extract data should be accurate and most relavant to candidate's profile **
-
-If any field is not present, use null object or empty list [] accordingly only for "salary", "location", "experience", "posted_date", "source" and "relevance_score" remaining "job_id", "job_description" (use provided description directly here), title extract mandatory no option for not avaliable or null values here these 3 are mandatory things.
-Make sure all fields should extracted properly don't give null or empty list without extrating data in rare cases use that null or empty list untill unless all fields are mandatory
+- Extract and output all the following fields exactly as named: "title", "job_id", "company_name", "location", "experience", "salary", "key_skills", "job_url", "posted_at", "job_description", "source", "relevance_score", "job_type".
+- You will receive known_metadata from Playwright scraping. Treat known_metadata as source of truth.
+- If a known_metadata field has a value, DO NOT overwrite it. Keep it unchanged.
+- Focus on filling missing fields from job_description, especially: experience, salary, key_skills, relevance_score.
+- Extract the job_id from the URL after '/jobs/view/' if missing.
+- Provide output only as a pure JSON array, with no explanations.
 
 Example:
 [
@@ -950,7 +1171,7 @@ Example:
     "posted_at": "2 days ago",
     "job_description": "...",
     "source": "linkedin",
-    "relevance_score": "98%"
+    "relevance_score": "98%" | null
   },
   ...
 ]
@@ -958,33 +1179,33 @@ Example:
 """
 
     prompt = system_instruction + f"\nProcess {len(jobs_dict)} jobs:\n"
-    for idx, (url, desc) in enumerate(jobs_dict.items(), 1):
-        safe_desc = desc.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
-        prompt += f'\n--- JOB {idx} ---\njob_url: "{url}"\njob_description: "{safe_desc[:1500]}"\n'
+    for idx, (url, raw_payload) in enumerate(jobs_dict.items(), 1):
+        raw_job = normalize_raw_job_payload(url, raw_payload)
+        safe_desc = raw_job["job_description"].replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+        known_metadata = {
+            "title": raw_job.get("title", ""),
+            "company_name": raw_job.get("company_name", ""),
+            "location": raw_job.get("location", ""),
+            "posted_at": raw_job.get("posted_at", ""),
+            "job_type": raw_job.get("job_type", ""),
+        }
+        prompt += (
+            f'\n--- JOB {idx} ---\n'
+            f'job_url: "{url}"\n'
+            f'known_metadata: {json.dumps(known_metadata, ensure_ascii=False)}\n'
+            f'job_description: "{safe_desc}"\n'
+        )
     # with open(f"prompt-{time.time()}.txt", "w", encoding="utf-8") as f:
     #     f.write(prompt)
     return prompt
 
 
 
-def create_fallback_data_from_dict(url: str, job_description: str) -> dict:
-    return {
-        "title": "Title not extracted",
-        "job_id": "ID not extracted", 
-        "company_name": "Company not extracted",
-        "location": "India",
-        "experience": "Not specified",
-        "salary": "Not specified",
-        "key_skills": [],
-        "job_url": url,
-        "posted_at": "Not specified",
-        "job_description": job_description or "Description not available",
-        "source": "linkedin",
-        "relevance_score": "unknown"
-    }
+def create_fallback_data_from_dict(url: str, raw_payload) -> dict:
+    raw_job = normalize_raw_job_payload(url, raw_payload)
+    return merge_gemini_with_raw(raw_job, {})
 
 def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
-    import re
     try:
         raw = response_text.strip()
         # Remove markdown code fences if present
@@ -1035,26 +1256,20 @@ def parse_bulk_response(response_text: str, original_jobs: dict) -> list:
                     job_urls = list(original_jobs.keys())
                     if idx < len(job_urls):
                         url = job_urls[idx]
-                        jd = original_jobs[url]
-                        extracted_jobs.append(create_fallback_data_from_dict(url, jd))
+                        extracted_jobs.append(create_fallback_data_from_dict(url, original_jobs[url]))
 
         job_urls = list(original_jobs.keys())
-        for i, job in enumerate(extracted_jobs):
-            if i < len(job_urls):
-                url = job_urls[i]
-                job["job_url"] = url
-                job["job_description"] = original_jobs[url]
-                job["source"] = "linkedin"
+        merged_jobs = []
 
-        while len(extracted_jobs) < len(job_urls):
-            idx = len(extracted_jobs)
-            url = job_urls[idx]
-            extracted_jobs.append(create_fallback_data_from_dict(url, original_jobs[url]))
+        for i, url in enumerate(job_urls):
+            raw_job = normalize_raw_job_payload(url, original_jobs[url])
+            llm_job = extracted_jobs[i] if i < len(extracted_jobs) else {}
+            merged_jobs.append(merge_gemini_with_raw(raw_job, llm_job))
 
-        return extracted_jobs
+        return merged_jobs
     except Exception as e:
         print(f"❌ Error parsing response: {e}")
-        return [create_fallback_data_from_dict(url, jd) for url, jd in original_jobs.items()]
+        return [create_fallback_data_from_dict(url, raw_payload) for url, raw_payload in original_jobs.items()]
 
 async def extract_single_batch(batch_dict: dict) -> list:
     prompt = create_bulk_prompt(batch_dict)
@@ -1162,6 +1377,24 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
     
     if platforms is None:
         platforms = list(PLATFORMS.keys())
+
+    sanitized_titles = []
+    seen_titles = set()
+    for title in job_titles or []:
+        clean_title = normalize_text(title)
+        if not clean_title:
+            continue
+
+        key = clean_title.lower()
+        if key in seen_titles:
+            continue
+
+        seen_titles.add(key)
+        sanitized_titles.append(clean_title)
+
+    if not sanitized_titles:
+        sanitized_titles = JOB_TITLES
+        print("⚠️ No parsed titles available. Falling back to default title set.")
     
     all_jobs = {}
     PROCESSED_JOB_URLS.clear()
@@ -1192,9 +1425,9 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
             if log_callback:
                 log_callback({"progress": 15, "status": "searching", "message": "LinkedIn session ready"})
             
-            for i, job_title in enumerate(job_titles, 1):
+            for i, job_title in enumerate(sanitized_titles, 1):
                 print(f"\n{'='*70}")
-                print(f"⚡ SPEED-OPTIMIZED SEARCH {i}/{len(job_titles)}: '{job_title}'")
+                print(f"⚡ SPEED-OPTIMIZED SEARCH {i}/{len(sanitized_titles)}: '{job_title}'")
                 print(f"🔢 Processed URLs so far: {len(PROCESSED_JOB_URLS)}")
                 print(f"{'='*70}")
                 
@@ -1212,9 +1445,11 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
                     
                     await asyncio.sleep(0.5)  # Minimal wait between searches
                 
-                current_percent = int(15 + (i / len(job_titles)) * 70)  # range 15-85
+                current_percent = int(15 + (i / len(sanitized_titles)) * 70)  # range 15-85
                 if log_callback:
                     log_callback({"progress": current_percent, "status": "searching", "message": f"Scraped {len(title_result)} jobs for {job_title}"})
+                if not title_result:
+                    print(f"⚠️ No jobs retained after filters for '{job_title}'")
                 print(f"📊 '{job_title}' complete. Total unique jobs: {len(all_jobs)}")
 
 
@@ -1270,11 +1505,17 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback):
 
     email = input_data.get("user_id") # frontend passes email as user_id usually
 
+    raw_jobs = None
+
     # Phase 1: Recovery Check
-    if status_db == "scraper_raw" and output_data:
-        log_callback({"progress": 50, "status": "in_progress", "message": "Recovering from scraper_raw state. Skipping Playwright."})
-        raw_jobs = output_data
-    else:
+    if status_db == "scraper_raw":
+        if is_valid_raw_jobs_payload(output_data):
+            log_callback({"progress": 50, "status": "in_progress", "message": "Recovering from scraper_raw state. Skipping Playwright."})
+            raw_jobs = output_data
+        else:
+            log_callback({"progress": 45, "status": "in_progress", "message": "scraper_raw payload invalid. Re-running Playwright scrape."})
+
+    if raw_jobs is None:
         # Phase 2: User Data / Parsing
         user_res = supabase.table("User").select("user_data, resume_url").eq("id", user_id).execute()
         if not user_res.data:

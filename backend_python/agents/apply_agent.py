@@ -1111,6 +1111,12 @@ def make_resume_payload(b64: str) -> FilePayload:
         buffer=base64.b64decode(b64),
     )
 
+
+def normalize_company_name(company_name: str | None) -> str:
+    if not company_name:
+        return "Unknown company"
+    return " ".join(str(company_name).split())
+
 async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     await page.goto(LINKEDIN_LOGIN_URL, wait_until="domcontentloaded")
     await asyncio.sleep(10)
@@ -1368,27 +1374,25 @@ async def main(
         failed = []
 
         # ── Helper: emit progress after each job outcome ──────────────
-        def emit(success: bool, reason: str =""):
+        def emit(success: bool, current_url: str | None, company_name: str | None, reason: str =""):
             jobs_applied_counter[0] += 1
             progress = min(int((jobs_applied_counter[0] / total_jobs) * 89) + 11, 99)
 
-            try:
-                company = url.split("/")[-1] if url else url
-            except Exception:
-                company = url
+            company = normalize_company_name(company_name)
 
             if success:
-                msg = f"Applied to {jobs_applied_counter[0]} / {total_jobs} jobs - {company}"
+                msg = f"Applied ({jobs_applied_counter[0]}/{total_jobs}) - {company}"
             else:
                 reason_part = f" ({reason})" if reason else ""
-                msg = f"Failed {jobs_applied_counter[0]} / {total_jobs} jobs - {company}{reason_part}"
+                msg = f"Failed ({jobs_applied_counter[0]}/{total_jobs}) - {company}{reason_part}"
 
             if log_callback:
                 log_callback({
                     "progress": progress,
                     "status":   "applied" if success else "skipped",
                     "message":  msg,
-                    "job_url":  url,
+                    "job_url":  current_url,
+                    "job_company": company,
                     "success":  success,
                 })
 
@@ -1401,9 +1405,10 @@ async def main(
             
             for idx, job in enumerate(batch, 1):
                 url, b64 = job.get("job_url"), job.get("resume_binary")
+                company_name = job.get("company_name")
                 if not url or not b64:
                     log.warning(f"Job {idx}: missing data - skipped")
-                    emit(False, "incomplete job data") 
+                    emit(False, url, company_name, "incomplete job data") 
                     continue
 
                 log.info(f"\n{'='*60}")
@@ -1413,7 +1418,7 @@ async def main(
                 
                 if not await safe_goto(page, url):
                     failed.append(url)
-                    emit(False, "page unavailable") 
+                    emit(False, url, company_name, "page unavailable") 
                     continue
                 
                 payload = make_resume_payload(b64)
@@ -1424,7 +1429,7 @@ async def main(
                 if not await agent.find_and_click_easy_apply():
                     log.warning("No Easy Apply button found - skipping")
                     failed.append(url)
-                    emit(False, "direct apply only")
+                    emit(False, url, company_name, "direct apply only")
                     continue
 
                 # ── Fill & submit modal ───────────────────────────────────────
@@ -1446,7 +1451,7 @@ async def main(
                     failed.append(url)
                     log.warning(f"❌ Job {idx} application failed")
 
-                emit(success)
+                emit(success, url, company_name)
 
                 # Show questions captured
                 if agent.collected_questions:
