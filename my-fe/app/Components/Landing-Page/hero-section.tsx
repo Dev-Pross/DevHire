@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion, useInView, useMotionValue, useTransform, animate } from "framer-motion";
-import getLoginUser from "@/app/utiles/getUserData";
+import { useUser } from "@/app/utiles/UserContext";
 
 /* ── Animated Counter ── */
 const AnimatedCounter = ({ target, suffix = "" }: { target: number; suffix?: string }) => {
@@ -53,42 +53,7 @@ const OrbitDot = ({
 );
 
 export const HeroTalent = () => {
-  const [id, setId] = useState<string | null>(null);
-  const [resume, setResume] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function getUser() {
-      const { data, error } = await getLoginUser();
-      if (data?.user) setId(data.user.id);
-    }
-    getUser();
-  }, []);
-
-  const checkResume = useCallback(() => {
-    if (id) {
-      const res = sessionStorage.getItem("resume");
-      setResume(res && res !== "null" ? res : null);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    checkResume();
-  }, [checkResume]);
-
-  useEffect(() => {
-    const handleResumeUploaded = () => checkResume();
-    const handleStorageChange = () => checkResume();
-
-    window.addEventListener("resume-uploaded", handleResumeUploaded);
-    window.addEventListener("storage", handleStorageChange);
-    const interval = setInterval(checkResume, 2000);
-
-    return () => {
-      window.removeEventListener("resume-uploaded", handleResumeUploaded);
-      window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
-    };
-  }, [checkResume]);
+  const { user, loading, isLoggedIn } = useUser();
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -159,7 +124,7 @@ export const HeroTalent = () => {
 
             {/* CTA Buttons */}
             <motion.div variants={itemVariants} className="flex flex-wrap gap-4 justify-center lg:justify-start">
-              {id ? (
+              {isLoggedIn ? (
                 <>
                   <Link href="/Jobs/LinkedinUserDetails">
                     <button className="btn-primary text-base px-8 py-4">
@@ -169,7 +134,7 @@ export const HeroTalent = () => {
                       Upload Resume
                     </button>
                   </Link>
-                  {resume && (
+                  {user.resume_url && (
                     <Link href="/Jobs">
                       <button className="btn-secondary text-base px-8 py-4">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

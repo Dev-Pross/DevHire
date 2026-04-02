@@ -57,8 +57,10 @@ export async function POST(request: Request) {
         const upserted = await prisma.user.upsert({
           where: { email: upsertEmail },
           update: {
-            name: upsertName || undefined,
-            profile_image: profile_image || undefined,
+            // Always update name if provided
+            ...(upsertName && { name: upsertName }),
+            // Always update profile_image if provided (even for existing users)
+            ...(profile_image && { profile_image: profile_image }),
           },
           create: {
             id: upsertId,

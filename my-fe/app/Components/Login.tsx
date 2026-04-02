@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import ResetPass from "./ResetPass";
-import getLoginUser from "../utiles/getUserData";
+import { useUser } from "../utiles/UserContext";
 
 const Login = () => {
+  const { isLoggedIn } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<any | null>(null);
@@ -17,41 +18,10 @@ const Login = () => {
   const router = useRouter();
 
   useEffect(() => {
-    async function fetchUser() {
-      const { data, error } = await getLoginUser();
-      if (data) {
-        router.push("/");
-      }
+    if (isLoggedIn) {
+      router.push("/");
     }
-    fetchUser();
-  });
-
-  // Sync OAuth user profile to database
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        const user = session.user;
-        const metadata = user.user_metadata;
-
-        try {
-          await fetch('/api/User?action=upsert', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: user.id,
-              email: user.email,
-              name: metadata?.full_name || metadata?.name || null,
-              profile_image: metadata?.avatar_url || metadata?.picture || null,
-            }),
-          });
-        } catch (err) {
-          console.error('Failed to sync user:', err);
-        }
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  }, [isLoggedIn, router]);
 
   const LoginHandle = async () => {
     setError(null);

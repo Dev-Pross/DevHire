@@ -3,14 +3,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { useResumeUpload } from "../utiles/useUploadResume";
 import toast from "react-hot-toast";
 import { API_URL } from "../utiles/api";
+import { useUser } from "../utiles/UserContext";
 
 const Tailor_resume = () => {
-  const resume = sessionStorage.getItem("resume");
-  const [loading, setLoading] = useState<boolean>(false);
+  const { user, loading, isLoggedIn } = useUser();
+  const resume = user.resume_url;
+  const [localLoading, setLocalLoading] = useState<boolean>(false);
   const [description, setDescription] = useState<string>();
   const [selectedTemplate, setSelectedTemplate] = useState<number>(0);
   const [tailoredUrl, setTailoredUrl] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string>("");
 
   const resumeTemplates = [
     { id: 0, name: "Template 0", preview: "/templete-0.png", description: "Professional Modern Template" },
@@ -25,7 +26,7 @@ const Tailor_resume = () => {
       toast.error("Enter a job description to proceed");
       return;
     }
-    setLoading(true);
+    setLocalLoading(true);
     try {
       const response = await fetch(`${API_URL}/tailor`, {
         method: "POST",
@@ -34,7 +35,7 @@ const Tailor_resume = () => {
       });
       const data = await response.json();
       if (data.payload) {
-        setLoading(false);
+        setLocalLoading(false);
         const base64PDF = data.payload[0];
         const binary = atob(base64PDF);
         const len = binary.length;
@@ -49,20 +50,11 @@ const Tailor_resume = () => {
     } catch (e: any) {
       console.log(e);
       toast.error("Something went wrong, please retry later.");
-      setLoading(false);
+      setLocalLoading(false);
     }
   };
 
-  useEffect(() => {
-    try {
-      const id = sessionStorage.getItem("id");
-      if (id) setUserId(id);
-    } catch (e: any) {
-      toast.error("Please login to proceed");
-    }
-  }, []);
-
-  const { fileInputRef, uploading, uploadError, uploadSuccess, uploadedUrl, onUploadClick } = useResumeUpload(userId);
+  const { fileInputRef, uploading, uploadError, uploadSuccess, uploadedUrl, onUploadClick } = useResumeUpload(user.id || "");
 
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col md:flex-row p-4 md:p-8 gap-5">
@@ -88,11 +80,11 @@ const Tailor_resume = () => {
             />
             <button
               onClick={tailorButton}
-              disabled={loading}
-              className={`${loading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-emerald-600"} bg-emerald-500 transition-all w-12 h-12 md:w-14 md:h-14 text-black font-bold rounded-full flex items-center justify-center`}
+              disabled={localLoading}
+              className={`${localLoading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-emerald-600"} bg-emerald-500 transition-all w-12 h-12 md:w-14 md:h-14 text-black font-bold rounded-full flex items-center justify-center`}
               type="button"
             >
-              {loading ? (
+              {localLoading ? (
                 <svg className="animate-spin h-5 w-5 text-black" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
@@ -110,7 +102,7 @@ const Tailor_resume = () => {
 
       {/* Right panel - Preview or Templates */}
       <div className="order-1 md:order-2 w-full md:w-1/2 lg:w-3/5 h-auto md:h-full flex flex-col gap-6">
-        {loading ? (
+        {localLoading ? (
           <span className="flex items-center justify-center h-[inherit] gap-3 flex-col mt-1/2">
             <div className="w-12 h-12 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" />
             <p className="text-gray-400">Tailoring your resume...</p>
@@ -133,7 +125,7 @@ const Tailor_resume = () => {
             </div>
           )
         )}
-        {!tailoredUrl && !loading && (
+        {!tailoredUrl && !localLoading && (
           <>
             {/* Resume file badge */}
             <div className="flex gap-3 justify-center items-center">

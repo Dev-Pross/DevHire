@@ -1,13 +1,14 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useResumeUpload } from "../utiles/useUploadResume";
 import toast from "react-hot-toast";
 import { API_URL } from "../utiles/api";
+import { useUser } from "../utiles/UserContext";
 
 const PortfolioPage = () => {
-  const [resume, setResume] = useState<string>("");
-  const [userId, setUserId] = useState<string>("");
-  const { fileInputRef, onUploadClick } = useResumeUpload(userId);
+  const { user, loading: userLoading, isLoggedIn } = useUser();
+  const resume = user.resume_url || "";
+  const { fileInputRef, onUploadClick } = useResumeUpload(user.id || "");
   const [selectedTemplate, setSelectedTemplate] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [code, setCode] = useState<string>("");
@@ -46,17 +47,6 @@ const PortfolioPage = () => {
     { id: 3, name: "Template 3", preview: "/portfolio_4.png", description: "Minimalist Clean Template" },
     { id: 4, name: "Template 4", preview: "/portfolio_5.png", description: "Minimalist Clean Template" },
   ];
-
-  useEffect(() => {
-    try {
-      const id = sessionStorage.getItem("id");
-      const resume = sessionStorage.getItem("resume");
-      if (resume) setResume(resume);
-      if (id) setUserId(id);
-    } catch (e: any) {
-      toast.error("Please login to proceed");
-    }
-  }, []);
 
   return (
     <div className="min-h-screen lg:h-full flex flex-col p-4 md:p-8 gap-5">

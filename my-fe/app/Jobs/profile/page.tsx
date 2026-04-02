@@ -57,14 +57,23 @@ const ProfilePage = () => {
               <div className="absolute inset-0 bg-emerald-500/30 rounded-full blur-xl opacity-50 group-hover:opacity-75 transition duration-300" />
               <div className="relative bg-[#141414] rounded-full p-2 border-2 border-white/[0.08]">
                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden bg-gradient-to-br from-emerald-500/30 to-emerald-700/30 p-1">
-                  <div className="w-full h-full rounded-full bg-[#141414] flex items-center justify-center">
-                    <Image
-                      src="/profile.svg"
-                      alt="Profile"
-                      width={80}
-                      height={80}
-                      className="rounded-full md:w-[100px] md:h-[100px]"
-                    />
+                  <div className="w-full h-full rounded-full bg-[#141414] flex items-center justify-center overflow-hidden">
+                    {data?.profile_image ? (
+                      <img
+                        src={data.profile_image}
+                        alt="Profile"
+                        className="w-full h-full object-cover rounded-full"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <Image
+                        src="/profile.svg"
+                        alt="Profile"
+                        width={80}
+                        height={80}
+                        className="rounded-full md:w-[100px] md:h-[100px]"
+                      />
+                    )}
                   </div>
                 </div>
               </div>

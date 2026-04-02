@@ -3,70 +3,16 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../utiles/supabaseClient";
 import Image from "next/image";
-import getLoginUser from "../utiles/getUserData";
-import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { useUser } from "../utiles/UserContext";
 
 const Navbar = () => {
-  const [user, setUser] = React.useState<any>(null);
+  const { user, loading, isLoggedIn, logout } = useUser();
   const [open, setOpen] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [id, setId] = useState<any | null>(null);
-  const [resume, setResume] = useState<any | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   useEffect(() => {
-    const resume_url = sessionStorage.getItem("resume");
-    async function getResume() {
-      const { data, error } = await getLoginUser();
-      if (error) {
-        toast.error(`Error fetching user: ${error}`);
-      } else if (data?.user) {
-        console.log("loggedin");
-      } else {
-        console.log("No user is logged in.");
-      }
-      sessionStorage.setItem("id", data?.user.user_metadata.sub);
-      setId(data?.user.user_metadata.sub);
-      sessionStorage.setItem("name", data?.user.user_metadata.username);
-      sessionStorage.setItem("email", data?.user.user_metadata.email);
-
-      if (id) {
-        const res = await fetch(`/api/User?id=${id}`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
-        const resume_data = await res.json();
-        if (!resume_url) {
-          sessionStorage.setItem("resume", resume_data.user.resume_url);
-          setResume(resume_data.user.resume_url);
-        } else setResume(resume_url);
-        if (resume_data.user.linkedin_context) {
-          sessionStorage.setItem("Lcontext", "true");
-        } else {
-          sessionStorage.setItem("Lcontext", "false");
-        }
-        if (resume_data.user?.profile_image) {
-          setProfileImage(resume_data.user.profile_image);
-        }
-      }
-    }
-    getResume();
-  }, [id]);
-
-  useEffect(() => {
-    async function fetchUser() {
-      const { data, error } = await getLoginUser();
-      if (data) {
-        setUser(data?.user.user_metadata);
-      }
-    }
-    fetchUser();
-
     function handleClickOutside(event: { target: any }) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setOpen(false);
@@ -84,12 +30,8 @@ const Navbar = () => {
   }, []);
 
   function logoutHandler() {
-    setTimeout(async () => {
-      setUser(null);
-      sessionStorage.clear();
-      const { error } = await supabase.auth.signOut();
-      if (error) console.log("error in logging out: ", error);
-      window.location.href = "/";
+    setTimeout(() => {
+      logout();
     }, 1000);
   }
 
@@ -141,7 +83,7 @@ const Navbar = () => {
 
         {/* Desktop User Actions */}
         <div className="hidden lg:flex items-center gap-3">
-          {!user ? (
+          {!isLoggedIn ? (
             <div className="flex items-center gap-3">
               <Link
                 href="/login"
@@ -163,9 +105,9 @@ const Navbar = () => {
                 onClick={() => setOpen(!open)}
                 onMouseEnter={() => setOpen(true)}
               >
-                {profileImage ? (
+                {user.profile_image ? (
                   <img
-                    src={profileImage}
+                    src={user.profile_image}
                     alt="Profile"
                     className="w-7 h-7 rounded-full object-cover border border-white/10"
                     referrerPolicy="no-referrer"
@@ -242,7 +184,7 @@ const Navbar = () => {
             </Link>
           ))}
           <div className="border-t border-white/[0.06] mt-2 pt-3">
-            {!user ? (
+            {!isLoggedIn ? (
               <div className="flex flex-col gap-2">
                 <Link
                   href="/login"

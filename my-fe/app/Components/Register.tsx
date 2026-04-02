@@ -3,9 +3,10 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "../utiles/supabaseClient";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import getLoginUser from "../utiles/getUserData";
+import { useUser } from "../utiles/UserContext";
 
 const Register = () => {
+  const { isLoggedIn } = useUser();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
@@ -17,14 +18,10 @@ const Register = () => {
   const router = useRouter();
 
   useEffect(() => {
-    async function fetchUser() {
-      const { data, error } = await getLoginUser();
-      if (data) {
-        router.push("/");
-      }
+    if (isLoggedIn) {
+      router.push("/");
     }
-    fetchUser();
-  });
+  }, [isLoggedIn, router]);
 
   const RegisterHandler = () => {
     setError(null);

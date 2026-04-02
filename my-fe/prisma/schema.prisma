@@ -7,13 +7,30 @@ datasource db {
 }
 
 model User {
-  id                 String    @id @default(uuid()) @db.Uuid
-  email              String    @unique
+  id                 String             @id @default(uuid()) @db.Uuid
+  email              String             @unique
   name               String?
   resume_url         String?
   applied_jobs       String[]
-  linkedin_context   Json?     @db.Json
-  context_updated_at DateTime? @db.Timestamp(6)
-  user_data          Json?     @db.Json
+  linkedin_context   Json?              @db.Json
+  context_updated_at DateTime?          @db.Timestamp(6)
+  user_data          Json?              @db.Json
   profile_image      String?
+  workflow_sessions  workflow_sessions[]
+
+  @@map("User")
+}
+
+model workflow_sessions {
+  id             String   @id @db.Uuid
+  user_id        String   @db.Uuid
+  workflow_type  String   @db.VarChar(20)
+  status         String   @default("pending") @db.VarChar(20)
+  input_data     Json?    @db.JsonB
+  output_data    Json?    @db.JsonB
+  last_active_at DateTime @default(now()) @db.Timestamptz(6)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  user           User     @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
 }
