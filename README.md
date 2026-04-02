@@ -102,7 +102,322 @@ DevHire is a **full-stack AI automation platform** that:
 
 ---
 
-## 📁 Project Structure
+## 🧠 Frontend Architecture & State Management
+
+### Frontend State Management Flow
+
+```
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                        Frontend State Management Flow                          │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────┐
+   │  App Load → layout.tsx wraps with <UserProvider>           │
+   └─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+   ┌──────────────────────────────────────────────────────────────┐
+   │  UserContext.tsx::fetchUserData()                           │
+   │  ─────────────────────────────────────────────────────────  │
+   │  1. supabase.auth.getSession() → Get auth token from cookie │
+   │  2. /api/User?id={userId} → Fetch from public.User table   │
+   │  3. Extract: id, email, name, resume_url, profile_image    │
+   │  4. Store in sessionStorage (backup)                        │
+   │  5. Sync to context state                                   │
+   └──────────────────────────────────────────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+          ▼                   ▼                   ▼
+   ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐
+   │ UserContext  │  │ SessionStor. │  │ IndexedDB        │
+   │ (React State)│  │ (Backup)     │  │ (Job Cache)      │
+   │              │  │              │  │                  │
+   │ • id         │  │ • id         │  │ • Fetched Jobs   │
+   │ • email      │  │ • email      │  │ • Apply Progress │
+   │ • name       │  │ • name       │  │ • Results        │
+   │ • resume_url │  │ • resume     │  │ • Status         │
+   │ • profile... │  │ • Lcontext   │  │                  │
+   │ • loading    │  └──────────────┘  └──────────────────┘
+   │ • isLoggedIn │
+   └──────────────┘
+        │
+        └─────────────────────────────────┬──────────────────────────────┐
+                                          │                              │
+                    ┌─────────────────────▼────────────────────┐         │
+                    │    Components using useUser()           │         │
+                    ├──────────────────────────────────────────┤         │
+                    │ • Navbar                                 │         │
+                    │ • hero-section (Find Jobs button)        │         │
+                    │ • Tailor_resume (resume_url)             │         │
+                    │ • PortfolioPage (resume_url)             │         │
+                    │ • Jobs (user.id for API calls)           │         │
+                    │ • Profile (user data display)            │         │
+                    └──────────────────────────────────────────┘         │
+                                                                          │
+                    ┌─────────────────────────────────────────┐          │
+                    │  Backend API Calls                      │          │
+                    ├─────────────────────────────────────────┤          │
+                    │ • /get-jobs (resume_url)                │◄─────────┘
+                    │ • /apply-jobs (user_id, resume_url)    │
+                    │ • /tailor (job_desc, resume_url)       │
+                    │ • /portfolio (resume_url)              │
+                    └─────────────────────────────────────────┘
+```
+
+### Key Insight: Single Fetch Strategy ⚡
+- **One API call per session**: User data fetched once when app loads
+- **Context as source of truth**: All components read from UserContext via `useUser()` hook
+- **SessionStorage as backup**: Persists across page refreshes for edge cases  
+- **No polling**: No 2-second intervals or duplicate API calls
+- **Resume URL ready immediately**: Available on landing page for all features
+
+---
+
+## 🔐 Authentication & Session Persistence
+
+### Complete Auth Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                  Authentication & Session Persistence                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+   First Visit/Login                          Return Visit (Persistent)
+   ────────────────                           ─────────────────────────
+        │                                            │
+        ▼                                            ▼
+   ┌─────────────────┐                        ┌──────────────────┐
+   │ /login or       │                        │ App Load          │
+   │ /register       │                        │ (page.tsx)        │
+   └─────────────────┘                        └──────────────────┘
+        │                                            │
+        ▼                                            ▼
+   ┌─────────────────────────────────┐        ┌──────────────────────────┐
+   │ Email/Pass or Google OAuth      │        │ Check Supabase Cookie    │
+   │ supabase.auth.signIn*()         │        │ (sb-{projectid}-auth)   │
+   └─────────────────────────────────┘        └──────────────────────────┘
+        │                                            │
+        ▼                                            ▼
+   ┌─────────────────────────────────┐        ┌──────────────────────────┐
+   │ Supabase Sets Cookie            │        │ UserContext.fetchData()  │
+   │ (httpOnly, 24h expiry)          │        │ Uses existing cookie!    │
+   │ + Emits "SIGNED_IN" event       │        └──────────────────────────┘
+   └─────────────────────────────────┘                  │
+        │                                               ▼
+        │                                        ┌─────────────────┐
+        └───────────┬──────────────────────────►│ User data ready │
+                    │                            │ No re-login!    │
+                    ▼                            └─────────────────┘
+        ┌──────────────────────────┐
+        │ UserContext.fetchData()  │
+        │ (Same flow for both)     │
+        │ ✓ Fetches from DB        │
+        │ ✓ Syncs to sessionStor.  │
+        │ ✓ Provides via useUser() │
+        └──────────────────────────┘
+                    │
+                    ▼
+        ┌──────────────────────────┐
+        │ User ready to use app    │
+        │ ✓ resume_url available   │
+        │ ✓ profile_image ready    │
+        │ ✓ Can access all pages   │
+        └──────────────────────────┘
+
+   ┌────────────────────────────────────────────────────────────┐
+   │ KEY: Cookie persistence = Users stay logged in until 24h  │
+   │ No re-login needed on page refresh or app restart!        │
+   └────────────────────────────────────────────────────────────┘
+```
+
+### Resume URL Fetching Strategy 📄
+
+1. **At Login**: UserContext fetches resume_url from `/api/User` (PostgreSQL)
+2. **In sessionStorage**: Backup stored as `resume` key  
+3. **Used by**: Hero section (Find Jobs button), Tailor Resume, Portfolio, Jobs pages
+4. **No re-fetch**: All components read from UserContext context - never re-fetch from DB
+5. **On Upload**: Resume upload hook emits `resume-uploaded` event → UserContext refreshes data
+
+```javascript
+// In any component:
+const { user } = useUser();
+// user.resume_url is immediately available - no loading needed!
+```
+
+---
+
+## 🎨 Component Documentation
+
+### Core Components Using UserContext
+
+| Component | Location | Purpose | Depends On |
+|-----------|----------|---------|-----------|
+| **UserProvider** | `app/utiles/UserContext.tsx` | Centralizes user data fetching and caching | Supabase session + `/api/User` |
+| **Navbar** | `app/Components/Navbar.tsx` | Header with user profile + logout | `useUser()` hook |
+| **hero-section** | `app/Components/Landing-Page/hero-section.tsx` | Landing page - shows "Find Jobs" if resume_url exists | `useUser()` hook |
+| **Tailor_resume** | `app/Components/Tailor_resume.tsx` | Resume tailoring interface | `useUser()` + resume_url |
+| **PortfolioPage** | `app/Components/PortfolioPage.tsx` | Portfolio builder (requires resume) | `useUser()` + resume_url |
+| **Jobs** | `app/Components/Jobs.tsx` | Job search & listing | `useUser()` + user.id |
+| **Login** | `app/Components/Login.tsx` | Email/OAuth login | Supabase auth |
+| **Register** | `app/Components/Register.tsx` | User registration | Supabase auth |
+
+### How to Use UserContext in a Component
+
+```typescript
+import { useUser } from '@/app/utiles/UserContext';
+
+export default function MyComponent() {
+  const { user, loading, isLoggedIn, logout } = useUser();
+
+  if (loading) return <div>Loading user data...</div>;
+  if (!isLoggedIn) return <div>Please log in</div>;
+
+  return (
+    <div>
+      <h1>Hello, {user.name}</h1>
+      <p>Resume: {user.resume_url ? 'Uploaded' : 'Not uploaded'}</p>
+      <button onClick={logout}>Logout</button>
+    </div>
+  );
+}
+```
+
+### useUser() Hook API
+
+```typescript
+const { user, loading, isLoggedIn, logout } = useUser();
+
+// user object shape:
+{
+  id: string;              // Supabase user ID
+  email: string;           // User email
+  name: string;            // User name
+  resume_url: string | null; // S3 URL to uploaded resume
+  profile_image: string | null; // Profile picture URL
+  linkedin_context: string | null; // LinkedIn user context for job search
+}
+
+// loading: boolean - True while fetching user data on app load
+// isLoggedIn: boolean - True if user has valid session
+// logout(): Promise<void> - Sign out user and clear data
+```
+
+---
+
+## 📡 API Endpoints Reference
+
+### Frontend API Endpoints (`my-fe/app/api/`)
+
+| Endpoint | Method | Purpose | Parameters |
+|----------|--------|---------|-----------|
+| `/api/User` | `GET` | Fetch user profile | `id` (query param) |
+| `/api/User` | `POST` | Update user profile | `id`, `name`, `email`, etc. |
+| `/api/resume-upload` | `POST` | Handle resume file upload | `file` (FormData) |
+| `/api/portfolio-generate` | `POST` | Generate portfolio website | `user_id`, `resume_url` |
+
+### Backend API Endpoints (FastAPI)
+
+| Endpoint | Method | Purpose | Used By |
+|----------|--------|---------|---------|
+| `/get-jobs` | `POST` | Parse resume + scrape LinkedIn | Jobs component |
+| `/tailor` | `POST` | Tailor resume to job description | Tailor_resume component |
+| `/apply-jobs` | `POST` | Apply to jobs with tailored resume | Apply component |
+| `/portfolio` | `POST` | Generate AI portfolio website | PortfolioPage component |
+| `/store-cookie` | `POST` | Receive LinkedIn auth from extension | Chrome Extension |
+| `/logout` | `POST` | Clear session + LinkedIn context | Navbar component |
+
+---
+
+## 💾 Database Schema
+
+### PostgreSQL (Prisma ORM)
+
+```prisma
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  resume_url      String?   // S3 URL to uploaded resume
+  profile_image   String?   // Profile picture URL
+  linkedin_context String?  // LinkedIn session for job scraping
+  
+  appliedJobs     AppliedJob[]
+  portfolios      Portfolio[]
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+}
+
+model AppliedJob {
+  id              String    @id @default(cuid())
+  user_id         String
+  job_url         String
+  company_name    String
+  position        String
+  tailored_resume String    // Resume tailored for this job
+  status          String    // "applied", "pending", "rejected", etc.
+  
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+}
+
+model Portfolio {
+  id              String    @id @default(cuid())
+  user_id         String
+  portfolio_url   String    // URL to generated portfolio website
+  ai_content      String    // AI-generated portfolio content
+  
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+}
+```
+
+### Supabase Authentication
+
+- **Provider**: Email + Google OAuth
+- **Session Storage**: httpOnly cookies (24h expiry)
+- **User Sync**: Supabase `auth.users` table ↔ PostgreSQL `public.User` table
+
+---
+
+## ⚡ Performance Optimizations
+
+### 1. Single Fetch Strategy
+- **Problem**: Components were fetching user data independently, causing multiple API calls
+- **Solution**: UserContext fetches once on app load, provides via hook
+- **Benefit**: 1 API call per session instead of N calls
+
+### 2. SessionStorage Backup
+- **Purpose**: Handles page refreshes faster than re-fetching from API
+- **Synced**: Whenever UserContext data changes
+- **Fallback**: If IndexedDB or React Context fails, sessionStorage provides data
+
+### 3. Resume URL Caching
+- **Strategy**: Fetch once at login, store in context + sessionStorage
+- **Eliminates**: Repeated DB queries for `public.User.resume_url`
+- **Used by**: Hero section, Tailor, Portfolio, Jobs - all read from context
+
+### 4. IndexedDB for Job Caching
+- **Stores**: Fetched jobs list, apply progress, results
+- **Advantage**: Offline access, faster queries than API
+- **Updated**: Each time user runs job search
+
+### 5. Lazy Loading Pages
+- **Tailor Resume**: Only available if `user.resume_url` exists
+- **Portfolio**: Only available if resume exists
+- **Find Jobs**: Button hidden until resume is uploaded
+
+### 6. Async Backend Operations  
+- **Scraping**: Runs async without blocking UI
+- **Resume Tailoring**: Streams results via SSE for real-time updates
+- **Portfolio Generation**: Async with progress notifications
+
+---
 
 ```
 DevHire/
