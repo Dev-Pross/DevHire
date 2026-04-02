@@ -14,4 +14,6 @@ model User {
   applied_jobs       String[]
   linkedin_context   Json?     @db.Json
   context_updated_at DateTime? @db.Timestamp(6)
+  user_data          Json?     @db.Json
+  profile_image      String?
 }

@@ -1329,6 +1329,9 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25, log_cal
     items = list(jobs_dict.items())
     total_batches = (len(items) + batch_size - 1) // batch_size
     
+    if log_callback:
+        log_callback({"progress": 89, "status": "analyzing", "message": "Analyzing job descriptions..."})
+    
     for i in range(0, len(items), batch_size):
         batch = dict(items[i : i + batch_size])
         batch_num = (i // batch_size) + 1
@@ -1346,8 +1349,7 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25, log_cal
                     "status": "batch_ready",
                     "batch_num": batch_num,
                     "total_batches": total_batches,
-                    "jobs": result,           
-                    "message": f"Processed batch {batch_num} of {total_batches}"
+                    "jobs": result
                 })
         except Exception as e:
             print(f"❌ Batch {batch_num} error: {e}")
@@ -1359,11 +1361,13 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25, log_cal
                     "status": "batch_ready",
                     "batch_num": batch_num,
                     "total_batches": total_batches,
-                    "jobs": result,
-                    "message": f"Processed batch {batch_num} of {total_batches}"
+                    "jobs": result
                 })
         
         await asyncio.sleep(0.1)  # Minimal wait between batches
+    
+    if log_callback:
+        log_callback({"progress": 99, "status": "analyzing", "message": f"Analyzed {len(all_extracted)} jobs"})
     
     return all_extracted
 
@@ -1447,7 +1451,7 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
                 
                 current_percent = int(15 + (i / len(sanitized_titles)) * 70)  # range 15-85
                 if log_callback:
-                    log_callback({"progress": current_percent, "status": "searching", "message": f"Scraped {len(title_result)} jobs for {job_title}"})
+                    log_callback({"progress": current_percent, "status": "searching", "message": f"Found {len(title_result)} {job_title} jobs"})
                 if not title_result:
                     print(f"⚠️ No jobs retained after filters for '{job_title}'")
                 print(f"📊 '{job_title}' complete. Total unique jobs: {len(all_jobs)}")
@@ -1543,7 +1547,7 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback):
         titles = user_data_parsed.get("titles", [])
         
         # Phase 3: Playwright Scraping
-        log_callback({"progress": 20, "status": "in_progress", "message": "Initiating Playwright to scrape LinkedIn..."})
+        log_callback({"progress": 20, "status": "in_progress", "message": "Searching LinkedIn for jobs..."})
         
         # Extract credentials from payload
         l_email = input_data.get("linkedin_id")
@@ -1572,7 +1576,7 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback):
 
     # Phase 4: Gemini Batching
     if raw_jobs:
-        log_callback({"progress": 55, "status": "in_progress", "message": f"Analyzing {len(raw_jobs)} job descriptions with Gemini..."})
+        log_callback({"progress": 55, "status": "in_progress", "message": "Analyzing job matches..."})
         
         structured_jobs = await extract_jobs_in_batches(raw_jobs, batch_size=25, log_callback=log_callback)
         

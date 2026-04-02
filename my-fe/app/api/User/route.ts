@@ -51,6 +51,25 @@ export async function POST(request: Request) {
         return new Response(JSON.stringify({success:true,  message:"row updated"}),{
           status: 200
         })
+
+      case "upsert":
+        const { id: upsertId, email: upsertEmail, name: upsertName, profile_image } = body;
+        const upserted = await prisma.user.upsert({
+          where: { email: upsertEmail },
+          update: {
+            name: upsertName || undefined,
+            profile_image: profile_image || undefined,
+          },
+          create: {
+            id: upsertId,
+            email: upsertEmail,
+            name: upsertName,
+            profile_image: profile_image,
+            applied_jobs: [],
+          },
+        });
+        return new Response(JSON.stringify({ success: true, user: upserted }), { status: 200 });
+
       default:
         return new Response(JSON.stringify({ success: false, message: "Invalid action" }), 
         { status: 400 });

@@ -138,6 +138,8 @@ const Jobs = () => {
   const startTime  = useRef(Date.now());
   const accumulatedJobs = useRef<any[]>([]);
   const sseRef = useRef<SSEManager | null>(null);
+  const jobsContainerRef = useRef<HTMLDivElement>(null);
+  const scrollPositionRef = useRef<number>(0);
 
   const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456";
   const IV = "741852963qwerty0";
@@ -218,17 +220,66 @@ const Jobs = () => {
     else setCredentialsReady(true);
   }, [router]);
 
-  // Effect 3 — restore cached jobs if no active stream id
+  // Effect 3 — restore cached jobs OR reconnect to active job
   useEffect(() => {
     let cancelled = false;
 
-    async function restoreCachedJobs() {
+    async function checkActiveOrCached() {
       const activeJobId = localStorage.getItem("fetch_jobs_id");
+
       if (activeJobId) {
+        // Check if job is still running or completed
+        try {
+          const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${activeJobId}`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+
+            if (statusData.status === "completed") {
+              // Job finished while we were away - load results
+              localStorage.removeItem("fetch_jobs_id");
+              const outputJobs = statusData.output_data?.jobs || [];
+              if (outputJobs.length > 0) {
+                accumulatedJobs.current = outputJobs;
+                setJobs(outputJobs);
+                await saveFetchedJobs(outputJobs);
+                setProgress(100);
+                setIsDone(true);
+                hasStarted.current = true;
+                pushLog("Loaded completed job results.", "done");
+              }
+              if (!cancelled) setCacheCheckComplete(true);
+              return;
+            }
+
+            if (statusData.status === "failed") {
+              // Job failed - clear and allow fresh start
+              localStorage.removeItem("fetch_jobs_id");
+              if (!cancelled) setCacheCheckComplete(true);
+              return;
+            }
+
+            if (
+              statusData.status === "running" ||
+              statusData.status === "pending" ||
+              statusData.status === "scraper_raw"
+            ) {
+              // Job still running - reconnect to stream
+              if (!cancelled) {
+                pushLog("Reconnecting to active job...", "processing");
+                setCacheCheckComplete(true);
+                // The main effect (Effect 5) will handle reconnection since activeJobId exists
+              }
+              return;
+            }
+          }
+        } catch (err) {
+          console.error("Failed to check job status:", err);
+        }
         if (!cancelled) setCacheCheckComplete(true);
         return;
       }
 
+      // No active job - check for cached results
       try {
         const cached = await getFetchedJobs();
         if (cancelled) {
@@ -253,7 +304,7 @@ const Jobs = () => {
       }
     }
 
-    restoreCachedJobs();
+    checkActiveOrCached();
     return () => {
       cancelled = true;
     };
@@ -356,14 +407,30 @@ const Jobs = () => {
 
           if (evData?.status === "batch_ready" && Array.isArray(evData.jobs) && evData.jobs.length > 0) {
             accumulatedJobs.current = mergeUniqueJobs(accumulatedJobs.current, evData.jobs);
+            // Preserve scroll position before update
+            if (jobsContainerRef.current) {
+              scrollPositionRef.current = window.scrollY;
+            }
             setJobs([...accumulatedJobs.current]);
+            // Restore scroll position after React re-render
+            requestAnimationFrame(() => {
+              window.scrollTo(0, scrollPositionRef.current);
+            });
             await appendFetchedJobs(evData.jobs);
           }
 
           if (evData?.status === "done") {
             if (Array.isArray(evData.jobs) && evData.jobs.length > 0) {
               accumulatedJobs.current = mergeUniqueJobs(accumulatedJobs.current, evData.jobs);
+              // Preserve scroll position before update
+              if (jobsContainerRef.current) {
+                scrollPositionRef.current = window.scrollY;
+              }
               setJobs([...accumulatedJobs.current]);
+              // Restore scroll position after React re-render
+              requestAnimationFrame(() => {
+                window.scrollTo(0, scrollPositionRef.current);
+              });
             }
 
             await saveFetchedJobs(accumulatedJobs.current);
@@ -504,7 +571,7 @@ const Jobs = () => {
       </div>
 
       {/* ─── Job Cards Area ───────────────────────────────────── */}
-      <div className={`flex-1 p-4 md:p-6 lg:p-8 transition-all duration-300 ${
+      <div ref={jobsContainerRef} className={`flex-1 p-4 md:p-6 lg:p-8 transition-all duration-300 ${
         sidebarOpen ? "lg:ml-72" : "lg:ml-12"
       }`}>
         {USE_SAMPLE_DATA ? (

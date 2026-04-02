@@ -8,11 +8,14 @@ import getLoginUser from "../utiles/getUserData";
 import { SSEManager } from "../utiles/sseManager";
 import {
   clearApplyProgress,
+  clearApplyResults,
   finalizeApplyProgress,
   getApplyProgress,
+  getApplyResults,
   initApplyProgress,
   recordApplied,
   recordFailed,
+  saveApplyResults,
   syncApplyProgressFromFinal,
 } from "../utiles/jobStorage";
 
@@ -115,6 +118,8 @@ const Apply: React.FC = () => {
   const [elapsed, setElapsed]               = useState(0);
   const [isDone, setIsDone]                 = useState(false);
   const [retryCount, setRetryCount]         = useState(0);
+  const [appliedCount, setAppliedCount]     = useState(0);
+  const [skippedCount, setSkippedCount]     = useState(0);
 
   const logEndRef   = useRef<HTMLDivElement>(null);
   const startTime   = useRef(Date.now());
@@ -170,7 +175,90 @@ const Apply: React.FC = () => {
       }
       setUrl(pdf);
 
-      if (!jobData) {
+      // Smart initialization: Check for cached results vs fresh job selections
+      const cachedResults = await getApplyResults().catch(() => null);
+
+      // If no new job selections but we have cached results, show them
+      if (!jobData && cachedResults && cachedResults.completedAt) {
+        if (!cancelled) {
+          setResults({
+            applied: cachedResults.applied,
+            failed: cachedResults.failed,
+            total_jobs: cachedResults.total_jobs,
+          });
+          setAppliedCount(cachedResults.applied.length);
+          setSkippedCount(cachedResults.failed.length);
+          setProgress(100);
+          setIsDone(true);
+          hasStarted.current = true;
+          pushLog("Showing results from your last application session.", "done");
+        }
+        return;
+      }
+
+      // Check if there's an active job to reconnect to
+      let isReconnecting = false;
+      const activeJobId = localStorage.getItem("apply_jobs_id");
+      if (activeJobId && !jobData) {
+        try {
+          const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${activeJobId}`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+
+            if (statusData.status === 'completed') {
+              localStorage.removeItem("apply_jobs_id");
+              const outputData = statusData.output_data || {};
+              const applied = (outputData.applied ?? []).flat(Infinity);
+              const failed = (outputData.failed ?? []).flat(Infinity);
+
+              if (!cancelled) {
+                setResults({ applied, failed, total_jobs: outputData.total_jobs || applied.length + failed.length });
+                setAppliedCount(applied.length);
+                setSkippedCount(failed.length);
+                await saveApplyResults(applied, failed, outputData.total_jobs || applied.length + failed.length);
+                setProgress(100);
+                setIsDone(true);
+                hasStarted.current = true;
+                pushLog("Loaded completed application results.", "done");
+              }
+              return;
+            }
+
+            if (statusData.status === 'failed') {
+              localStorage.removeItem("apply_jobs_id");
+              // Fall through to error handling
+            }
+
+            // If running or pending, restore jobs from input_data and let Effect 4 handle SSE reconnection
+            if (statusData.status === 'running' || statusData.status === 'pending') {
+              const inputJobs = statusData.input_data?.jobs || [];
+              if (inputJobs.length > 0 && !cancelled) {
+                setJobs(inputJobs);
+                isReconnecting = true;
+                // Initialize progress tracking for reconnection
+                await initApplyProgress(inputJobs.length).catch(() => {});
+                
+                // Restore counts from existing progress if available
+                const existingProgress = await getApplyProgress().catch(() => null);
+                if (existingProgress) {
+                  setAppliedCount(existingProgress.applied.length);
+                  setSkippedCount(existingProgress.failed.length);
+                }
+                
+                pushLog("Reconnecting to active job...", "processing");
+                // Continue to fetch credentials - Effect 4 will connect to SSE
+              } else if (!cancelled) {
+                // No input jobs found - clean up and let fall through
+                localStorage.removeItem("apply_jobs_id");
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Failed to check job status:", err);
+        }
+      }
+
+      if (!jobData && !isReconnecting) {
         const persisted = await getApplyProgress().catch(() => null);
         if (!cancelled && persisted && (persisted.applied.length > 0 || persisted.failed.length > 0)) {
           const appliedUrls = persisted.applied.map((item) => item.job_url);
@@ -183,6 +271,8 @@ const Apply: React.FC = () => {
           });
           setProgress(100);
           setIsDone(true);
+          setAppliedCount(persisted.applied.length);
+          setSkippedCount(persisted.failed.length);
           hasStarted.current = true;
           pushLog("Loaded saved application progress from previous session.", "done");
           return;
@@ -193,7 +283,11 @@ const Apply: React.FC = () => {
         return;
       }
 
-      setJobs(JSON.parse(jobData));
+      // If we have new job selections (not reconnecting), clear any old cached results
+      if (!isReconnecting) {
+        await clearApplyResults().catch(() => {});
+        setJobs(JSON.parse(jobData!));
+      }
 
       if (!id) {
         toast.error("Please login to start");
@@ -352,15 +446,25 @@ const Apply: React.FC = () => {
 
           if (evData?.status === "applied" && evData?.job_url) {
             await recordApplied(evData.job_url, evData.job_company || evData.company_name);
+            const progress = await getApplyProgress();
+            if (progress) {
+              setAppliedCount(progress.applied.length);
+            }
           }
 
           if (evData?.status === "skipped" && evData?.job_url) {
             await recordFailed(evData.job_url, evData.job_company || evData.company_name, evData.message);
+            const progress = await getApplyProgress();
+            if (progress) {
+              setSkippedCount(progress.failed.length);
+            }
           }
 
           if (evData?.progress === 100 && evData?.status === "done") {
             manager.destroy();
             localStorage.removeItem("apply_jobs_id");
+            // Clear selected jobs from sessionStorage to prevent re-triggering
+            sessionStorage.removeItem("jobs");
 
             let finalResult: any = null;
             try {
@@ -379,6 +483,8 @@ const Apply: React.FC = () => {
               sessionStorage.setItem("applied", String(applied.length));
               setResults(finalResult);
               await syncApplyProgressFromFinal(applied, failed, finalResult.total_jobs || jobs.length);
+              // Save final results to IndexedDB for future reference
+              await saveApplyResults(applied, failed, finalResult.total_jobs || jobs.length);
             } else {
               const persisted = await getApplyProgress();
               if (persisted) {
@@ -415,9 +521,7 @@ const Apply: React.FC = () => {
     startStream();
   }, [user, jobs, dbData, Progress_userId, url, credentialsReady, retryCount]);
 
-  /* ── Count applied/skipped from log ── */
-  const appliedCount = activityLog.filter(e => e.type === "applied").length;
-  const skippedCount = activityLog.filter(e => e.type === "skipped").length;
+
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden flex flex-col">
@@ -501,6 +605,7 @@ const Apply: React.FC = () => {
                 sseRef.current = null;
                 localStorage.removeItem("apply_jobs_id");
                 void clearApplyProgress();
+                void clearApplyResults();
                 hasStarted.current = false;
                 setError(null);
                 setResults(null);

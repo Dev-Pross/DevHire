@@ -2,6 +2,49 @@ import { useState, useRef } from "react";
 import { supabase } from "../utiles/supabaseClient";
 import toast from "react-hot-toast";
 
+function extractFilePathFromUrl(signedUrl: string): string | null {
+  try {
+    // Signed URLs look like: .../storage/v1/object/sign/user-resume/filename.pdf?token=...
+    const url = new URL(signedUrl);
+    const pathMatch = url.pathname.match(/\/storage\/v1\/object\/sign\/user-resume\/(.+)/);
+    if (pathMatch) {
+      return decodeURIComponent(pathMatch[1]);
+    }
+    // Also handle public URLs: .../storage/v1/object/public/user-resume/filename.pdf
+    const publicMatch = url.pathname.match(/\/storage\/v1\/object\/public\/user-resume\/(.+)/);
+    if (publicMatch) {
+      return decodeURIComponent(publicMatch[1]);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function deleteOldResume(userId: string): Promise<void> {
+  try {
+    // Fetch current resume_url from user
+    const res = await fetch(`/api/User?id=${userId}`, { method: "GET", credentials: "include" });
+    const data = await res.json();
+    const currentResumeUrl = data?.user?.resume_url;
+
+    if (!currentResumeUrl) return;
+
+    const filePath = extractFilePathFromUrl(currentResumeUrl);
+    if (!filePath) return;
+
+    // Delete old file from bucket
+    const { error } = await supabase.storage.from("user-resume").remove([filePath]);
+    if (error) {
+      console.warn("Failed to delete old resume:", error.message);
+      // Continue anyway - don't block upload
+    }
+  } catch (err) {
+    console.warn("Error deleting old resume:", err);
+    // Continue anyway
+  }
+}
+
 export function useResumeUpload(userId: string | undefined) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -41,6 +84,11 @@ export function useResumeUpload(userId: string | undefined) {
     setUploadedUrl(null);
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Delete old resume before uploading new one
+    if (userId) {
+      await deleteOldResume(userId);
+    }
 
     setUploading(true);
     try {

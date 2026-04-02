@@ -14,6 +14,7 @@ const Navbar = () => {
   const [id, setId] = useState<any | null>(null);
   const [resume, setResume] = useState<any | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -48,6 +49,9 @@ const Navbar = () => {
           sessionStorage.setItem("Lcontext", "true");
         } else {
           sessionStorage.setItem("Lcontext", "false");
+        }
+        if (resume_data.user?.profile_image) {
+          setProfileImage(resume_data.user.profile_image);
         }
       }
     }
@@ -159,11 +163,20 @@ const Navbar = () => {
                 onClick={() => setOpen(!open)}
                 onMouseEnter={() => setOpen(true)}
               >
-                <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
+                {profileImage ? (
+                  <img
+                    src={profileImage}
+                    alt="Profile"
+                    className="w-7 h-7 rounded-full object-cover border border-white/10"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                )}
                 <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>

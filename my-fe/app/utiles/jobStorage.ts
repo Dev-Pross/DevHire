@@ -228,3 +228,27 @@ export async function getApplyProgress(): Promise<ApplyProgressRecord | null> {
 export async function clearApplyProgress(): Promise<void> {
   await idbDelete("apply_progress");
 }
+
+export interface ApplyResultsRecord {
+  applied: string[];       // Array of job URLs that were successfully applied
+  failed: string[];        // Array of job URLs that failed/skipped
+  total_jobs: number;      // Total number of jobs attempted
+  completedAt: number;     // Timestamp of completion
+}
+
+export async function saveApplyResults(applied: string[], failed: string[], total_jobs: number): Promise<void> {
+  await idbSet("apply_results", {
+    applied: applied || [],
+    failed: failed || [],
+    total_jobs,
+    completedAt: Date.now(),
+  } satisfies ApplyResultsRecord);
+}
+
+export async function getApplyResults(): Promise<ApplyResultsRecord | null> {
+  return idbGet<ApplyResultsRecord>("apply_results");
+}
+
+export async function clearApplyResults(): Promise<void> {
+  await idbDelete("apply_results");
+}

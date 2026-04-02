@@ -1380,13 +1380,21 @@ async def main(
 
             company = normalize_company_name(company_name)
 
+            # Verbose console log for debugging
             if success:
-                msg = f"Applied ({jobs_applied_counter[0]}/{total_jobs}) - {company}"
+                print(f"[apply] ✅ Applied ({jobs_applied_counter[0]}/{total_jobs}) - {company}")
             else:
-                reason_part = f" ({reason})" if reason else ""
-                msg = f"Failed ({jobs_applied_counter[0]}/{total_jobs}) - {company}{reason_part}"
+                reason_part = f": {reason}" if reason else ""
+                print(f"[apply] ❌ Skipped ({jobs_applied_counter[0]}/{total_jobs}) - {company}{reason_part}")
 
+            # User-friendly Redis stream message
             if log_callback:
+                if success:
+                    msg = f"Applied {jobs_applied_counter[0]}/{total_jobs} - {company}"
+                else:
+                    reason_part = f": {reason}" if reason else ""
+                    msg = f"Skipped {jobs_applied_counter[0]}/{total_jobs} - {company}{reason_part}"
+                
                 log_callback({
                     "progress": progress,
                     "status":   "applied" if success else "skipped",
@@ -1546,7 +1554,10 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
             batch_size = 15
             for i in range(0, total_jobs, batch_size):
                 batch_jobs = jobs_to_apply[i:i+batch_size]
-                log_callback({"progress": 10, "status": "in_progress", "message": f"Tailoring batch {(i//batch_size)+1} of {((total_jobs-1)//batch_size)+1}..."})
+                # Only log to Redis on the first batch to reduce noise
+                if i == 0:
+                    log_callback({"progress": 10, "status": "tailoring", "message": "Tailoring resumes..."})
+                print(f"[tailor] Processing batch {(i//batch_size)+1} of {((total_jobs-1)//batch_size)+1}...")
                 # process_batch is synchronous logic running outside loop
                 tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0) # template=0 explicitly
                 await jobs_queue.put(tailored_batch)
