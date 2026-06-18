@@ -21,3 +21,4 @@ groq
 redis[hiredis]
 google-cloud-run
 sse-starlette
+jinja2

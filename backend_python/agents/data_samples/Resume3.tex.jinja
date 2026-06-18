@@ -1,0 +1,141 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[left=1cm, top=1cm, right=1cm, bottom=1cm]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\usepackage{fontawesome5}
+
+% --- COLORS ---
+\definecolor{headerblue}{RGB}{0, 60, 120}
+\definecolor{labelgrey}{RGB}{80, 80, 80}
+
+% --- SETTINGS ---
+\pagestyle{empty} % No page numbers
+\setlength{\parindent}{0pt}
+\setlength{\tabcolsep}{10pt} % Spacing between Date and Content columns
+
+% --- CUSTOM COMMANDS ---
+
+% 1. Section Heading (Uppercase, Bold, Blue, with Line)
+\titleformat{\section}
+{\Large\bfseries\color{headerblue}\uppercase}
+{}
+{0em}
+{}[\titlerule]
+\titlespacing{\section}{0pt}{8pt}{8pt}
+
+% 2. Main Header Command
+\newcommand{\gridheader}[3]{
+    \vspace{2pt}
+    \noindent
+    \begin{minipage}[t]{2.8cm}
+        \raggedleft \small \bfseries \color{labelgrey} #1
+    \end{minipage}%
+    \hspace{0.2cm}\textcolor{labelgrey}{\vline}\hspace{0.2cm}%
+    \begin{minipage}[t]{\dimexpr\linewidth-3.4cm\relax}
+        \textbf{\large #2} \hfill \textit{\small #3}
+    \end{minipage}
+    \par\vspace{1pt}
+}
+
+% 3. Simple Skill Row
+\newcommand{\skillrow}[2]{
+    \noindent
+    \begin{minipage}[t]{2.8cm}
+        \raggedleft \small \bfseries \color{labelgrey} #1
+    \end{minipage}%
+    \hspace{0.2cm}\textcolor{labelgrey}{\vline}\hspace{0.2cm}%
+    \begin{minipage}[t]{\dimexpr\linewidth-3.4cm\relax}
+        \small #2
+    \end{minipage}
+    \par\vspace{1pt}
+}
+
+% 4. Tighter Lists
+\setlist[itemize]{leftmargin=3.4cm, nosep, topsep=2pt, itemsep=2pt}
+
+\begin{document}
+
+% --- HEADER ---
+\begin{center}
+    {\Huge \textbf{<< static_profile.fullname >> \\[5pt]}}  \vspace{1pt}
+    {\Large \color{headerblue} << job.role >>} \\ \vspace{8pt}
+    
+    \small
+    \faMapMarker* << static_profile.location >> \quad $|$ \quad
+    \faPhone* << static_profile.phone >> \quad $|$ \quad
+    \faEnvelope \ \href{<< static_profile.email.href >>}{<< static_profile.email.text >>} \\ \vspace{3pt}
+    \faLinkedin \ \href{<< static_profile.linkedin.href >>}{LinkedIn} \quad $|$ \quad
+    \faGithub \ \href{<< static_profile.github.href >>}{GitHub} \quad $|$ \quad
+    \faGlobe \ \href{<< static_profile.portfolio.href >>}{Portfolio}
+\end{center}
+
+\vspace{5pt}
+
+\section{Professional Summary}
+\begin{itemize}[leftmargin=0pt, label={}]
+        \item << job.professional_summary >>
+\end{itemize}
+% --- SKILLS ---
+\section{Technical Skills}
+<BLOCK> for skill in job.skills </BLOCK>
+\skillrow{<< skill.category >>}{<BLOCK> for val in skill.values </BLOCK><< val.name >><BLOCK> if not loop.last </BLOCK>, <BLOCK> endif </BLOCK><BLOCK> endfor </BLOCK>}
+<BLOCK> endfor </BLOCK>
+
+% --- PROJECTS ---
+<BLOCK> if job.experience </BLOCK>
+\section{Experience}
+<BLOCK> for exp in job.experience </BLOCK>
+\gridheader{<< exp.date >>}{<< exp.title >>}{<< exp.company >> <BLOCK> if exp.location </BLOCK> - << exp.location >><BLOCK> endif </BLOCK>}
+\begin{itemize} \small
+    <BLOCK> for point in exp.points </BLOCK>
+    \item << point >>
+    <BLOCK> endfor </BLOCK>
+\end{itemize}
+<BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
+
+<BLOCK> if job.projects </BLOCK>
+\section{Projects}
+<BLOCK> for project in job.projects </BLOCK>
+\gridheader{}{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink} <BLOCK> endif </BLOCK>}{<< project.project_line >>}
+\begin{itemize} \small
+    <BLOCK> for point in project.points </BLOCK>
+    \item << point >>
+    <BLOCK> endfor </BLOCK>
+\end{itemize}
+<BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
+
+% --- EDUCATION ---
+\section{Education}
+<BLOCK> for edu in static_profile.education </BLOCK>
+\gridheader{<< edu.date >>}{<< edu.degree >>}{<< edu.institution >>}
+\begin{itemize}[leftmargin=3.4cm, label={}, nosep] \small
+    \item << edu.location >> <BLOCK> if edu.grade </BLOCK> $|$ Grade/GPA: << edu.grade >><BLOCK> endif </BLOCK>
+\end{itemize}
+<BLOCK> endfor </BLOCK>
+
+% --- CERTIFICATIONS ---
+\section{Certifications}
+<BLOCK> for cert in static_profile.certifications </BLOCK>
+\gridheader{}{<< cert.name >>}{}
+<BLOCK> if cert.link </BLOCK>
+\begin{itemize}[leftmargin=3.4cm, label={}, nosep] \small
+    \item \href{<< cert.link >>}{[Link]}
+\end{itemize}
+<BLOCK> endif </BLOCK>
+<BLOCK> endfor </BLOCK>
+
+% --- ACHIEVEMENTS ---
+<BLOCK> if job.achievements </BLOCK>
+\section{Achievements}
+<BLOCK> for ach in job.achievements </BLOCK>
+\gridheader{}{<< ach.name >>}{}
+\begin{itemize}[leftmargin=3.4cm, label={}, nosep] \small
+    \item << ach.description >>
+\end{itemize}
+<BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
+\end{document}

@@ -1,0 +1,179 @@
+\documentclass[a4paper,10pt]{article}
+% FIX 1: Aggressive margins to maximize space (0.6cm)
+\usepackage[left=0.6cm,top=0.6cm,right=0.6cm,bottom=0.6cm,nohead,nofoot]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathpazo} % Palatino Font
+\usepackage{xcolor}
+\usepackage{fontawesome5}
+\usepackage{enumitem}
+\usepackage{calc}
+\usepackage[hidelinks]{hyperref}
+\usepackage{paracol}
+
+% --- COLORS ---
+\definecolor{mainred}{RGB}{185, 0, 0}
+\definecolor{headergray}{RGB}{60, 60, 60}
+
+% --- GLOBAL SPACING ---
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\raggedright
+
+% --- COMMANDS ---
+
+% Compact Section Header
+\newcommand{\resumesection}[1]{
+    \vspace{8pt} % Reduced from 12pt
+    {\large \textsc{\textbf{#1}}} \\[-3pt]
+    {\color{mainred}\rule{2cm}{2pt}}
+    \vspace{4pt} % Reduced from 8pt
+}
+
+% Compact Skill Bar
+\newcommand{\skill}[3]{
+    \noindent
+    \begin{tabular*}{\linewidth}{@{}l@{\extracolsep{\fill}}r@{}}
+        \textbf{\small #1} & {\footnotesize #2} \\
+    \end{tabular*}%
+    \\[-3pt]
+    {\color{mainred}\rule{#3\linewidth}{3pt}}
+    \vspace{3pt}
+}
+
+% Compact Job Header
+\newcommand{\jobheader}[3]{
+    \noindent
+    {\textbf{#1}} \\
+    {\small \textit{#2}} \hfill 
+    \colorbox{mainred}{\makebox[2.5cm][c]{\color{white}\bfseries\footnotesize #3}}
+    \vspace{2pt}
+}
+
+% Contact Item
+\newcommand{\contactitem}[2]{
+    \vspace{2pt}
+    \noindent
+    \makebox[0.4cm][c]{\color{mainred}\faIcon{#1}} \hspace{2pt} \small #2 
+}
+
+\begin{document}
+
+% ====================================================================
+% TWO COLUMN LAYOUT
+% ====================================================================
+\columnratio{0.30}
+\begin{paracol}{2}
+
+    % --- LEFT COLUMN ---
+    \vspace{0pt} 
+
+    % --- SKILLS ---
+    \resumesection{SKILLS}
+    
+    <BLOCK> set count = namespace(value=0) </BLOCK>
+    <BLOCK> for skill in job.skills </BLOCK>
+    <BLOCK> for val in skill.values </BLOCK>
+    <BLOCK> if count.value < 15 </BLOCK>
+    \skill{<< val.name >>}{<< val.level >>}{<< val.score >>}
+    <BLOCK> set count.value = count.value + 1 </BLOCK>
+    <BLOCK> endif </BLOCK>
+    <BLOCK> endfor </BLOCK>
+    <BLOCK> endfor </BLOCK>
+
+    \vspace{2cm} % Flexible Spacer
+
+    % --- CONTACT ---
+    \resumesection{CONTACT}
+    
+    \contactitem{map-marker-alt}{<< static_profile.location >>}
+    \contactitem{phone-alt}{<< static_profile.phone >>}
+    \contactitem{envelope}{\href{<< static_profile.email.href >>}{<< static_profile.email.text >>}}
+    \contactitem{linkedin-in}{\href{<< static_profile.linkedin.href >>}{LinkedIn}}
+    \contactitem{github}{\href{<< static_profile.github.href >>}{GitHub}}
+    \contactitem{globe}{\href{<< static_profile.portfolio.href >>}{Portfolio}}
+
+    \switchcolumn
+    % --- RIGHT COLUMN ---
+    \vspace{0pt} 
+
+    % --- HEADER BOX ---
+    \noindent
+    \colorbox{headergray}{
+        \begin{minipage}[c][3.0cm][c]{\dimexpr\linewidth-2\fboxsep}
+            \centering
+            \color{white}
+            {\huge \textsc{<< static_profile.fullname >>}} \\ [6pt]
+            {\rule{0.5\linewidth}{0.5pt}} \\ [6pt]
+            {\large << job.role >>}
+        \end{minipage}
+    }
+    
+    \vspace{8pt}
+
+    % --- PROFILE ---
+    \resumesection{PROFILE}
+    \small % Slightly smaller text for body
+    << job.professional_summary >>
+
+    % --- EXPERIENCE / PROJECTS ---
+    \resumesection{WORK EXPERIENCE}
+
+    <BLOCK> if job.experience </BLOCK>
+    <BLOCK> for exp in job.experience </BLOCK>
+    \jobheader{<< exp.title >>}{<< exp.company >> <BLOCK> if exp.location </BLOCK> - << exp.location >><BLOCK> endif </BLOCK>}{<< exp.date >>}
+    \begin{itemize}[leftmargin=*, nosep, topsep=1pt, itemsep=1pt] \small
+        <BLOCK> for point in exp.points </BLOCK>
+        \item << point >>
+        <BLOCK> endfor </BLOCK>
+    \end{itemize}
+    \vspace{6pt}
+    <BLOCK> endfor </BLOCK>
+    <BLOCK> endif </BLOCK>
+
+    <BLOCK> if job.projects </BLOCK>
+    <BLOCK> for project in job.projects </BLOCK>
+    \jobheader{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink} <BLOCK> endif </BLOCK>}{<< project.project_line >>}{}
+    \begin{itemize}[leftmargin=*, nosep, topsep=1pt, itemsep=1pt] \small
+        <BLOCK> for point in project.points </BLOCK>
+        \item << point >>
+        <BLOCK> endfor </BLOCK>
+    \end{itemize}
+    \vspace{6pt}
+    <BLOCK> endfor </BLOCK>
+    <BLOCK> endif </BLOCK>
+
+    % --- EDUCATION ---
+    \resumesection{EDUCATION}
+    
+    <BLOCK> for edu in static_profile.education </BLOCK>
+    \jobheader{<< edu.degree >>}{<< edu.institution >>}{<< edu.date >>}
+    <BLOCK> if edu.grade </BLOCK>
+    \begin{itemize}[leftmargin=*, nosep] \small
+        \item Grade/GPA: << edu.grade >>
+    \end{itemize}
+    <BLOCK> endif </BLOCK>
+    \vspace{4pt}
+    <BLOCK> endfor </BLOCK>
+
+    % --- CERTIFICATIONS ---
+    \resumesection{CERTIFICATIONS}
+    \begin{itemize}[leftmargin=*, nosep, topsep=1pt] \small
+        <BLOCK> for cert in static_profile.certifications </BLOCK>
+        \item << cert.name >> <BLOCK> if cert.link </BLOCK> \href{<< cert.link >>}{[Link]} <BLOCK> endif </BLOCK>
+        <BLOCK> endfor </BLOCK>
+    \end{itemize}
+
+    % --- ACHIEVEMENTS ---
+    <BLOCK> if job.achievements </BLOCK>
+    \resumesection{ACHIEVEMENTS}
+    \begin{itemize}[leftmargin=*, nosep, topsep=1pt] \small
+        <BLOCK> for ach in job.achievements </BLOCK>
+        \item \textbf{<<ach.name>>}: <<ach.description>>
+        <BLOCK> endfor </BLOCK>
+    \end{itemize}
+    <BLOCK> endif </BLOCK>
+
+\end{paracol}
+
+\end{document}

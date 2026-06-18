@@ -1,0 +1,84 @@
+\documentclass[12pt,a4paper,sans]{moderncv}
+
+\moderncvstyle{classic}
+\moderncvcolor{blue}
+\usepackage[scale=0.75]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{fontawesome5}
+
+% --- FIX IS HERE ---
+% {24} = Font Size
+% {28} = Line Height
+% This allows auto-wrapping with tight padding.
+\renewcommand*{\namefont}{\fontsize{24}{28}\mdseries\upshape\selectfont}
+
+% --- PERSONAL DATA ---
+% Put the full name here. LaTeX will automatically wrap it to the next line 
+% when it hits the margin, and the {40} above will keep the lines close.
+\firstname{<< static_profile.fullname >>\\[5pt]}
+\familyname{}
+\title{<< job.role >>} 
+\address{<< static_profile.location >>}{}
+\mobile{<< static_profile.phone >>}
+\email{<< static_profile.email.text >>}
+\homepage{<< static_profile.portfolio.text >>} 
+\social[linkedin]{<< static_profile.linkedin.text >>}
+\social[github]{<< static_profile.github.text >>}
+
+\begin{document}
+
+\makecvtitle
+
+% --- Education ---
+\section{Education}
+<BLOCK> for edu in static_profile.education </BLOCK>
+\cventry{<< edu.date >>}{<< edu.degree >>}{<< edu.institution >>}{<< edu.location >>}{<BLOCK> if edu.grade </BLOCK>Grade: << edu.grade >><BLOCK> endif </BLOCK>}{}
+<BLOCK> endfor </BLOCK>
+
+% --- Skills ---
+% Using \cvitem ensures the category aligns neatly on the left
+\section{Technical Skills}
+<BLOCK> for skill in job.skills </BLOCK>
+\cvitem{<< skill.category >>}{<BLOCK> for val in skill.values </BLOCK><< val.name >><BLOCK> if not loop.last </BLOCK>, <BLOCK> endif </BLOCK><BLOCK> endfor </BLOCK>}
+<BLOCK> endfor </BLOCK>
+
+% --- Projects ---
+% \cventry args: {Year}{Title}{Subtitle/Stack}{Location}{}{Description}
+% --- Experience ---
+<BLOCK> if job.experience </BLOCK>
+\section{Experience}
+<BLOCK> for exp in job.experience </BLOCK>
+\cventry{<< exp.date >>}{<< exp.title >>}{<< exp.company >>}{<< exp.location >>}{}{\begin{itemize}
+    <BLOCK> for point in exp.points </BLOCK>\item << point >><BLOCK> endfor </BLOCK>
+\end{itemize}}
+<BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
+
+% --- Projects ---
+<BLOCK> if job.projects </BLOCK>
+\section{Projects}
+<BLOCK> for project in job.projects </BLOCK>
+\cventry{}{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink} <BLOCK> endif </BLOCK>}{<< project.project_line >>}{}{}{\begin{itemize}
+    <BLOCK> for point in project.points </BLOCK>\item << point >><BLOCK> endfor </BLOCK>
+\end{itemize}}
+<BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
+
+
+
+
+% --- Certifications ---
+\section{Certifications}
+<BLOCK> for cert in static_profile.certifications </BLOCK>
+\cvlistitem{<< cert.name >><BLOCK> if cert.link </BLOCK> \href{<< cert.link >>}{[Link]}<BLOCK> endif </BLOCK>}
+<BLOCK> endfor </BLOCK>
+
+% --- Achievements ---
+<BLOCK> if job.achievements </BLOCK>
+\section{Achievements}
+<BLOCK> for ach in job.achievements </BLOCK>
+\cvitem{<< ach.name >>}{<< ach.description >>}
+<BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
+
+\end{document}

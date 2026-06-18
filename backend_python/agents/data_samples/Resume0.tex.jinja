@@ -1,0 +1,164 @@
+\documentclass[letterpaper,10pt]{article}
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{fontawesome5} 
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+
+% --- MARGINS & SPACING ---
+\pagestyle{fancy}
+\fancyhf{} 
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Optimized margins for 1-page fit
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1.0in}
+\addtolength{\topmargin}{-0.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% --- SECTION FORMATTING ---
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large\bfseries
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+% --- CUSTOM COMMANDS ---
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small\textbf{#1} & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-1pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-------------------------------------------
+%  RESUME STARTS HERE
+%-------------------------------------------
+\begin{document}
+
+%----------HEADER----------
+\begin{center}
+    {\Huge \bfseries <<static_profile.fullname>>} \\ \vspace{3pt}
+    {\Large \bfseries <<job.role>>} \\ \vspace{5pt}
+    
+    \small
+    \faMapMarker* <<static_profile.location>> \ $|$ \ 
+    \faPhone* <<static_profile.phone>> \ $|$ \ 
+    \faEnvelope \ \href{<<static_profile.email.href>>}{<<static_profile.email.text>>} \\ \vspace{4pt}
+    
+    \faLinkedin \ \href{<<static_profile.linkedin.href>>}{Linkedin} \ $|$ \ 
+    \faGithub \ \href{<<static_profile.github.href>>}{Github} \ $|$ \ 
+    \faGlobe \ \href{<<static_profile.portfolio.href>>}{Portfolio}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+<<job.professional_summary>>
+%-----------TECHNICAL SKILLS (Fixed & Complete)-----------
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+      <BLOCK> for skill in job.skills </BLOCK>
+     \textbf{<<skill.category>>}{:<BLOCK> for val in skill.values </BLOCK><< val.name >><BLOCK> if not loop.last </BLOCK>, <BLOCK> endif </BLOCK><BLOCK> endfor </BLOCK>} \\
+     <BLOCK> endfor </BLOCK>
+    }}
+ \end{itemize}
+
+
+%-----------PROFESSIONAL EXPERIENCE-----------
+<BLOCK> if job.experience </BLOCK>
+\section{Professional Experience}
+\resumeSubHeadingListStart
+    <BLOCK> for experience in job.experience </BLOCK>
+    \resumeSubheading
+      {<<experience.title>>}{<<experience.location>>}
+      {<<experience.company>>}{<<experience.date>>}
+      \resumeItemListStart
+        <BLOCK> for point in experience.points </BLOCK>
+            \resumeItem{<<point>>}
+        <BLOCK> endfor </BLOCK>
+      \resumeItemListEnd
+      <BLOCK> endfor </BLOCK>
+    \resumeSubHeadingListEnd
+<BLOCK> endif </BLOCK>
+
+%-----------PROJECTS-----------
+\section{Key Projects}
+\resumeSubHeadingListStart
+    <BLOCK> for project in job.projects </BLOCK>
+    \resumeProjectHeading
+    {\textbf{<<project.name>>}}
+    {<BLOCK> if project.href </BLOCK>\href{<<project.href>>}{<<project.href_name>>}<BLOCK> endif </BLOCK>}
+    \resumeItemListStart
+    <BLOCK> for point in project.points </BLOCK>
+        \resumeItem{<<point>>}
+    <BLOCK> endfor </BLOCK>
+    \resumeItemListEnd
+    <BLOCK> endfor </BLOCK>
+\resumeSubHeadingListEnd
+
+
+<BLOCK> if job.achievements </BLOCK>
+%-----------ACHIEVEMENTS-----------
+\section{Achievements}
+\begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+        <BLOCK> for ach in job.achievements </BLOCK>
+        \textbf{<<ach.name>>}: <<ach.description>> \\
+        <BLOCK> endfor </BLOCK>
+    }}
+\end{itemize}
+<BLOCK> endif </BLOCK>
+
+%-----------EDUCATION-----------
+\section{Education}
+  \resumeSubHeadingListStart
+    <BLOCK> for edu in static_profile.education </BLOCK>
+    \resumeSubheading
+      {<<edu.institution>>}{<<edu.location>>}
+      {<<edu.degree>>}{<<edu.date>>}
+    <BLOCK> endfor </BLOCK>
+  \resumeSubHeadingListEnd
+
+%-----------CERTIFICATIONS-----------
+\section{Certifications}
+\resumeSubHeadingListStart
+    <BLOCK> for cert in static_profile.certifications </BLOCK>
+    \resumeItem{\textbf{<<cert.name>>} <BLOCK> if cert.link </BLOCK> -- \href{<< cert.link >>}{[Verify Badge]} <BLOCK> endif </BLOCK>}
+    <BLOCK> endfor </BLOCK>
+\resumeSubHeadingListEnd
+
+\end{document}
