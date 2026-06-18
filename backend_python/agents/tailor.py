@@ -255,6 +255,7 @@ SYSTEM_INSTRUCTIONS = r"""
         * `level`: A string ("Beginner", "Intermediate", "Advanced", or "Expert").
         * `score`: A float between 0.1 and 1.0.
     - Scoring Logic: Assign 0.8-1.0 if the skill is used across multiple complex projects or core employment history. Assign 0.5-0.7 if it is only mentioned once or in a minor project. If proficiency is ambiguous, default to "Intermediate" and 0.7.
+    - Rank the Skills based on the JD, most relevant first.
     4. Rank the Projects and Experiences based on the JD, most relevant first.
     5. If any other additional like achievements or hackathons are present in the resume, include them in the tailored_jobs entry with strong 1 bullet point each pitches the relavance for ATS.
     
