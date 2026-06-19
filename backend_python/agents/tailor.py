@@ -420,6 +420,7 @@ ENGINES = [
 def compile_tex(tex: str) -> bytes | None:
     for name, url, m in ENGINES:
         try:
+            log.info("Enhanced Tailor agent")
             log.info("Trying %s...", name)  # Show which endpoint we're trying
             if m == "orig":
                 r = requests.post(url, files={"texfile": ("main.tex", tex)}, data={"command": "pdflatex"}, timeout=120)
