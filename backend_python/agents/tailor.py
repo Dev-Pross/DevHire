@@ -12,6 +12,7 @@ import base64
 import json
 import logging
 import os
+import random
 import re
 import time
 from pathlib import Path
@@ -138,9 +139,11 @@ if not GOOGLE_API:
 client = genai.Client(api_key=GOOGLE_API)
 model_1 = 'gemini-2.5-flash'
 model_2 = 'gemini-2.5-flash-lite'
-model_3 = "gemini-3.1-flash-lite"
-# Ordered fallback list for retries
-MODELS = [model_1, model_2, model_3]
+model_3 = "gemini-3.1-flash-lite"  # UNVERIFIED id — kept out of MODELS until confirmed valid
+# Ordered fallback list for retries. Only verified ids: a bad id 400s on every
+# attempt and (since the error filter below now also catches it) burns the whole
+# retry budget. Re-add model_3 here once confirmed against the live Gemini catalog.
+MODELS = [model_1, model_2]
 # client = Groq(
 #     api_key=GROQ_API,
 # )
@@ -228,37 +231,36 @@ def extract_resume_text(url: str) -> str:
 
 SYSTEM_INSTRUCTIONS = r"""
 
-    You are an elite, AI-powered ATS Resume Strategist processing bulk job applications. Your sole function is to parse a candidate's raw resume text and strategically tailor the content for multiple target Job Descriptions (JDs) simultaneously. You must output the result strictly as a single, valid JSON object.
+    You are an elite, AI-powered ATS Resume Strategist. Your function is to parse a candidate's raw resume text and strategically tailor it to each target Job Description (JD) provided. You must output the result strictly as a single, valid JSON object that conforms to the response schema.
+
+    --- OUTPUT FORMAT ---
+
+    1. RAW TEXT ONLY: Emit plain, human-readable text in every string field. Do NOT escape any characters for LaTeX, Markdown, or HTML (no backslashes before &, %, $, #, _, {, }, ~, ^). Downstream code performs all escaping; pre-escaping will corrupt the rendered resume. The only exception is JSON's own required escaping (e.g. \" inside a string).
+    2. EXACT JOB COUNT: Generate exactly N entries in the `tailored_jobs` array, where N equals the number of <JOB_DESCRIPTION> blocks provided. Each entry's `job_index` MUST match its JOB number (1-indexed).
 
     --- CRITICAL GUARDRAILS (ZERO HALLUCINATION) ---
 
-    1. ABSOLUTE TRUTH: You are strictly forbidden from inventing, fabricating, assuming, or extrapolating ANY skills, experiences, job titles, companies, degrees, dates, or URLs not explicitly present in the candidate's <EXTRACTED_PDF_TEXT>.
-    2. NO PLACEHOLDERS: If a specific contact detail, link (GitHub, LinkedIn, Portfolio), or section is completely missing from the raw resume, return an empty string "" or null for that field. Never output placeholder text like "your.email@example.com" or "github.com/username".
-    3. STRICT DATA SEPARATION:
-    - "Work Experience" strictly means formal corporate employment (full-time, part-time, or internships).
-    - "Projects" are academic, personal, hackathon, or open-source builds.
-    - If the candidate has NO formal work experience, the `experience` array MUST be left completely empty: `[]`. Do not push personal projects into the experience array.
+    3. ABSOLUTE TRUTH: You are strictly forbidden from inventing, fabricating, assuming, or extrapolating ANY skills, experiences, job titles, companies, degrees, dates, or URLs not explicitly present in the candidate's <EXTRACTED_PDF_TEXT>.
+    4. NO PLACEHOLDERS: If a contact detail, link (GitHub, LinkedIn, Portfolio), or section is missing from the resume, return an empty string "" or null for that field. Never output placeholder text like "your.email@example.com" or "github.com/username".
+    5. STRICT DATA SEPARATION:
+       - "Work Experience" means formal corporate employment only (full-time, part-time, or internships).
+       - "Projects" are academic, personal, hackathon, or open-source builds.
+       - If the candidate has NO formal work experience, the `experience` array MUST be empty: `[]`. Never push personal projects into the experience array.
 
     --- MANDATORY COMPLETENESS RULES ---
 
-    4. ALL PROJECTS REQUIRED: You MUST include EVERY project found in the resume in EVERY tailored_jobs entry. Do NOT omit any project. Reorder them by relevance to the specific JD (most relevant first), but include all of them. Each project must have exactly 3 tailored bullet points.
-    5. ALL EXPERIENCE REQUIRED: If the candidate has work experience, you MUST include ALL experience entries in EVERY tailored_jobs entry. Do NOT omit any. If no formal experience exists, return an empty array `[]`.
-    6. ALL SKILLS REQUIRED: You MUST include ALL technical skills found in the resume, grouped into logical categories (e.g., "Languages", "Backend & AI", "Frontend", "Database & Infra", "Tools & Frameworks"). Do NOT cherry-pick only JD-relevant skills. Include every skill and score JD-irrelevant ones lower (0.3-0.5).
-    7. EXACT JOB COUNT: You MUST generate exactly N entries in the `tailored_jobs` array, where N equals the number of <JOB_DESCRIPTION> blocks provided. Each entry's `job_index` must match the JOB number (1-indexed).
+    6. ALL PROJECTS: Include EVERY project from the resume in each tailored_jobs entry — never omit any. Reorder them by relevance to that JD (most relevant first).
+    7. ALL EXPERIENCE: If the candidate has work experience, include ALL entries in each tailored_jobs entry, reordered by relevance to that JD. If none exists, return `[]`.
+    8. ALL SKILLS: Include ALL technical skills from the resume, grouped into logical categories (e.g. "Languages", "Backend & AI", "Frontend", "Database & Infra", "Tools & Frameworks"). Do NOT cherry-pick only JD-relevant skills; within each category, order the JD-relevant skills first.
 
     --- STRATEGIC TAILORING RULES ---
 
-    1. SUMMARY TAILORING: Rewrite the `professional_summary` for each job to highlight the candidate's existing strengths that directly align with that specific JD's core requirements. Keep it under 3 sentences upto 430 characters, metric-driven and punchy.
-    2. BULLET POINT TAILORING: Rewrite the `points` within the experience and projects sections to emphasize accomplishments, tech stacks, and methodologies relevant to the target JD. Use strong action verbs to generate solid 3 points for each Project and Experience if content is more, then create only 3 points in 3 lines(10-15 words per line) if less content from user's resume then make 3 points with more characters . Do not invent new responsibilities or technologies the candidate hasn't used.
-    3. SKILL EVALUATION & CATEGORIZATION:
-    - For every individual skill, evaluate the candidate's proficiency based strictly on their resume text and assign:
-        * `level`: A string ("Beginner", "Intermediate", "Advanced", or "Expert").
-        * `score`: A float between 0.1 and 1.0.
-    - Scoring Logic: Assign 0.8-1.0 if the skill is used across multiple complex projects or core employment history. Assign 0.5-0.7 if it is only mentioned once or in a minor project. If proficiency is ambiguous, default to "Intermediate" and 0.7.
-    - Rank the Skills based on the JD, most relevant first.
-    4. Rank the Projects and Experiences based on the JD, most relevant first.
-    5. If any other additional like achievements or hackathons are present in the resume, include them in the tailored_jobs entry with strong 1 bullet point each pitches the relavance for ATS.
-    
+    9. SUMMARY: Rewrite `professional_summary` for each JD to foreground the candidate's existing strengths that match that JD's core requirements. Max 430 characters, 2-3 sentences, metric-driven and punchy.
+    10. BULLET POINTS: Each project and each experience entry must have EXACTLY 3 bullet points. Every bullet is one line of roughly 10-15 words, starts with a strong action verb, and emphasizes accomplishments, tech stacks, and methodologies relevant to the target JD. Draw only from the candidate's real content — never invent responsibilities or technologies.
+    11. SKILL SCORING (proficiency, NOT relevance): For every skill assign:
+       - `level`: one of "Beginner", "Intermediate", "Advanced", "Expert".
+       - `score`: a float 0.1-1.0 reflecting PROFICIENCY ONLY. Assign 0.8-1.0 if the skill is used across multiple complex projects or core employment; 0.5-0.7 if mentioned once or in a minor project; if ambiguous, default to "Intermediate" / 0.7. Express JD-relevance through ordering (rule 8), never by lowering a skill's score.
+    12. ACHIEVEMENTS: If the resume contains achievements (awards, honors, recognitions), add each to the `achievements` array as { "name": <short title>, "description": <one concise sentence pitching its relevance for ATS> }. Route hackathons to `projects` (per rule 5), not here.
 
 """
 
@@ -283,6 +285,11 @@ def build_prompt(original_resume: str, jobs: List[str]) -> str:
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Gemini call ------------------------------------------------╮
+class TruncatedOutputError(Exception):
+    """Structured output came back unparseable/truncated. Retrying the identical
+    over-budget prompt is futile — the caller (tailor_jobs) should split instead."""
+
+
 def ask_gemini(orig: str, jobs: List[str]) -> Format:
     prompt = build_prompt(orig, jobs)
     # Start with first model and move through MODELS on specific failures
@@ -311,25 +318,29 @@ def ask_gemini(orig: str, jobs: List[str]) -> Format:
                 config=types.GenerateContentConfig(
                     temperature=0.2,
                     response_mime_type="application/json",
-                    response_schema= Format
+                    response_schema= Format,
+                    # Model max (Gemini 2.5 Flash = 65536). One call must be able to
+                    # hold all N resumes; an unset/low cap truncates the structured
+                    # JSON -> .parsed is None -> the whole batch falls back to the
+                    # untailored original PDF. Billed on actual output, so the high
+                    # ceiling costs nothing unless used.
+                    max_output_tokens=65536,
                 )
             ).parsed
 
-            # ADD THIS LINE TO SAVE GEMINI RESPONSE:
-            Path(f"gemini_debug_{int(time.time())}.json").write_text(res.model_dump_json(indent=2), encoding="utf-8")
-            # log.debug("Gemini preview: %s", txt.choices[0].message.content[:300].replace("\n", " ↩ "))
-            # return txt.choices[0].message.content
+            if res is None:
+                # Truncated / unparseable. Don't retry the identical over-budget prompt —
+                # surface immediately so tailor_jobs splits the batch instead.
+                raise TruncatedOutputError("Gemini returned no parseable structured output (likely truncated)")
+
             log.debug("Gemini preview: %s", res.model_dump_json(indent=2)[:300].replace("\n", " ↩ "))
-            # if any(code in res for code in ("404", "429", "503")):
-            #     choose_model = model_2
-            #     log.warning("Model switched to fallback due to error: model changed")
             return res
+        except TruncatedOutputError:
+            raise
         except Exception as e:
-            # log.error("Gemini error: %s", str(e))
-            # Correctly detect specific HTTP/Status codes in the error text
-            if any(code in str(e) for code in ("404", "429", "503")):
-                # Move to next fallback model if available
-                prev_model = choose_model
+            # Switch model on quota/availability/invalid-model errors. INVALID_ARGUMENT
+            # / 400 / NOT_FOUND catch a bad model id so it doesn't burn every retry slot.
+            if any(code in str(e) for code in ("404", "429", "503", "400", "INVALID_ARGUMENT", "NOT_FOUND")):
                 if model_idx < len(MODELS) - 1:
                     model_idx += 1
                     choose_model = MODELS[model_idx]
@@ -338,10 +349,78 @@ def ask_gemini(orig: str, jobs: List[str]) -> Format:
                     log.warning("Already on last fallback model (%s); will retry", choose_model)
             else:
                 log.error("Gemini error: %s", str(e))
-            # Wait, then retry next attempt (do not break)
-            time.sleep(delay)
+            # Jittered backoff so concurrent free-tier workers don't thundering-herd the quota.
+            time.sleep(delay + random.uniform(0, 1.0))
             continue
-    raise RuntimeError("Gemini failed 3×")
+    raise RuntimeError("Gemini failed after retries")
+# ╰───────────────────────────────────────────────────────────────╯
+
+# ╭── Adaptive batch tailoring ───────────────────────────────────╮
+def tailor_jobs(orig: str, jds: List[str], offset: int = 0) -> Format:
+    """Tailor N job descriptions in ONE Gemini call when it fits the output budget.
+
+    On truncation / short return / call failure, split the list and retry each
+    half recursively. `job_index` in the returned Format is GLOBAL: offset+1 ..
+    offset+len(jds), matching the 1-indexed position used by `_split`/`process_batch`.
+
+    Positions that could not be tailored are simply ABSENT from `tailored_jobs`
+    (the caller falls back to the original PDF for those, per-job). Raises only if
+    NOTHING in `jds` could be tailored — so a single bad job never sinks the batch.
+    """
+    n = len(jds)
+    try:
+        res = ask_gemini(orig, jds)
+        got = list(res.tailored_jobs)
+        if n == 1:
+            # Single job is unambiguous: there is exactly one JD, so force the one
+            # returned entry into this slot regardless of how the model labeled it.
+            if got:
+                got[0].job_index = offset + 1
+                res.tailored_jobs = [got[0]]
+                return res
+        else:
+            # Place each entry by its OWN model label (global slot = offset + label) —
+            # but ONLY if the labels are a clean permutation of 1..n. A duplicate, gap,
+            # wrong count, or out-of-range label means we cannot trust which JD an entry
+            # belongs to; splitting is safer than risking a resume rendered for the wrong
+            # job. The split eventually isolates jobs down to the n==1 case above, which
+            # is always correctly placed.
+            labels = sorted(tj.job_index for tj in got)
+            if len(got) == n and labels == list(range(1, n + 1)):
+                for tj in got:
+                    tj.job_index = offset + tj.job_index
+                res.tailored_jobs = got
+                return res
+            log.warning("ask_gemini returned indices %s for n=%d (offset %d); splitting",
+                        labels, n, offset)
+    except Exception as e:
+        log.warning("ask_gemini failed for %d jobs (offset %d): %s; splitting", n, offset, e)
+
+    if n == 1:
+        raise RuntimeError(f"Failed to tailor job at offset {offset}")
+
+    mid = n // 2
+    static = None
+    merged: List[TailoredJob] = []
+    left_err = right_err = None
+    try:
+        left = tailor_jobs(orig, jds[:mid], offset)
+        static = static or left.static_profile
+        merged.extend(left.tailored_jobs)
+    except Exception as e:
+        left_err = e
+    try:
+        right = tailor_jobs(orig, jds[mid:], offset + mid)
+        static = static or right.static_profile
+        merged.extend(right.tailored_jobs)
+    except Exception as e:
+        right_err = e
+
+    if static is None:
+        raise RuntimeError(
+            f"Failed to tailor jobs at offset {offset} (n={n}): left={left_err}; right={right_err}"
+        )
+    return Format(static_profile=static, tailored_jobs=merged)
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Parsing helpers ────────────────────────────────────────────╮
@@ -403,9 +482,16 @@ def _split(text: Format, job_index: int, template: int = 0) -> str:
         3: Resume3Template,
     }
     chosen = templates.get(template, Resume0Template)
-    with open(f"tailored_resumes.txt", "a", encoding="utf-8") as f:
-        f.write(chosen.render(render_context))
-    return chosen.render(render_context)
+    rendered = chosen.render(render_context)
+    # Debug dump only when explicitly enabled, and never let a write failure
+    # (e.g. read-only/ephemeral Cloud Run FS) propagate into the render result.
+    if os.getenv("TAILOR_DEBUG"):
+        try:
+            with open("tailored_resumes.txt", "a", encoding="utf-8") as f:
+                f.write(rendered)
+        except Exception as e:
+            log.debug("TAILOR_DEBUG render dump skipped: %s", e)
+    return rendered
 
 # ╰───────────────────────────────────────────────────────────────╯
 
@@ -473,18 +559,27 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
         except Exception as e:
             log.error("Failed to download original PDF: %s", str(e))
             raise
-        if user_data:
-            original_txt = user_data
-        else:
-            try:
-                original_txt = extract_resume_text(resume_url)
-            except Exception as e:
-                log.error("Failed to extract resume text: %s", str(e))
+        # resume_url is the authoritative tailoring source: always extract the
+        # full PDF text. user_data (a thin parsed profile) is only a fallback if
+        # extraction fails — otherwise resumes come out incomplete (no projects,
+        # no experience bullets, which the JSON profile does not contain).
+        try:
+            original_txt = extract_resume_text(resume_url)
+        except Exception as e:
+            log.error("Failed to extract resume text: %s", str(e))
+            if user_data:
+                log.warning("PDF extract failed; falling back to user_data profile")
+                original_txt = user_data
+            else:
                 raise
     else:
         original_txt = user_data
     try:
-        gemini_ans = ask_gemini(original_txt, [j["job_description"] for j in jobs])
+        # Adaptive: one Gemini call for the whole batch when it fits the output
+        # budget; splits and retries on truncation. Per-job isolation — a single
+        # failed job is absent from the result and falls back to its original PDF
+        # below, instead of collapsing the whole batch.
+        gemini_ans = tailor_jobs(original_txt, [j["job_description"] for j in jobs])
         escape_pydantic(gemini_ans)
     except Exception as e:
         log.error("Gemini failed: %s", str(e))

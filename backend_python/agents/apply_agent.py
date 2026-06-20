@@ -1551,6 +1551,9 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
             from agents.tailor import process_batch
             import json
             user_data_str = json.dumps(user_profile) if user_profile else None
+            # 15 jobs per batch = one Gemini call (RPM-cheap on free tier). process_batch
+            # -> tailor_jobs sends all 15 in one structured-output call (max_output_tokens
+            # is the model max), and only splits into smaller calls if that truncates.
             batch_size = 15
             for i in range(0, total_jobs, batch_size):
                 batch_jobs = jobs_to_apply[i:i+batch_size]
