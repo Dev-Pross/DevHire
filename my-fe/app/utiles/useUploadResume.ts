@@ -55,24 +55,17 @@ export function useResumeUpload(userId: string | undefined) {
   async function resumePush(userid: string | undefined, link: string) {
     if (!userid) return;
     try {
-      await fetch("/api/User?action=update", {
+      // Single atomic write: set the new resume_url AND clear user_data (the old
+      // parsed profile) together, so a dropped request can't leave stale data
+      // that the backend would trust instead of re-parsing the new resume.
+      const res = await fetch("/api/User?action=resume_uploaded", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: userid,
-          data: { column: "resume_url", value: link },
-        }),
+        body: JSON.stringify({ id: userid, resume_url: link }),
       });
-      // Clear user_data so the backend parser knows to run Gemini for fresh details
-      // on the next pipeline execution
-      await fetch("/api/User?action=update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: userid,
-          data: { column: "user_data", value: null },
-        }),
-      });
+      if (!res.ok) {
+        throw new Error("Failed to update resume");
+      }
     } catch (err) {
       toast.error("Something went wrong, please try again later")
     }

@@ -1,24 +1,28 @@
 import prisma from "@/app/utiles/database";
+import { Prisma } from "@prisma/client";
 
 
 async function insert_user(data:any){
   return prisma.user.create({data})
 }
 
-async function update_row(id:string, data:{ column: string, value: string[]}){
+async function update_row(id:string, data:{ column: string, value: any}){
   if(!id){
     throw new Error("id not provided")
   }
   if(!data.column){
    throw new Error("column name not provided")
-  } 
-  if(!data.value){
+  }
+  if(data.value === undefined){
    throw new Error("value not provided")
-  } 
+  }
+  // A null value clears the column. Prisma rejects a bare JS null for a Json
+  // column, so translate it to the DB-null token.
+  const value = data.value === null ? Prisma.DbNull : data.value;
   return prisma.user.update({
     where: { id: id},
     data:{
-      [data.column] : data.value
+      [data.column] : value
     }
   })
 }
@@ -51,6 +55,21 @@ export async function POST(request: Request) {
         return new Response(JSON.stringify({success:true,  message:"row updated"}),{
           status: 200
         })
+
+      case "resume_uploaded": {
+        // Atomically replace the resume URL and wipe the stale parsed profile
+        // so the backend re-parses the new resume on the next pipeline run.
+        const { id: resumeUserId, resume_url } = body;
+        if (!resumeUserId) throw new Error("id not provided");
+        if (!resume_url) throw new Error("resume_url not provided");
+        await prisma.user.update({
+          where: { id: resumeUserId },
+          data: { resume_url, user_data: Prisma.DbNull },
+        });
+        return new Response(JSON.stringify({ success: true, message: "resume updated" }), {
+          status: 200,
+        });
+      }
 
       case "upsert":
         const { id: upsertId, email: upsertEmail, name: upsertName, profile_image } = body;

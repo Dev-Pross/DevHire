@@ -101,8 +101,8 @@ class SkillCategory(BaseModel):
 class Project(BaseModel):
     name: str
     project_line: str
-    href: Optional[str] = None
-    href_name: Optional[str] = None
+    href: str 
+    href_name: str = "link"
     points: List[str]
 
 class Achievement(BaseModel):
@@ -240,7 +240,11 @@ SYSTEM_INSTRUCTIONS = r"""
 
     --- CRITICAL GUARDRAILS (ZERO HALLUCINATION) ---
 
-    3. ABSOLUTE TRUTH: You are strictly forbidden from inventing, fabricating, assuming, or extrapolating ANY skills, experiences, job titles, companies, degrees, dates, or URLs not explicitly present in the candidate's <EXTRACTED_PDF_TEXT>.
+    3. ABSOLUTE TRUTH: You are strictly forbidden from inventing, fabricating, or adding ANY skill, experience, job title, company, degree, date, metric, or URL not explicitly present in the candidate's <EXTRACTED_PDF_TEXT>.
+       CRITICAL DISTINCTION — reframing vs hallucinating:
+       - REFRAMING is REQUIRED and is NOT a violation: reword a real bullet, lead with the technology/metric the JD values, choose a stronger action verb, surface a number already stated in the resume.
+       - HALLUCINATING is forbidden: adding a fact that is not in the resume — a team you didn't lead, a tool you didn't use, a metric not stated, an outcome that didn't happen.
+       Reframe every bullet freely; never fabricate.
     4. NO PLACEHOLDERS: If a contact detail, link (GitHub, LinkedIn, Portfolio), or section is missing from the resume, return an empty string "" or null for that field. Never output placeholder text like "your.email@example.com" or "github.com/username".
     5. STRICT DATA SEPARATION:
        - "Work Experience" means formal corporate employment only (full-time, part-time, or internships).
@@ -249,18 +253,22 @@ SYSTEM_INSTRUCTIONS = r"""
 
     --- MANDATORY COMPLETENESS RULES ---
 
-    6. ALL PROJECTS: Include EVERY project from the resume in each tailored_jobs entry — never omit any. Reorder them by relevance to that JD (most relevant first).
-    7. ALL EXPERIENCE: If the candidate has work experience, include ALL entries in each tailored_jobs entry, reordered by relevance to that JD. If none exists, return `[]`.
+    6. ALL PROJECTS (sourcing, not rendering): Rank EVERY project from the resume by relevance to this JD and include them in that order — never cherry-pick only the most relevant and silently drop the rest. How many bullets each project gets is governed by the one-page budget in rule 10, not a fixed count.
+    7. ALL EXPERIENCE (sourcing, not rendering): If the candidate has work experience, rank ALL entries by relevance to this JD and include them in that order. If none exists, return `[]`. Bullet counts follow rule 10's budget.
     8. ALL SKILLS: Include ALL technical skills from the resume, grouped into logical categories (e.g. "Languages", "Backend & AI", "Frontend", "Database & Infra", "Tools & Frameworks"). Do NOT cherry-pick only JD-relevant skills; within each category, order the JD-relevant skills first.
 
     --- STRATEGIC TAILORING RULES ---
 
     9. SUMMARY: Rewrite `professional_summary` for each JD to foreground the candidate's existing strengths that match that JD's core requirements. Max 430 characters, 2-3 sentences, metric-driven and punchy.
-    10. BULLET POINTS: Each project and each experience entry must have EXACTLY 3 bullet points. Every bullet is one line of roughly 10-15 words, starts with a strong action verb, and emphasizes accomplishments, tech stacks, and methodologies relevant to the target JD. Draw only from the candidate's real content — never invent responsibilities or technologies.
+    10. BULLET POINTS — REFRAME, DO NOT COPY: Rewrite every experience and project bullet so it leads with the technologies, methodologies, and outcomes THIS JD emphasizes. Do NOT echo the resume's original wording verbatim — reframing the real facts is the whole job. Each bullet: one line, ~10-15 words, starts with a strong action verb, and stays faithful to a fact actually in the resume.
+       - ALLOWED reframe: "Implemented Flask API for auth with JWT (5K req/day)"  ->  "Engineered JWT-secured Flask authentication backend serving 5K requests/day".
+       - FORBIDDEN: "Led a team of 3 building a microservices API" when the resume shows solo work and no microservices (invents a team and a technology).
+       ONE-PAGE BUDGET: The resume MUST fit a single page. Use 2-3 bullets per entry, but across ALL experience + project entries combined do NOT exceed ~10 bullets total. When there are many entries, give fewer bullets each; prioritize experience bullets, then fill projects in relevance order until the budget is reached. When space is tight, drop the least-relevant PROJECT bullets — never fabricate, and never drop experience.
     11. SKILL SCORING (proficiency, NOT relevance): For every skill assign:
        - `level`: one of "Beginner", "Intermediate", "Advanced", "Expert".
        - `score`: a float 0.1-1.0 reflecting PROFICIENCY ONLY. Assign 0.8-1.0 if the skill is used across multiple complex projects or core employment; 0.5-0.7 if mentioned once or in a minor project; if ambiguous, default to "Intermediate" / 0.7. Express JD-relevance through ordering (rule 8), never by lowering a skill's score.
     12. ACHIEVEMENTS: If the resume contains achievements (awards, honors, recognitions), add each to the `achievements` array as { "name": <short title>, "description": <one concise sentence pitching its relevance for ATS> }. Route hackathons to `projects` (per rule 5), not here.
+    13. STATIC vs TAILORED FIELDS: Tailor ONLY the bullet arrays (`experience[].points`, `projects[].points`) and `professional_summary`. Keep everything else as plain extracted facts, identical across every job: full name, contact, education, certifications, skill names, company, job title, dates, and `project_line` (a single factual one-sentence description of the project, e.g. "Real-time data ingestion pipeline" — describe the project, do not tailor it to the JD).
 
 """
 
@@ -361,7 +369,7 @@ def tailor_jobs(orig: str, jds: List[str], offset: int = 0) -> Format:
 
     On truncation / short return / call failure, split the list and retry each
     half recursively. `job_index` in the returned Format is GLOBAL: offset+1 ..
-    offset+len(jds), matching the 1-indexed position used by `_split`/`process_batch`.
+    offset+len(jds), matching the 1-indexed position used by `process_batch`.
 
     Positions that could not be tailored are simply ABSENT from `tailored_jobs`
     (the caller falls back to the original PDF for those, per-job). Raises only if
@@ -457,31 +465,17 @@ def escape_pydantic(obj):
         return escape_latex(obj)
     return obj
 
-def _split(text: Format, job_index: int, template: int = 0) -> str:
-    """Find tailored job by job_index (1-indexed) and render with the chosen template."""
-    dynamic_data = None
-    for tj in text.tailored_jobs:
-        if tj.job_index == job_index:
-            dynamic_data = tj
-            break
+_TEMPLATES = {
+    0: Resume0Template,
+    1: Resume1Template,
+    2: Resume2Template,
+    3: Resume3Template,
+}
 
-    if dynamic_data is None:
-        log.error("Job index %d not found in Gemini response (got indices: %s)",
-                  job_index, [tj.job_index for tj in text.tailored_jobs])
-        return None
-
-    render_context = {
-        "static_profile": text.static_profile,
-        "job": dynamic_data
-    }
-
-    templates = {
-        0: Resume0Template,
-        1: Resume1Template,
-        2: Resume2Template,
-        3: Resume3Template,
-    }
-    chosen = templates.get(template, Resume0Template)
+def _render_tex(static_profile, tj, template: int = 0) -> str:
+    """Render ONE tailored job into LaTeX with the chosen template."""
+    render_context = {"static_profile": static_profile, "job": tj}
+    chosen = _TEMPLATES.get(template, Resume0Template)
     rendered = chosen.render(render_context)
     # Debug dump only when explicitly enabled, and never let a write failure
     # (e.g. read-only/ephemeral Cloud Run FS) propagate into the render result.
@@ -492,6 +486,57 @@ def _split(text: Format, job_index: int, template: int = 0) -> str:
         except Exception as e:
             log.debug("TAILOR_DEBUG render dump skipped: %s", e)
     return rendered
+
+
+def _trim_one(tj) -> bool:
+    """Remove one unit of the LEAST-relevant PROJECT content to reduce height.
+
+    Projects are ranked most-relevant-first, so we trim from the end: drop the last
+    project's last bullet, and when a project has no bullets left, drop the project.
+    Never touches experience. Returns False when no project content remains to trim.
+    """
+    projects = getattr(tj, "projects", None) or []
+    if not projects:
+        return False
+    last = projects[-1]
+    points = getattr(last, "points", None) or []
+    if len(points) > 1:
+        last.points = points[:-1]        # drop least-relevant bullet of least-relevant project
+    else:
+        tj.projects = projects[:-1]      # drop the whole least-relevant project
+    return True
+
+
+def render_one_page(static_profile, tj, template: int = 0, max_trims: int = 6) -> bytes | None:
+    """Render -> compile -> guarantee a SINGLE page.
+
+    If the compiled PDF spans more than one page, trim the least-relevant project
+    content (see _trim_one) and recompile, up to `max_trims` times. Returns the
+    compiled PDF bytes, or None if compilation fails outright (caller then falls
+    back to the candidate's original PDF). Extra compiles happen only on overflow.
+    """
+    pdf = None
+    for attempt in range(max_trims + 1):
+        tex = _render_tex(static_profile, tj, template)
+        pdf = compile_tex(tex)
+        if not pdf:
+            return None
+        try:
+            doc = fitz.open(stream=pdf, filetype="pdf")
+            pages = doc.page_count
+            doc.close()
+        except Exception as e:
+            log.warning("Page-count check failed (%s); accepting compiled PDF as-is", e)
+            return pdf
+        if pages <= 1:
+            return pdf
+        log.info("Resume is %d pages; trimming least-relevant project content (attempt %d/%d)",
+                 pages, attempt + 1, max_trims)
+        if not _trim_one(tj):
+            log.warning("No project content left to trim; returning best-effort %d-page PDF", pages)
+            return pdf
+    log.warning("Still over one page after %d trims; returning best-effort PDF", max_trims)
+    return pdf
 
 # ╰───────────────────────────────────────────────────────────────╯
 
@@ -594,8 +639,16 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
                     pdf = original_pdf
                     log.debug("Job %d: no changes", i)
             else:
-                tex = _split(gemini_ans, i + 1, template)  # job_index is 1-indexed
-                pdf = compile_tex(tex) if tex else None
+                # job_index is 1-indexed and matches batch position i+1.
+                tj = next((t for t in gemini_ans.tailored_jobs if t.job_index == i + 1), None)
+                if tj is None:
+                    log.error("Job %d: job_index %d not in Gemini response (got %s)",
+                              i, i + 1, [t.job_index for t in gemini_ans.tailored_jobs])
+                    pdf = None
+                else:
+                    # Render + compile + GUARANTEE one page (trim least-relevant project
+                    # content and recompile on overflow).
+                    pdf = render_one_page(gemini_ans.static_profile, tj, template)
                 if not pdf:
                     if original_pdf:
                         pdf = original_pdf
@@ -642,7 +695,8 @@ def run_all(jfile: str, resume_url: str, batch: int = 15):
     return res
 
 if __name__ == "__main__":
-    RESUME_URL = "https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1780978571731_SRINIVAS_SAI_SARAN_TEJA_.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzgwOTc4NTcxNzMxX1NSSU5JVkFTX1NBSV9TQVJBTl9URUpBXy5wZGYiLCJpYXQiOjE3ODA5Nzg1NzQsImV4cCI6MTc4OTYxODU3NH0.4WukzYj6IZpF49_4E4S4buq06_beMn3Cz_JojgJbhxM"
+ #   RESUME_URL = "https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1780978571731_SRINIVAS_SAI_SARAN_TEJA_.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzgwOTc4NTcxNzMxX1NSSU5JVkFTX1NBSV9TQVJBTl9URUpBXy5wZGYiLCJpYXQiOjE3ODA5Nzg1NzQsImV4cCI6MTc4OTYxODU3NH0.4WukzYj6IZpF49_4E4S4buq06_beMn3Cz_JojgJbhxM"
+    RESUME_URL = "https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1781886631924_SRINIVAS_SAI_SARAN_TEJA%20(2).pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzgxODg2NjMxOTI0X1NSSU5JVkFTX1NBSV9TQVJBTl9URUpBICgyKS5wZGYiLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgxODg2NjMyLCJleHAiOjE3OTA1MjY2MzJ9.87ixL2b30Bb-Gm44SvmRgfNnaOi178XjelkUKRgIoBA"
     JOBS_JSON = "agents/test_data.json"
     OUT = "tailored_resumes_batch_kv.json"
     Path(OUT).write_text(json.dumps(run_all(JOBS_JSON, RESUME_URL), indent=2), encoding="utf-8")

@@ -1514,53 +1514,108 @@ def run_apply_pipeline(job_id: str, job_data: dict, log_callback):
 
 async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     from config import supabase
-    
+    import json
+
     user_id = job_data["user_id"]
-    status_db = job_data["status"]
     input_data = job_data.get("input_data", {})
     output_data = job_data.get("output_data") or {}
-    
+
     email = input_data.get("user_id") # email is passed
     resume_url = input_data.get("resume_url")
     jobs_to_apply = input_data.get("jobs", [])
-    
+
     # Extract credentials from payload
     l_email = input_data.get("linkedin_id")
     l_pass = input_data.get("linkedin_password")
-    
+
     if not jobs_to_apply:
         raise Exception("No jobs provided to apply to")
-        
+
     log_callback({"progress": 2, "status": "in_progress", "message": "Initializing auto-applier pipeline..."})
-    
-    # Track metrics
-    jobs_applied = 0
+
     total_jobs = len(jobs_to_apply)
-    
-    log_callback({"progress": 5, "status": "in_progress", "message": f"Starting application parallel pipeline for {total_jobs} jobs..."})
-    
-    # Fetch pre-parsed user profile from Supabase instead of re-parsing
-    user_res = supabase.table("User").select("user_data").eq("id", user_id).execute()
-    user_profile = user_res.data[0].get("user_data", {}) if user_res.data else {}
-    
+
+    # Fetch pre-parsed user profile + prior apply history for resume-aware idempotency.
+    user_res = supabase.table("User").select("user_data, applied_jobs").eq("id", user_id).execute()
+    user_row = user_res.data[0] if user_res.data else {}
+    user_profile = user_row.get("user_data", {}) or {}
+    history_applied = set(user_row.get("applied_jobs") or [])
+
+    # Resume from any checkpoint already persisted on this session's row.
+    applied_so_far = list(output_data.get("applied", []))
+    failed_so_far = list(output_data.get("failed", []))
+
+    # Within this job_id: skip jobs already applied OR failed (don't redo work).
+    # Across sessions (new job_id): also skip jobs already successfully applied.
+    processed = set(applied_so_far) | set(failed_so_far) | history_applied
+    remaining = [j for j in jobs_to_apply if j.get("job_url") not in processed]
+
+    # Everything already processed — finalize without launching the browser.
+    if not remaining:
+        result = {
+            "applied": applied_so_far,
+            "failed": failed_so_far,
+            "total_jobs": total_jobs,
+        }
+        log_callback({"progress": 100, "status": "done", "message": "All selected jobs already processed."})
+        supabase.table("workflow_sessions").update({
+            "status": "completed",
+            "output_data": result,
+        }).eq("id", job_id).execute()
+        return
+
+    log_callback({"progress": 5, "status": "in_progress", "message": f"Applying to {len(remaining)} remaining of {total_jobs} jobs..."})
+
+    # ── Durable per-job checkpoint ────────────────────────────────────────
+    # Wraps log_callback: forwards every event to Redis, and on each terminal
+    # per-job outcome (applied/skipped) persists progress to the DB so a
+    # re-triggered worker never re-applies an already-processed job.
+    def checkpoint_callback(ev):
+        log_callback(ev)
+        if not isinstance(ev, dict):
+            return
+        url = ev.get("job_url")
+        status = ev.get("status")
+        if not url or status not in ("applied", "skipped"):
+            return
+        if status == "applied":
+            applied_so_far.append(url)
+        else:
+            failed_so_far.append(url)
+        try:
+            supabase.table("workflow_sessions").update({
+                "output_data": {
+                    "applied": applied_so_far,
+                    "failed": failed_so_far,
+                    "total_jobs": total_jobs,
+                }
+            }).eq("id", job_id).execute()
+            # Persist successful applies to User.applied_jobs immediately so a
+            # brand-new job_id (minted after a failed row) also skips them.
+            if status == "applied":
+                merged = list(history_applied | set(applied_so_far))
+                supabase.table("User").update({"applied_jobs": merged}).eq("id", user_id).execute()
+        except Exception as e:
+            print(f"Checkpoint write failed: {e}")
+
     jobs_queue = asyncio.Queue()
-    
-    # ── Producer function: Batched Tailoring ──
+
+    # ── Producer function: Batched Tailoring (only the remaining jobs) ──
     async def tailor_producer():
         try:
             from agents.tailor import process_batch
-            import json
             user_data_str = json.dumps(user_profile) if user_profile else None
             # 15 jobs per batch = one Gemini call (RPM-cheap on free tier). process_batch
             # -> tailor_jobs sends all 15 in one structured-output call (max_output_tokens
             # is the model max), and only splits into smaller calls if that truncates.
             batch_size = 15
-            for i in range(0, total_jobs, batch_size):
-                batch_jobs = jobs_to_apply[i:i+batch_size]
+            remaining_count = len(remaining)
+            for i in range(0, remaining_count, batch_size):
+                batch_jobs = remaining[i:i+batch_size]
                 # Only log to Redis on the first batch to reduce noise
                 if i == 0:
                     log_callback({"progress": 10, "status": "tailoring", "message": "Tailoring resumes..."})
-                print(f"[tailor] Processing batch {(i//batch_size)+1} of {((total_jobs-1)//batch_size)+1}...")
+                print(f"[tailor] Processing batch {(i//batch_size)+1} of {((remaining_count-1)//batch_size)+1}...")
                 # process_batch is synchronous logic running outside loop
                 tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0) # template=0 explicitly
                 await jobs_queue.put(tailored_batch)
@@ -1572,37 +1627,47 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
 
     # Launch Producer in background
     producer_task = asyncio.create_task(tailor_producer())
-    
-    # Consumer (Playwright Application Loop)
-    result = await main(
+
+    # Consumer (Playwright Application Loop). The counter is pre-seeded with the
+    # number of jobs already accounted for so progress resumes rather than
+    # restarting at 0, and the checkpoint callback persists each outcome.
+    await main(
         jobs_queue=jobs_queue,
         user_id=l_email,
         password=l_pass,
-        progress_user=email, 
+        progress_user=email,
         resume_url=resume_url,
-        log_callback=log_callback,
+        log_callback=checkpoint_callback,
         total_jobs=total_jobs,
+        jobs_applied_counter=[total_jobs - len(remaining)],
         user_profile=user_profile
     )
-    
+
     # Await producer to gracefully stop
     await producer_task
-    
-    # Result contains "applied" and "failed" lists
-    log_callback({"progress": 100, "status": "done", "message": f"Workflow Complete! Applied: {len(result.get('applied', []))}, Failed: {len(result.get('failed', []))}"})
-    
+
+    # Build the final result from the durable accumulators (the checkpoint has
+    # gathered the full set, including any pre-existing outcomes from a resume).
+    total_done = len(applied_so_far) + len(failed_so_far)
+    result = {
+        "applied": applied_so_far,
+        "failed": failed_so_far,
+        "total_jobs": total_jobs,
+        "success_rate": round(len(applied_so_far) / total_done * 100, 2) if total_done > 0 else 0,
+    }
+
+    log_callback({"progress": 100, "status": "done", "message": f"Workflow Complete! Applied: {len(applied_so_far)}, Failed: {len(failed_so_far)}"})
+
     # Update DB state
     supabase.table("workflow_sessions").update({
         "status": "completed",
         "output_data": result
     }).eq("id", job_id).execute()
-    
-    # Append successful applications to User.applied_jobs
-    if result.get("applied") and user_id:
+
+    # Final merge into User.applied_jobs (checkpoint already did this incrementally).
+    if applied_so_far and user_id:
         try:
-            user_row = supabase.table("User").select("applied_jobs").eq("id", user_id).execute()
-            existing = user_row.data[0].get("applied_jobs") or [] if user_row.data else []
-            merged = list(set(existing + result["applied"]))
+            merged = list(history_applied | set(applied_so_far))
             supabase.table("User").update({"applied_jobs": merged}).eq("id", user_id).execute()
         except Exception as e:
             print(f"Failed to update User.applied_jobs: {e}")

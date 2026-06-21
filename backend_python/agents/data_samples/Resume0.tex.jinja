@@ -8,7 +8,6 @@
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
 \usepackage{fancyhdr}
-\usepackage{fontawesome5} 
 \usepackage[english]{babel}
 \usepackage{tabularx}
 \input{glyphtounicode}
@@ -75,13 +74,15 @@
     {\Large \bfseries <<job.role>>} \\ \vspace{5pt}
     
     \small
-    \faMapMarker* <<static_profile.location>> \ $|$ \ 
-    \faPhone* <<static_profile.phone>> \ $|$ \ 
-    \faEnvelope \ \href{<<static_profile.email.href>>}{<<static_profile.email.text>>} \\ \vspace{4pt}
-    
-    \faLinkedin \ \href{<<static_profile.linkedin.href>>}{Linkedin} \ $|$ \ 
-    \faGithub \ \href{<<static_profile.github.href>>}{Github} \ $|$ \ 
-    \faGlobe \ \href{<<static_profile.portfolio.href>>}{Portfolio}
+    % ATS-safe contact line: plain text + labeled links, no icon glyphs (icons do not
+    % serialize reliably for ATS text extraction).
+    <<static_profile.location>> \ $|$ \
+    <<static_profile.phone>> \ $|$ \
+    \href{<<static_profile.email.href>>}{<<static_profile.email.text>>} \\ \vspace{4pt}
+
+    \href{<<static_profile.linkedin.href>>}{LinkedIn} \ $|$ \
+    \href{<<static_profile.github.href>>}{GitHub} \ $|$ \
+    \href{<<static_profile.portfolio.href>>}{Portfolio}
 \end{center}
 
 %-----------PROFESSIONAL SUMMARY-----------

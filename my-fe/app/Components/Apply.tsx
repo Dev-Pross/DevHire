@@ -196,61 +196,66 @@ const Apply: React.FC = () => {
         return;
       }
 
-      // Check if there's an active job to reconnect to
+      // Check if there's an active job to reconnect to. This runs whenever a
+      // job_id is persisted — an in-progress run takes precedence over any
+      // stale selection lingering in sessionStorage, so returning to the page
+      // reattaches to the live run instead of starting a fresh apply.
       let isReconnecting = false;
       const activeJobId = localStorage.getItem("apply_jobs_id");
-      if (activeJobId && !jobData) {
+      if (activeJobId) {
         try {
           const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${activeJobId}`);
           if (statusRes.ok) {
             const statusData = await statusRes.json();
 
-            if (statusData.status === 'completed') {
-              localStorage.removeItem("apply_jobs_id");
-              const outputData = statusData.output_data || {};
-              const applied = (outputData.applied ?? []).flat(Infinity);
-              const failed = (outputData.failed ?? []).flat(Infinity);
-
-              if (!cancelled) {
-                setResults({ applied, failed, total_jobs: outputData.total_jobs || applied.length + failed.length });
-                setAppliedCount(applied.length);
-                setSkippedCount(failed.length);
-                await saveApplyResults(applied, failed, outputData.total_jobs || applied.length + failed.length);
-                setProgress(100);
-                setIsDone(true);
-                hasStarted.current = true;
-                pushLog("Loaded completed application results.", "done");
-              }
-              return;
-            }
-
-            if (statusData.status === 'failed') {
-              localStorage.removeItem("apply_jobs_id");
-              // Fall through to error handling
-            }
-
-            // If running or pending, restore jobs from input_data and let Effect 4 handle SSE reconnection
+            // Active run: reattach. Restore jobs from input_data and let Effect 4
+            // reconnect to the SSE stream. Takes precedence over any new jobData.
             if (statusData.status === 'running' || statusData.status === 'pending') {
               const inputJobs = statusData.input_data?.jobs || [];
               if (inputJobs.length > 0 && !cancelled) {
                 setJobs(inputJobs);
                 isReconnecting = true;
-                // Initialize progress tracking for reconnection
-                await initApplyProgress(inputJobs.length).catch(() => {});
-                
-                // Restore counts from existing progress if available
+
+                // Restore counts from existing progress; only seed a fresh record
+                // when none exists (don't wipe live counts on reconnect).
                 const existingProgress = await getApplyProgress().catch(() => null);
                 if (existingProgress) {
                   setAppliedCount(existingProgress.applied.length);
                   setSkippedCount(existingProgress.failed.length);
+                } else {
+                  await initApplyProgress(inputJobs.length).catch(() => {});
                 }
-                
+
                 pushLog("Reconnecting to active job...", "processing");
                 // Continue to fetch credentials - Effect 4 will connect to SSE
               } else if (!cancelled) {
-                // No input jobs found - clean up and let fall through
+                // No input jobs to restore - clean up and let fall through
                 localStorage.removeItem("apply_jobs_id");
               }
+            } else if (statusData.status === 'completed') {
+              localStorage.removeItem("apply_jobs_id");
+              // Only surface the old results when the user hasn't queued a new
+              // selection; otherwise fall through to apply the new jobs.
+              if (!jobData) {
+                const outputData = statusData.output_data || {};
+                const applied = (outputData.applied ?? []).flat(Infinity);
+                const failed = (outputData.failed ?? []).flat(Infinity);
+
+                if (!cancelled) {
+                  setResults({ applied, failed, total_jobs: outputData.total_jobs || applied.length + failed.length });
+                  setAppliedCount(applied.length);
+                  setSkippedCount(failed.length);
+                  await saveApplyResults(applied, failed, outputData.total_jobs || applied.length + failed.length);
+                  setProgress(100);
+                  setIsDone(true);
+                  hasStarted.current = true;
+                  pushLog("Loaded completed application results.", "done");
+                }
+                return;
+              }
+            } else if (statusData.status === 'failed') {
+              localStorage.removeItem("apply_jobs_id");
+              // Fall through to error handling / fresh start
             }
           }
         } catch (err) {

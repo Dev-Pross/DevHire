@@ -382,16 +382,17 @@ def get_job_status(job_id: str):
     Fallback endpoint to query exact job state and results from DB.
     Useful if SSE disconnects or user comes back later.
     """
-    res = supabase.table("workflow_sessions").select("status", "output_data", "workflow_type", "last_active_at").eq("id", job_id).execute()
+    res = supabase.table("workflow_sessions").select("status", "output_data", "input_data", "workflow_type", "last_active_at").eq("id", job_id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Job not found")
-        
+
     job_data = res.data[0]
     return {
         "job_id": job_id,
         "status": job_data["status"],
         "workflow_type": job_data["workflow_type"],
         "output_data": job_data.get("output_data", {}),
+        "input_data": job_data.get("input_data", {}),
         "last_active_at": job_data["last_active_at"]
     }
 
