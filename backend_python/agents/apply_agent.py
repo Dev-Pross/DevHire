@@ -1603,8 +1603,18 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     # ── Producer function: Batched Tailoring (only the remaining jobs) ──
     async def tailor_producer():
         try:
-            from agents.tailor import process_batch
+            from agents.tailor import process_batch, extract_facts, extract_resume_text
             user_data_str = json.dumps(user_profile) if user_profile else None
+            # PASS 1 (atomic-fact extraction) is JD-independent — run it ONCE for the whole
+            # run instead of once per batch, then thread `facts` into every process_batch.
+            # Keeps the run at +1 Gemini call total. If it fails, fall back to facts=None
+            # and let each batch self-extract (back-compatible).
+            facts = None
+            try:
+                original_txt = await asyncio.to_thread(extract_resume_text, resume_url)
+                facts = await asyncio.to_thread(extract_facts, original_txt)
+            except Exception as e:
+                print(f"[tailor] PASS 1 hoist failed ({e}); each batch will self-extract")
             # 15 jobs per batch = one Gemini call (RPM-cheap on free tier). process_batch
             # -> tailor_jobs sends all 15 in one structured-output call (max_output_tokens
             # is the model max), and only splits into smaller calls if that truncates.
@@ -1617,7 +1627,7 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
                     log_callback({"progress": 10, "status": "tailoring", "message": "Tailoring resumes..."})
                 print(f"[tailor] Processing batch {(i//batch_size)+1} of {((remaining_count-1)//batch_size)+1}...")
                 # process_batch is synchronous logic running outside loop
-                tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0) # template=0 explicitly
+                tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0, facts) # template=0 explicitly
                 await jobs_queue.put(tailored_batch)
             # Send poison pill to signal queue exhaustion
             await jobs_queue.put(None)

@@ -133,6 +133,46 @@ class Format(BaseModel):
     tailored_jobs: List[TailoredJob]
 
 
+# --- PASS 1: atomic-fact extraction schema ---
+# Pass 1 reads the raw resume once (JD-independent) and decomposes it into atomic
+# FACTS — fragments, deliberately NOT bullet sentences — so Pass 2 must COMPOSE
+# fresh bullets from them and cannot copy the original wording (it never sees it).
+class AtomicFact(BaseModel):
+    action: str = Field(..., description="1-4 word lowercase verb-noun stem, NO leading capitalized verb, NOT a full sentence, e.g. 'build auth flow'")
+    tech: List[str] = Field(default_factory=list, description="Technologies/tools used for THIS action, e.g. ['Flask','JWT']")
+    metric: Optional[str] = Field(None, description="The number GLUED to THIS action, e.g. '5K req/day', '<50ms p99', '30% faster'. Keep with its own action; never detach.")
+    object: Optional[str] = Field(None, description="What was acted on, e.g. 'user login', 'ingestion pipeline'")
+    outcome: Optional[str] = Field(None, description="Neutral result fragment, e.g. 'reduced latency', 'cut manual review'")
+
+class ExperienceFacts(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    # SKELETON (static identity — copied verbatim into Pass 2 output, never tailored)
+    title: str = Field(..., alias="Title")
+    company: str
+    location: str
+    date: str
+    facts: List[AtomicFact]
+
+class ProjectFacts(BaseModel):
+    # SKELETON (static). project_line is rendered by Resume1/2/3 → keep it as a static fact.
+    name: str
+    project_line: str
+    href: str = ""
+    href_name: str = "link"
+    facts: List[AtomicFact]
+
+class AchievementFact(BaseModel):
+    name: str
+    raw: str = Field(..., description="Neutral fact fragment; Pass 2 writes the ATS pitch sentence from it.")
+
+class ResumeFacts(BaseModel):
+    static_profile: StaticProfile
+    skills_raw: List[str] = Field(default_factory=list, description="Flat, de-duplicated skill names — ungrouped and unscored; grouping/scoring happens in Pass 2.")
+    experience: List[ExperienceFacts] = Field(default_factory=list)
+    projects: List[ProjectFacts] = Field(default_factory=list)
+    achievements: List[AchievementFact] = Field(default_factory=list)
+
+
 # ╭── Gemini setup ───────────────────────────────────────────────╮
 if not GOOGLE_API:
     raise ValueError("Set GOOGLE_API env var")
@@ -229,57 +269,106 @@ def extract_resume_text(url: str) -> str:
 
 # ╭── Prompt builder ─────────────────────────────────────────────╮
 
-SYSTEM_INSTRUCTIONS = r"""
+# ── PASS 1 prompt: raw resume → atomic facts (JD-INDEPENDENT) ──
+# The whole point of two-pass: Pass 1 decomposes the resume into neutral fact
+# FRAGMENTS (not sentences). Pass 2 never sees the resume prose, only these facts,
+# so it must compose fresh bullets and CANNOT echo the original wording.
+EXTRACT_INSTRUCTIONS = r"""
 
-    You are an elite, AI-powered ATS Resume Strategist. Your function is to parse a candidate's raw resume text and strategically tailor it to each target Job Description (JD) provided. You must output the result strictly as a single, valid JSON object that conforms to the response schema.
+    You are a precise resume fact-extractor. Read the candidate's raw resume in <EXTRACTED_PDF_TEXT> and emit a single valid JSON object conforming to the ResumeFacts schema. You DECOMPOSE; you do not write prose.
+
+    --- OUTPUT FORMAT ---
+    1. RAW TEXT ONLY: Emit plain, human-readable text in every string field. Do NOT escape any characters for LaTeX/Markdown/HTML. Downstream code escapes. Only JSON's own escaping applies (e.g. \" inside a string).
+
+    --- ABSOLUTE TRUTH ---
+    2. Never invent, infer, or add any skill, fact, metric, company, title, degree, date, or URL not explicitly present in the resume text. If something is absent, use "" / null / [].
+    3. NO PLACEHOLDERS: a missing contact/link/section → "" or null. Never output "your.email@example.com" or "github.com/username".
+
+    --- DECOMPOSITION (the critical rule) ---
+    4. Break EVERY accomplishment into atomic facts. For each `AtomicFact`:
+       - `action`: a 1-4 word lowercase verb-noun STEM with NO leading capitalized action verb and NO full sentence — e.g. "build auth flow", "scrape job listings". Strip connective words; do NOT echo the resume's sentence structure.
+       - `tech`: the technologies/tools used for THIS action only.
+       - `metric`: the number tied to THIS action, kept INSIDE this same fact (e.g. "5K req/day", "<50ms latency", "30% faster"). Never detach a metric from the action it measures.
+       - `object` / `outcome`: optional neutral fragments.
+    5. ONE CLAIM PER FACT: if one resume line states two distinct accomplishments, emit two facts. Emit a fact for EVERY distinct claim — INCLUDING formal-employment lines. Do NOT summarize detail away; over-extraction is fine.
+
+    --- STRUCTURE ---
+    6. DATA SEPARATION: formal corporate employment (full-time, part-time, internship) → `experience`; academic/personal/hackathon/open-source builds → `projects`. If there is NO formal employment, `experience` MUST be `[]`. Never push projects into experience.
+    7. SKELETON FIELDS (extract exactly as written, these are static identity): experience `title`/`company`/`location`/`date`; project `name`/`href`/`href_name`.
+    8. `project_line`: ONE neutral factual one-sentence descriptor per project (e.g. "Real-time data ingestion pipeline"). Describe the project; do NOT tailor or embellish.
+    9. SKILLS: list ALL skills in `skills_raw`, flat and de-duplicated — no grouping, no scoring (that happens later).
+    10. STATIC PROFILE: extract `fullname`, `location`, `phone`, and `email`/`linkedin`/`github`/`portfolio` (each as {href, text}), plus `education[]` and `certifications[]`, exactly as written.
+    11. ACHIEVEMENTS: each award/honor/recognition → { "name": <short title>, "raw": <neutral fact fragment> }. Hackathons go to `projects`, not here.
+
+"""
+
+# ── PASS 2 prompt: atomic facts + JDs → tailored resume (per JD) ──
+# Input is <EXTRACTED_FACTS> (a ResumeFacts JSON), NOT the resume prose. Output is
+# the same `Format` as before, so all downstream code (split, trim, render) is unchanged.
+SYNTHESIZE_INSTRUCTIONS = r"""
+
+    You are an elite, AI-powered ATS Resume Strategist. You are given a CLOSED SET of atomic FACTS about one candidate in <EXTRACTED_FACTS>, plus one or more target Job Descriptions (JDs). For each JD you COMPOSE a tailored resume by writing fresh bullets and summary FROM the facts. You must output a single valid JSON object conforming to the response schema.
 
     --- OUTPUT FORMAT ---
 
     1. RAW TEXT ONLY: Emit plain, human-readable text in every string field. Do NOT escape any characters for LaTeX, Markdown, or HTML (no backslashes before &, %, $, #, _, {, }, ~, ^). Downstream code performs all escaping; pre-escaping will corrupt the rendered resume. The only exception is JSON's own required escaping (e.g. \" inside a string).
     2. EXACT JOB COUNT: Generate exactly N entries in the `tailored_jobs` array, where N equals the number of <JOB_DESCRIPTION> blocks provided. Each entry's `job_index` MUST match its JOB number (1-indexed).
 
-    --- CRITICAL GUARDRAILS (ZERO HALLUCINATION) ---
+    --- CRITICAL GUARDRAILS (CLOSED-WORLD, ZERO HALLUCINATION) ---
 
-    3. ABSOLUTE TRUTH: You are strictly forbidden from inventing, fabricating, or adding ANY skill, experience, job title, company, degree, date, metric, or URL not explicitly present in the candidate's <EXTRACTED_PDF_TEXT>.
-       CRITICAL DISTINCTION — reframing vs hallucinating:
-       - REFRAMING is REQUIRED and is NOT a violation: reword a real bullet, lead with the technology/metric the JD values, choose a stronger action verb, surface a number already stated in the resume.
-       - HALLUCINATING is forbidden: adding a fact that is not in the resume — a team you didn't lead, a tool you didn't use, a metric not stated, an outcome that didn't happen.
-       Reframe every bullet freely; never fabricate.
-    4. NO PLACEHOLDERS: If a contact detail, link (GitHub, LinkedIn, Portfolio), or section is missing from the resume, return an empty string "" or null for that field. Never output placeholder text like "your.email@example.com" or "github.com/username".
-    5. STRICT DATA SEPARATION:
-       - "Work Experience" means formal corporate employment only (full-time, part-time, or internships).
-       - "Projects" are academic, personal, hackathon, or open-source builds.
-       - If the candidate has NO formal work experience, the `experience` array MUST be empty: `[]`. Never push personal projects into the experience array.
+    3. CLOSED-WORLD OVER FACTS: Every bullet, summary phrase, skill, and achievement you output MUST be derivable from the facts in <EXTRACTED_FACTS> and nothing else. You CANNOT introduce any technology, metric, company, title, outcome, or skill that does not appear in the facts.
+       - You MAY combine fragments (action + tech + metric + object + outcome) from the SAME fact into one natural sentence, and reorder/emphasize per the JD.
+       - You MUST NOT merge a metric or tech from one fact onto a DIFFERENT fact's action. Keep each number with the action it came from.
+       - The original resume sentences are NOT provided here — so write each bullet naturally and fresh from the fragments; there is nothing to copy.
+    4. NO PLACEHOLDERS: If a contact detail or link is empty in the facts, keep it empty (""/null). Never invent placeholder text.
 
-    --- MANDATORY COMPLETENESS RULES ---
+    --- COMPOSITION (write the bullets) ---
 
-    6. ALL PROJECTS (sourcing, not rendering): Rank EVERY project from the resume by relevance to this JD and include them in that order — never cherry-pick only the most relevant and silently drop the rest. How many bullets each project gets is governed by the one-page budget in rule 10, not a fixed count.
-    7. ALL EXPERIENCE (sourcing, not rendering): If the candidate has work experience, rank ALL entries by relevance to this JD and include them in that order. If none exists, return `[]`. Bullet counts follow rule 10's budget.
-    8. ALL SKILLS: Include ALL technical skills from the resume, grouped into logical categories (e.g. "Languages", "Backend & AI", "Frontend", "Database & Infra", "Tools & Frameworks"). Do NOT cherry-pick only JD-relevant skills; within each category, order the JD-relevant skills first.
+    5. COMPOSE EACH BULLET FROM FACTS: For every experience entry and every project entry, write bullets by composing that entry's `facts` into JD-tailored sentences. Each bullet:
+       - draws on one or more facts of THE SAME entry (never another entry's facts);
+       - LEADS with the technology, methodology, or outcome THIS JD emphasizes (chosen from that fact's `tech`/`metric`/`outcome`);
+       - starts with a strong action verb; one line, ~10-15 words;
+       - states only what the facts support — surface a metric only if the fact carries one.
+       Tailor emphasis and ordering to each JD: the same facts should yield visibly different bullets for a backend JD vs a data JD.
+    6. ALL ENTRIES (sourcing, not rendering): Rank EVERY experience entry and EVERY project entry by relevance to this JD and include them in that order — never silently drop an entry. If `experience` facts is empty, output `experience: []`. Bullet counts follow the one-page budget in rule 8.
+    7. SUMMARY: Write `professional_summary` for each JD from the facts to foreground the strengths that match that JD's core requirements. Max 430 characters, 2-3 sentences, metric-driven and punchy.
+    8. ONE-PAGE BUDGET: The resume MUST fit a single page. Use 2-3 bullets per entry, but across ALL experience + project entries combined do NOT exceed ~10 bullets total. Prioritize experience bullets, then fill projects in relevance order until the budget is reached. When space is tight, drop the least-relevant PROJECT bullets — never fabricate, and never drop experience.
 
-    --- STRATEGIC TAILORING RULES ---
+    --- SKILLS / ACHIEVEMENTS ---
 
-    9. SUMMARY: Rewrite `professional_summary` for each JD to foreground the candidate's existing strengths that match that JD's core requirements. Max 430 characters, 2-3 sentences, metric-driven and punchy.
-    10. BULLET POINTS — REFRAME, DO NOT COPY: Rewrite every experience and project bullet so it leads with the technologies, methodologies, and outcomes THIS JD emphasizes. Do NOT echo the resume's original wording verbatim — reframing the real facts is the whole job. Each bullet: one line, ~10-15 words, starts with a strong action verb, and stays faithful to a fact actually in the resume.
-       - ALLOWED reframe: "Implemented Flask API for auth with JWT (5K req/day)"  ->  "Engineered JWT-secured Flask authentication backend serving 5K requests/day".
-       - FORBIDDEN: "Led a team of 3 building a microservices API" when the resume shows solo work and no microservices (invents a team and a technology).
-       ONE-PAGE BUDGET: The resume MUST fit a single page. Use 2-3 bullets per entry, but across ALL experience + project entries combined do NOT exceed ~10 bullets total. When there are many entries, give fewer bullets each; prioritize experience bullets, then fill projects in relevance order until the budget is reached. When space is tight, drop the least-relevant PROJECT bullets — never fabricate, and never drop experience.
-    11. SKILL SCORING (proficiency, NOT relevance): For every skill assign:
-       - `level`: one of "Beginner", "Intermediate", "Advanced", "Expert".
-       - `score`: a float 0.1-1.0 reflecting PROFICIENCY ONLY. Assign 0.8-1.0 if the skill is used across multiple complex projects or core employment; 0.5-0.7 if mentioned once or in a minor project; if ambiguous, default to "Intermediate" / 0.7. Express JD-relevance through ordering (rule 8), never by lowering a skill's score.
-    12. ACHIEVEMENTS: If the resume contains achievements (awards, honors, recognitions), add each to the `achievements` array as { "name": <short title>, "description": <one concise sentence pitching its relevance for ATS> }. Route hackathons to `projects` (per rule 5), not here.
-    13. STATIC vs TAILORED FIELDS: Tailor ONLY the bullet arrays (`experience[].points`, `projects[].points`) and `professional_summary`. Keep everything else as plain extracted facts, identical across every job: full name, contact, education, certifications, skill names, company, job title, dates, and `project_line` (a single factual one-sentence description of the project, e.g. "Real-time data ingestion pipeline" — describe the project, do not tailor it to the JD).
+    9. ALL SKILLS: Include ALL names from `skills_raw`, grouped into logical categories (e.g. "Languages", "Backend & AI", "Frontend", "Database & Infra", "Tools & Frameworks"). Do NOT cherry-pick only JD-relevant skills; within each category, order JD-relevant skills first. Do NOT rename or invent skills.
+    10. SKILL SCORING (proficiency, NOT relevance): For every skill assign `level` ∈ {"Beginner","Intermediate","Advanced","Expert"} and `score` ∈ 0.1-1.0 reflecting PROFICIENCY ONLY (0.8-1.0 if used across multiple complex projects/core employment; 0.5-0.7 if mentioned once; default "Intermediate"/0.7 if ambiguous). Express JD-relevance through ordering (rule 9), never by lowering a score.
+    11. ACHIEVEMENTS: For each item in the facts' achievements, output { "name": <short title>, "description": <one concise sentence pitching its relevance for ATS, derived from `raw`> }.
+
+    --- STATIC vs TAILORED FIELDS ---
+
+    12. COPY SKELETON FIELDS VERBATIM from the facts, identical across every job — do NOT rephrase or tailor them: `static_profile` (full name, contact, links, education, certifications); each experience's `title`/`company`/`location`/`date`; each project's `name`/`project_line`/`href`/`href_name`; and every skill NAME. Only the bullet arrays (`experience[].points`, `projects[].points`), `professional_summary`, and skill grouping/scoring are generated.
 
 """
 
-def build_prompt(original_resume: str, jobs: List[str]) -> str:
+def build_prompt(payload: str, jobs: List[str], mode: str = "synthesize") -> str:
+    """Build the prompt for either pass.
+
+    mode="extract"  : `payload` is the raw resume text; `jobs` is ignored (Pass 1 is
+                      JD-independent). Produces a ResumeFacts request.
+    mode="synthesize": `payload` is the ResumeFacts JSON; JD blocks are appended in the
+                      SAME structure as before so tailor_jobs's split parsing is unchanged.
+    """
+    if mode == "extract":
+        return "\n".join([
+            EXTRACT_INSTRUCTIONS,
+            "\n## Candidate Resume",
+            "<EXTRACTED_PDF_TEXT>",
+            payload,
+            "</EXTRACTED_PDF_TEXT>",
+        ])
 
     prompt_parts = [
-        SYSTEM_INSTRUCTIONS,
-        "\n## User Data and Job Descriptions",
-        "<EXTRACTED_PDF_TEXT>",
-        original_resume,
-        "</EXTRACTED_PDF_TEXT>"
+        SYNTHESIZE_INSTRUCTIONS,
+        "\n## Candidate Facts and Job Descriptions",
+        "<EXTRACTED_FACTS>",
+        payload,
+        "</EXTRACTED_FACTS>",
     ]
 
     # Add each job description in a structured format
@@ -298,8 +387,8 @@ class TruncatedOutputError(Exception):
     over-budget prompt is futile — the caller (tailor_jobs) should split instead."""
 
 
-def ask_gemini(orig: str, jobs: List[str]) -> Format:
-    prompt = build_prompt(orig, jobs)
+def ask_gemini(payload: str, jobs: List[str], *, schema=Format, mode: str = "synthesize"):
+    prompt = build_prompt(payload, jobs, mode)
     # Start with first model and move through MODELS on specific failures
     model_idx = 0
     choose_model = MODELS[model_idx]
@@ -326,7 +415,7 @@ def ask_gemini(orig: str, jobs: List[str]) -> Format:
                 config=types.GenerateContentConfig(
                     temperature=0.2,
                     response_mime_type="application/json",
-                    response_schema= Format,
+                    response_schema= schema,
                     # Model max (Gemini 2.5 Flash = 65536). One call must be able to
                     # hold all N resumes; an unset/low cap truncates the structured
                     # JSON -> .parsed is None -> the whole batch falls back to the
@@ -361,10 +450,23 @@ def ask_gemini(orig: str, jobs: List[str]) -> Format:
             time.sleep(delay + random.uniform(0, 1.0))
             continue
     raise RuntimeError("Gemini failed after retries")
+
+
+def extract_facts(original_txt: str) -> "ResumeFacts":
+    """PASS 1: decompose the raw resume into atomic facts (JD-independent, ONE call).
+
+    No JD fan-out → no split/recursion. On truncation the TruncatedOutputError
+    propagates and the caller (process_batch) falls back to the original PDF, same
+    graceful-degradation contract as a failed tailoring call.
+    """
+    facts = ask_gemini(original_txt, [], schema=ResumeFacts, mode="extract")
+    if not facts.experience and not facts.projects:
+        log.warning("PASS 1 extracted 0 experience + 0 project entries from a non-empty resume")
+    return facts
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Adaptive batch tailoring ───────────────────────────────────╮
-def tailor_jobs(orig: str, jds: List[str], offset: int = 0) -> Format:
+def tailor_jobs(facts_json: str, jds: List[str], offset: int = 0) -> Format:
     """Tailor N job descriptions in ONE Gemini call when it fits the output budget.
 
     On truncation / short return / call failure, split the list and retry each
@@ -377,7 +479,7 @@ def tailor_jobs(orig: str, jds: List[str], offset: int = 0) -> Format:
     """
     n = len(jds)
     try:
-        res = ask_gemini(orig, jds)
+        res = ask_gemini(facts_json, jds)
         got = list(res.tailored_jobs)
         if n == 1:
             # Single job is unambiguous: there is exactly one JD, so force the one
@@ -412,13 +514,13 @@ def tailor_jobs(orig: str, jds: List[str], offset: int = 0) -> Format:
     merged: List[TailoredJob] = []
     left_err = right_err = None
     try:
-        left = tailor_jobs(orig, jds[:mid], offset)
+        left = tailor_jobs(facts_json, jds[:mid], offset)
         static = static or left.static_profile
         merged.extend(left.tailored_jobs)
     except Exception as e:
         left_err = e
     try:
-        right = tailor_jobs(orig, jds[mid:], offset + mid)
+        right = tailor_jobs(facts_json, jds[mid:], offset + mid)
         static = static or right.static_profile
         merged.extend(right.tailored_jobs)
     except Exception as e:
@@ -444,7 +546,13 @@ def escape_latex(s: str) -> str:
             .replace("{", "\\{")
             .replace("}", "\\}")
             .replace("~", "\\textasciitilde ")
-            .replace("^", "\\textasciicircum "))
+            .replace("^", "\\textasciicircum ")
+            # Appended LAST: the "\\" pass above already ran, so the backslashes we
+            # introduce here are not re-escaped. In OT1 (Resume0) a raw "<"/">"
+            # ligatures into "¡"/"¿"; \textless{}/\textgreater{} are kernel-robust
+            # and need no package. Fixes e.g. "<50ms" rendering as "¡50ms".
+            .replace("<", "\\textless{}")
+            .replace(">", "\\textgreater{}"))
 
 from pydantic import BaseModel
 
@@ -590,7 +698,7 @@ def compile_tex(tex: str) -> bytes | None:
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Batch processor ────────────────────────────────────────────╮
-def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | None = None, user_data: str | None = None, template: int | None = 0 ) -> List[Dict[str, Any]]:
+def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | None = None, user_data: str | None = None, template: int | None = 0, facts: "ResumeFacts | None" = None) -> List[Dict[str, Any]]:
     global _TEMPLATE
     log.info("template from request - %d ", template if template >=0  else "not yet received")
     log.info("Processing %d jobs", len(jobs))
@@ -620,11 +728,20 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
     else:
         original_txt = user_data
     try:
-        # Adaptive: one Gemini call for the whole batch when it fits the output
-        # budget; splits and retries on truncation. Per-job isolation — a single
-        # failed job is absent from the result and falls back to its original PDF
-        # below, instead of collapsing the whole batch.
-        gemini_ans = tailor_jobs(original_txt, [j["job_description"] for j in jobs])
+        # PASS 1 — fact extraction (JD-independent, one call per resume). The apply
+        # pipeline hoists this and passes `facts` so it isn't repeated per batch.
+        if facts is None:
+            facts = extract_facts(original_txt)
+        facts_json = facts.model_dump_json(by_alias=True)
+        # PASS 2 — synthesis: one Gemini call for the whole batch when it fits the
+        # output budget; splits and retries on truncation. Per-job isolation — a single
+        # failed job is absent from the result and falls back to its original PDF below.
+        # Pass 2 sees ONLY the facts, never the resume prose, so it cannot copy bullets.
+        gemini_ans = tailor_jobs(facts_json, [j["job_description"] for j in jobs])
+        # Identity fields are authoritative from the extracted facts — never trust Pass-2
+        # regeneration for them. Deep-copy so escape_pydantic doesn't mutate the shared
+        # `facts` (which would double-escape across batches in the apply pipeline).
+        gemini_ans.static_profile = facts.static_profile.model_copy(deep=True)
         escape_pydantic(gemini_ans)
     except Exception as e:
         log.error("Gemini failed: %s", str(e))
