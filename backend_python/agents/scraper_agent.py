@@ -1576,8 +1576,26 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback):
 
     # Phase 4: Gemini Batching
     if raw_jobs:
+        # Exclude jobs the user has already applied to, so they never reach the
+        # selection screen. Done here (not only in Phase 2) so the scraper_raw-resume
+        # path is covered too, and pre-Gemini so we don't spend LLM quota on them.
+        # raw_jobs keys and User.applied_jobs are both normalized URLs (split('?')[0]).
+        try:
+            applied_res = supabase.table("User").select("applied_jobs").eq("id", user_id).execute()
+            applied_set = set(applied_res.data[0].get("applied_jobs") or []) if applied_res.data else set()
+        except Exception as e:
+            print(f"Could not load applied_jobs for filtering: {e}")
+            applied_set = set()
+
+        if applied_set:
+            before = len(raw_jobs)
+            raw_jobs = {url: jd for url, jd in raw_jobs.items() if normalize_job_url(url) not in applied_set}
+            removed = before - len(raw_jobs)
+            if removed:
+                log_callback({"progress": 54, "status": "in_progress", "message": f"Skipping {removed} job(s) you've already applied to."})
+
         log_callback({"progress": 55, "status": "in_progress", "message": "Analyzing job matches..."})
-        
+
         structured_jobs = await extract_jobs_in_batches(raw_jobs, batch_size=25, log_callback=log_callback)
         
         # Write final structured data to output_data and mark completed

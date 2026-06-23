@@ -25,11 +25,14 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 redis_client = None
 if REDIS_URL:
     try:
-        redis_client = redis.from_url(
-            REDIS_URL, 
-            decode_responses=True,
-            ssl_cert_reqs="none" # For Upstash Rediss
-        )
+        # `ssl_cert_reqs` is only valid for TLS (rediss://) connections. Passing it for a
+        # plain redis:// URL makes redis-py raise "unexpected keyword argument 'ssl_cert_reqs'"
+        # on every command — silently killing the heartbeat + SSE stream (worker.py swallows
+        # it). So only set it for the TLS scheme (e.g. Upstash rediss://).
+        redis_kwargs = {"decode_responses": True}
+        if REDIS_URL.startswith("rediss://"):
+            redis_kwargs["ssl_cert_reqs"] = "none"  # Upstash self-signed cert
+        redis_client = redis.from_url(REDIS_URL, **redis_kwargs)
     except Exception as e:
         print(f"Failed to initialize Redis client: {e}")
 

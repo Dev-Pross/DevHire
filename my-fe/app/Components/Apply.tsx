@@ -16,8 +16,10 @@ import {
   recordApplied,
   recordFailed,
   saveApplyResults,
+  seedApplyProgressFromServer,
   syncApplyProgressFromFinal,
 } from "../utiles/jobStorage";
+import { useUser } from "../utiles/UserContext";
 
 interface JobsData {
   job_url: string;
@@ -99,6 +101,7 @@ const LogItem = ({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) =>
 
 const Apply: React.FC = () => {
   const router     = useRouter();
+  const { refreshUser } = useUser();
   const hasStarted = useRef(false);
   const abortRef   = useRef<AbortController | null>(null);
 
@@ -120,6 +123,7 @@ const Apply: React.FC = () => {
   const [retryCount, setRetryCount]         = useState(0);
   const [appliedCount, setAppliedCount]     = useState(0);
   const [skippedCount, setSkippedCount]     = useState(0);
+  const [totalJobs, setTotalJobs]           = useState(0);
 
   const logEndRef   = useRef<HTMLDivElement>(null);
   const startTime   = useRef(Date.now());
@@ -216,15 +220,19 @@ const Apply: React.FC = () => {
                 setJobs(inputJobs);
                 isReconnecting = true;
 
-                // Restore counts from existing progress; only seed a fresh record
-                // when none exists (don't wipe live counts on reconnect).
-                const existingProgress = await getApplyProgress().catch(() => null);
-                if (existingProgress) {
-                  setAppliedCount(existingProgress.applied.length);
-                  setSkippedCount(existingProgress.failed.length);
-                } else {
-                  await initApplyProgress(inputJobs.length).catch(() => {});
-                }
+                // Seed live counts from the SERVER's output_data (the source of truth),
+                // not local IndexedDB — which can be empty/stale on another device or a
+                // cleared browser, which is what made the displayed number "change".
+                // Overwrite IndexedDB too so SSE replay + new events build on the right base.
+                const outputData = statusData.output_data || {};
+                const appliedUrls = (Array.isArray(outputData.applied) ? outputData.applied : []).flat(Infinity).filter(Boolean);
+                const failedUrls = (Array.isArray(outputData.failed) ? outputData.failed : []).flat(Infinity).filter(Boolean);
+                const authoritativeTotal = outputData.total_jobs ?? inputJobs.length;
+
+                setAppliedCount(appliedUrls.length);
+                setSkippedCount(failedUrls.length);
+                setTotalJobs(authoritativeTotal);
+                await seedApplyProgressFromServer(appliedUrls, failedUrls, authoritativeTotal).catch(() => {});
 
                 pushLog("Reconnecting to active job...", "processing");
                 // Continue to fetch credentials - Effect 4 will connect to SSE
@@ -365,6 +373,9 @@ const Apply: React.FC = () => {
 
     async function startStream() {
       try {
+        // On a fresh start the selection IS the total; on reconnect the authoritative
+        // server total was already set in Effect 1, so don't clobber it.
+        setTotalJobs((t) => t || jobs.length);
         let savedJobId = localStorage.getItem("apply_jobs_id");
         const isFreshStart = !savedJobId;
 
@@ -487,9 +498,9 @@ const Apply: React.FC = () => {
               const failed = (finalResult.failed ?? []).flat(Infinity);
               sessionStorage.setItem("applied", String(applied.length));
               setResults(finalResult);
-              await syncApplyProgressFromFinal(applied, failed, finalResult.total_jobs || jobs.length);
+              await syncApplyProgressFromFinal(applied, failed, finalResult.total_jobs || totalJobs || jobs.length);
               // Save final results to IndexedDB for future reference
-              await saveApplyResults(applied, failed, finalResult.total_jobs || jobs.length);
+              await saveApplyResults(applied, failed, finalResult.total_jobs || totalJobs || jobs.length);
             } else {
               const persisted = await getApplyProgress();
               if (persisted) {
@@ -498,13 +509,16 @@ const Apply: React.FC = () => {
                 setResults({
                   applied,
                   failed,
-                  total_jobs: persisted.total || jobs.length,
+                  total_jobs: persisted.total || totalJobs || jobs.length,
                 });
                 sessionStorage.setItem("applied", String(applied.length));
               }
             }
 
             await finalizeApplyProgress();
+            // Refresh User.applied_jobs in context so the job list (and its
+            // already-applied filter) reflects this run when the user returns to /Jobs.
+            refreshUser().catch(() => {});
             setProgress(100);
             setIsDone(true);
           }
@@ -644,7 +658,7 @@ const Apply: React.FC = () => {
         <div className="p-6 sm:p-8 lg:p-16">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {[
-              { label: "Total Jobs",  value: results.total_jobs || jobs.length,                         color: "text-white"       },
+              { label: "Total Jobs",  value: results.total_jobs || totalJobs || jobs.length,               color: "text-white"       },
               { label: "Successful",  value: (results.applied  ?? []).flat(Infinity).length, color: "text-emerald-400" },
               { label: "Skipped",     value: (results.failed   ?? []).flat(Infinity).length, color: "text-amber-400"  },
             ].map((stat) => (

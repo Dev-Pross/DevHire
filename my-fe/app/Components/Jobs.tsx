@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import JobCards from "./JobCards";
 import CryptoJS from "crypto-js";
 import toast from "react-hot-toast";
@@ -9,6 +9,7 @@ import getLoginUser from "../utiles/getUserData";
 import { sampleJobs } from "./sampleJobs";
 import { SSEManager } from "../utiles/sseManager";
 import { appendFetchedJobs, clearFetchedJobs, getFetchedJobs, saveFetchedJobs } from "../utiles/jobStorage";
+import { useUser } from "../utiles/UserContext";
 
 const USE_SAMPLE_DATA = false;
 
@@ -71,6 +72,12 @@ const DotIcon = () => (
   <div className="w-2 h-2 rounded-full bg-gray-500 shrink-0 mt-[3px]" />
 );
 
+// Match the backend's normalize_job_url (split('?')[0]) so frontend exclusion of
+// already-applied jobs lines up with the normalized URLs stored in User.applied_jobs.
+function normalizeUrl(url: any): string {
+  return typeof url === "string" ? url.split("?")[0].trim() : "";
+}
+
 function buildJobKey(job: any, index: number): string {
   if (job && typeof job === "object") {
     if (typeof job.job_url === "string" && job.job_url.trim()) {
@@ -113,6 +120,7 @@ const LogItem = ({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) =>
 
 const Jobs = () => {
   const router = useRouter();
+  const { user } = useUser();
   const hasStarted = useRef(false);
 
   const [activityLog, setActivityLog] = useState<LogEntry[]>([]);
@@ -133,6 +141,11 @@ const Jobs = () => {
   const [cacheCheckComplete, setCacheCheckComplete] = useState(false);
   const [recentCachedJobs, setRecentCachedJobs] = useState<any[] | null>(null);
   const [recentCacheAgeLabel, setRecentCacheAgeLabel] = useState("some time ago");
+
+  // ── Job filters (Keyword / Job type / Experience) ──
+  const [keyword, setKeyword] = useState("");
+  const [jobTypeFilter, setJobTypeFilter] = useState<string[]>([]);
+  const [experienceFilter, setExperienceFilter] = useState("");
 
   const logEndRef  = useRef<HTMLDivElement>(null);
   const startTime  = useRef(Date.now());
@@ -491,6 +504,54 @@ const Jobs = () => {
     setRetryCount(c => c + 1);
   }
 
+  // Exclude already-applied jobs (frontend guard for the IndexedDB cache; the backend
+  // already filters them at scrape time), then apply the active filters.
+  const appliedSet = useMemo(
+    () => new Set((user.applied_jobs || []).map(normalizeUrl)),
+    [user.applied_jobs]
+  );
+  const baseJobs: any[] = useMemo(
+    () => (Array.isArray(jobs) ? jobs.filter((j) => !appliedSet.has(normalizeUrl(j?.job_url))) : []),
+    [jobs, appliedSet]
+  );
+  const jobTypeOptions = useMemo(
+    () => Array.from(new Set(baseJobs.map((j) => String(j?.job_type || "").trim()).filter(Boolean))).sort(),
+    [baseJobs]
+  );
+  const experienceOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          baseJobs
+            .map((j) => String(j?.experience || "").trim())
+            .filter((v) => v && v.toLowerCase() !== "not specified")
+        )
+      ).sort(),
+    [baseJobs]
+  );
+  const visibleJobs = useMemo(() => {
+    const kw = keyword.trim().toLowerCase();
+    return baseJobs.filter((j) => {
+      if (kw) {
+        const skills = Array.isArray(j?.key_skills) ? j.key_skills.join(" ") : "";
+        const hay = `${j?.title || ""} ${j?.company_name || ""} ${skills}`.toLowerCase();
+        if (!hay.includes(kw)) return false;
+      }
+      if (jobTypeFilter.length && !jobTypeFilter.includes(String(j?.job_type || "").trim())) return false;
+      if (experienceFilter && String(j?.experience || "").trim() !== experienceFilter) return false;
+      return true;
+    });
+  }, [baseJobs, keyword, jobTypeFilter, experienceFilter]);
+
+  const filtersActive = keyword.trim() !== "" || jobTypeFilter.length > 0 || experienceFilter !== "";
+  const toggleJobType = (t: string) =>
+    setJobTypeFilter((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  const clearFilters = () => {
+    setKeyword("");
+    setJobTypeFilter([]);
+    setExperienceFilter("");
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
 
@@ -632,12 +693,77 @@ const Jobs = () => {
                 </div>
               </div>
             )}
-            {!isDone && (
-              <p className="text-xs text-emerald-400/60 mb-4">
-                {jobs.length} jobs found — still searching for more...
-              </p>
+            {baseJobs.length > 0 && (
+              <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/[0.06] bg-[#0A0A0A]/60 p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    type="text"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    placeholder="Search title, company, or skills..."
+                    className="flex-1 min-w-[180px] rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-gray-200 placeholder-gray-600 outline-none focus:border-emerald-500/40"
+                  />
+                  {experienceOptions.length > 0 && (
+                    <select
+                      value={experienceFilter}
+                      onChange={(e) => setExperienceFilter(e.target.value)}
+                      className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-gray-200 outline-none focus:border-emerald-500/40"
+                    >
+                      <option value="">Any experience</option>
+                      {experienceOptions.map((exp) => (
+                        <option key={exp} value={exp}>{exp}</option>
+                      ))}
+                    </select>
+                  )}
+                  {filtersActive && (
+                    <button
+                      onClick={clearFilters}
+                      className="text-xs text-gray-400 px-3 py-2 rounded-lg border border-white/[0.08] hover:text-white hover:bg-white/[0.04] transition"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+                {jobTypeOptions.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-gray-500 mr-1">Type:</span>
+                    {jobTypeOptions.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => toggleJobType(t)}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition ${
+                          jobTypeFilter.includes(t)
+                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                            : "border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
-            <JobCards jobs={jobs} />
+            {!isDone ? (
+              <p className="text-xs text-emerald-400/60 mb-4">
+                {visibleJobs.length} of {baseJobs.length} jobs{filtersActive ? " match" : ""} — still searching for more...
+              </p>
+            ) : filtersActive ? (
+              <p className="text-xs text-gray-500 mb-4">
+                {visibleJobs.length} of {baseJobs.length} jobs match your filters
+              </p>
+            ) : null}
+            {visibleJobs.length > 0 ? (
+              <JobCards jobs={visibleJobs} />
+            ) : (
+              <div className="flex items-center justify-center min-h-[30vh]">
+                <p className="text-gray-500 text-sm">
+                  {baseJobs.length === 0
+                    ? "You've already applied to all of these jobs."
+                    : "No jobs match your filters."}
+                </p>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex items-center justify-center min-h-[60vh] lg:min-h-[80vh]">

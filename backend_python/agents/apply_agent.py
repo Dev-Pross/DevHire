@@ -1550,8 +1550,38 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     processed = set(applied_so_far) | set(failed_so_far) | history_applied
     remaining = [j for j in jobs_to_apply if j.get("job_url") not in processed]
 
+    # Safety-net: guarantee applied + failed == total_jobs. Any selected job that never
+    # produces an applied/skipped event — one filtered out as already-applied, or dropped
+    # by a producer-level abort — is recorded as failed here so no job silently vanishes.
+    def reconcile_unaccounted():
+        accounted = set(applied_so_far) | set(failed_so_far)
+        for j in jobs_to_apply:
+            ju = j.get("job_url")
+            if not ju or ju in accounted:
+                continue
+            accounted.add(ju)
+            company = normalize_company_name(j.get("company_name"))
+            if ju in history_applied:
+                # Applied in a prior run — count it as applied (truthful), not failed,
+                # so the success metric isn't penalised for a job that did succeed.
+                applied_so_far.append(ju)
+                log_callback({
+                    "progress": 99, "status": "applied", "success": True,
+                    "message": f"Applied (already applied) - {company}",
+                    "job_url": ju, "job_company": company,
+                })
+            else:
+                # Genuinely never processed (e.g. a producer-level drop) — failed.
+                failed_so_far.append(ju)
+                log_callback({
+                    "progress": 99, "status": "skipped", "success": False,
+                    "message": f"Skipped (not processed) - {company}",
+                    "job_url": ju, "job_company": company,
+                })
+
     # Everything already processed — finalize without launching the browser.
     if not remaining:
+        reconcile_unaccounted()
         result = {
             "applied": applied_so_far,
             "failed": failed_so_far,
@@ -1626,8 +1656,17 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
                 if i == 0:
                     log_callback({"progress": 10, "status": "tailoring", "message": "Tailoring resumes..."})
                 print(f"[tailor] Processing batch {(i//batch_size)+1} of {((remaining_count-1)//batch_size)+1}...")
-                # process_batch is synchronous logic running outside loop
-                tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0, facts) # template=0 explicitly
+                # Isolate each batch: a single tailoring failure must NOT abandon the
+                # remaining batches. On failure, enqueue the jobs with no resume_binary
+                # so the consumer still emits a 'skipped' event and they stay counted.
+                try:
+                    tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0, facts) # template=0 explicitly
+                except Exception as be:
+                    print(f"[tailor] Batch {(i//batch_size)+1} failed ({be}); enqueueing as skipped")
+                    tailored_batch = [
+                        {"job_url": j.get("job_url"), "resume_binary": "", "company_name": j.get("company_name")}
+                        for j in batch_jobs
+                    ]
                 await jobs_queue.put(tailored_batch)
             # Send poison pill to signal queue exhaustion
             await jobs_queue.put(None)
@@ -1655,6 +1694,10 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
 
     # Await producer to gracefully stop
     await producer_task
+
+    # Safety-net: ensure every selected job is accounted for (applied + failed ==
+    # total_jobs), even if a producer-level abort dropped a batch before the consumer.
+    reconcile_unaccounted()
 
     # Build the final result from the durable accumulators (the checkpoint has
     # gathered the full set, including any pre-existing outcomes from a resume).

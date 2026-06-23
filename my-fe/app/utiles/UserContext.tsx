@@ -9,6 +9,7 @@ interface UserData {
   resume_url: string | null;
   profile_image: string | null;
   linkedin_context: boolean;
+  applied_jobs: string[];
 }
 
 interface UserContextType {
@@ -26,6 +27,7 @@ const defaultUser: UserData = {
   resume_url: null,
   profile_image: null,
   linkedin_context: false,
+  applied_jobs: [],
 };
 
 const UserContext = createContext<UserContextType>({
@@ -68,6 +70,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       let profileImage: string | null = metadata.avatar_url || metadata.picture || null;
       let linkedinContext = false;
       let dbName: string | null = null;
+      let appliedJobs: string[] = [];
 
       try {
         const res = await fetch(`/api/User?id=${userId}`, {
@@ -87,6 +90,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
           if (userData.user.name) {
             dbName = userData.user.name;
+          }
+          if (Array.isArray(userData.user.applied_jobs)) {
+            appliedJobs = userData.user.applied_jobs;
           }
         }
       } catch (err) {
@@ -108,6 +114,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         resume_url: resumeUrl,
         profile_image: profileImage,
         linkedin_context: linkedinContext,
+        applied_jobs: appliedJobs,
       });
       setLoading(false);
     } catch (err) {

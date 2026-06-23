@@ -221,6 +221,23 @@ export async function syncApplyProgressFromFinal(applied: string[], failed: stri
   } satisfies ApplyProgressRecord);
 }
 
+// Overwrite local progress from the server's authoritative output_data on reconnect.
+// Like syncApplyProgressFromFinal but keeps completedAt null (the run is still active),
+// so subsequent SSE events continue to accumulate on top of the correct base.
+export async function seedApplyProgressFromServer(applied: string[], failed: string[], total: number): Promise<void> {
+  const toItems = (urls: string[]) =>
+    urls
+      .filter((url) => typeof url === "string" && url.trim())
+      .map((job_url) => ({ job_url, timestamp: Date.now() }));
+
+  await idbSet("apply_progress", {
+    applied: toItems(applied || []),
+    failed: toItems(failed || []),
+    total,
+    completedAt: null,
+  } satisfies ApplyProgressRecord);
+}
+
 export async function getApplyProgress(): Promise<ApplyProgressRecord | null> {
   return idbGet<ApplyProgressRecord>("apply_progress");
 }
