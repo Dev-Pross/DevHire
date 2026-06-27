@@ -1363,7 +1363,7 @@ async def main(
         log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
     pw = await async_playwright().start()
     browser = await pw.chromium.launch(
-        headless=False,
+        headless=True,
         args=[
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]        
