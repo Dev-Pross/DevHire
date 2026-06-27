@@ -112,6 +112,7 @@ class EasyApplyAgent:
         self._country_picked = False
         self._phone_filled = False
         self._location_filled = False
+        self.active_modal_sel = ".artdeco-modal"
 
     # ───────────────────────────────────────────────────────
     async def find_and_click_easy_apply(self) -> bool:
@@ -196,6 +197,8 @@ class EasyApplyAgent:
 
                             # Check for modal with multiple attempts
                             modal_selectors = [
+                                "[aria-labelledby='dialog-header']",
+                                "[data-sdui-screen$='easyapply.EasyApply']",
                                 ".artdeco-modal-overlay.artdeco-modal-overlay--layer-default",
                                 ".artdeco-modal-overlay--is-top-layer",
                                 ".artdeco-modal.jobs-easy-apply-modal", 
@@ -212,6 +215,7 @@ class EasyApplyAgent:
                                         modal = await self.page.wait_for_selector(modal_sel, timeout=2000)
                                         if modal and await modal.is_visible():
                                             log.info(f"🪟 Easy-Apply modal found with: {modal_sel}")
+                                            self.active_modal_sel = modal_sel
                                             modal_found = True
                                             break
                                     except:
@@ -249,8 +253,8 @@ class EasyApplyAgent:
     async def _scroll_modal_bottom(self):
         await self.page.evaluate(
             """
-            () => {
-                const modal = document.querySelector('.artdeco-modal.jobs-easy-apply-modal');
+            (selector) => {
+                const modal = document.querySelector(selector);
                 if (!modal) return;
                 const walker = document.createTreeWalker(modal, NodeFilter.SHOW_ELEMENT);
                 let box = null;
@@ -264,7 +268,7 @@ class EasyApplyAgent:
                 }
                 (box || modal).scrollTop = (box || modal).scrollHeight;
             }
-            """
+            """, self.active_modal_sel
         )
         await asyncio.sleep(0.4)
 
@@ -375,7 +379,7 @@ class EasyApplyAgent:
             # Click on a neutral area to dismiss overlays
             try:
                 # Try to click on modal background
-                await self.page.click(".artdeco-modal.jobs-easy-apply-modal", timeout=1000)
+                await self.page.click(self.active_modal_sel, timeout=1000)
             except:
                 # Fallback: click on body
                 await self.page.click("body", timeout=1000)
@@ -685,7 +689,7 @@ class EasyApplyAgent:
             dialog_selectors = [
                 'div:has-text("Save this application?")',
                 '[role="dialog"]:has-text("Save this application")',
-                '.artdeco-modal:has-text("Save this application")'
+                f"{self.active_modal_sel}:has-text('Save this application')"
             ]
             
             for selector in dialog_selectors:
@@ -727,13 +731,13 @@ class EasyApplyAgent:
                 "button[aria-label*='Continue applying']:not([disabled])",
                 
                 # Text-based selectors with exact matches
-                ".artdeco-modal button:has-text('Submit application'):not([disabled])",
-                ".artdeco-modal button:has-text('Review'):not([disabled])",
-                ".artdeco-modal button:has-text('Next'):not([disabled])",
-                ".artdeco-modal button:has-text('Continue'):not([disabled])",
+                f"{self.active_modal_sel} button:has-text('Submit application'):not([disabled])",
+                f"{self.active_modal_sel} button:has-text('Review'):not([disabled])",
+                f"{self.active_modal_sel} button:has-text('Next'):not([disabled])",
+                f"{self.active_modal_sel} button:has-text('Continue'):not([disabled])",
                 
                 # Fallback to primary buttons only
-                ".artdeco-modal button.artdeco-button--primary:not([disabled])"
+                f"{self.active_modal_sel} button.artdeco-button--primary:not([disabled])"
             ]
             
             for selector in button_selectors:
@@ -793,8 +797,8 @@ class EasyApplyAgent:
 
             # Handle selects and comboboxes FIRST (before text inputs)
             dropdown_roots = await self.page.locator(
-                ".artdeco-modal.jobs-easy-apply-modal select, "
-                ".artdeco-modal.jobs-easy-apply-modal [role='combobox']"
+                f"{self.active_modal_sel} select, "
+                f"{self.active_modal_sel} [role='combobox']"
             ).all()
 
             for root in dropdown_roots:
@@ -906,8 +910,8 @@ class EasyApplyAgent:
                 await asyncio.sleep(0.5)
                 
                 all_text_inputs = await self.page.locator(
-                    ".artdeco-modal.jobs-easy-apply-modal input[type='text'], "
-                    ".artdeco-modal.jobs-easy-apply-modal textarea"
+                    f"{self.active_modal_sel} input[type='text'], "
+                    f"{self.active_modal_sel} textarea"
                 ).all()
                 
                 for fu in all_text_inputs:
@@ -923,12 +927,12 @@ class EasyApplyAgent:
 
             # Fill text inputs
             text_inputs = await self.page.locator(
-                ".artdeco-modal.jobs-easy-apply-modal input[type='text'], "
-                ".artdeco-modal.jobs-easy-apply-modal input[type='number'], "
-                ".artdeco-modal.jobs-easy-apply-modal input[type='email'], "
-                ".artdeco-modal.jobs-easy-apply-modal input[type='tel'], "
-                ".artdeco-modal.jobs-easy-apply-modal input:not([type]), "
-                ".artdeco-modal.jobs-easy-apply-modal textarea"
+                f"{self.active_modal_sel} input[type='text'], "
+                f"{self.active_modal_sel} input[type='number'], "
+                f"{self.active_modal_sel} input[type='email'], "
+                f"{self.active_modal_sel} input[type='tel'], "
+                f"{self.active_modal_sel} input:not([type]), "
+                f"{self.active_modal_sel} textarea"
             ).all()
 
             for inp in text_inputs:
@@ -1030,7 +1034,7 @@ class EasyApplyAgent:
 
 
             # Handle radio buttons
-            radios = await self.page.locator(".artdeco-modal.jobs-easy-apply-modal input[type='radio']").all()
+            radios = await self.page.locator(f"{self.active_modal_sel} input[type='radio']").all()
             seen_groups = set()
 
             for radio in radios:
@@ -1058,6 +1062,30 @@ class EasyApplyAgent:
 
                 except Exception as e:
                     log.debug(f"Radio error: {e}")
+
+            # Handle ARIA custom radio buttons (LinkedIn's new UI)
+            try:
+                radio_groups = await self.page.locator(f"{self.active_modal_sel} [role='radiogroup']").all()
+                for group in radio_groups:
+                    try:
+                        aria_radios = await group.locator("[role='radio']").all()
+                        for r in aria_radios:
+                            txt = await r.evaluate('el => el.parentElement ? el.parentElement.textContent : el.textContent')
+                            txt = (txt or "").lower()
+                            value_attr = (await r.get_attribute("value") or "").lower()
+                            
+                            if any(x in (value_attr + txt) for x in ("yes", "true", "y", "1")):
+                                try:
+                                    await r.click(timeout=2000)
+                                except:
+                                    await r.evaluate('el => el.click()')
+                                log.info(f"✅ Selected ARIA radio button (Yes/True)")
+                                await asyncio.sleep(0.3)
+                                break
+                    except Exception as e:
+                        log.debug(f"ARIA radio group error: {e}")
+            except Exception as e:
+                log.debug(f"ARIA radio finding error: {e}")
 
             # Check for save dialog before clicking buttons
             await self._handle_save_dialog()
@@ -1098,6 +1126,7 @@ class EasyApplyAgent:
         self._country_picked = False
         self._phone_filled = False
         self._location_filled = False
+        self.active_modal_sel = ".artdeco-modal"
         log.info("🔄 Agent state reset for new job")
 
 
@@ -1334,7 +1363,7 @@ async def main(
         log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
     pw = await async_playwright().start()
     browser = await pw.chromium.launch(
-        headless=True,
+        headless=False,
         args=[
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]        
