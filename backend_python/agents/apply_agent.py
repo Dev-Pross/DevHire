@@ -121,21 +121,13 @@ class EasyApplyAgent:
         await asyncio.sleep(2)
 
         selectors = [
-            'a[data-view-name="job-apply-button"]:has-text("Easy Apply")',
-            'a[data-view-name="job-apply-button"]',
-            '[data-view-name="job-apply-button"]',
-            '#jobs-apply-button-id',
-            '.jobs-apply-button--top-card a:has-text("Easy Apply")',
             'button[aria-label*="Easy Apply"]',
             'a[aria-label*="Easy Apply to this job"]',
-            '.jobs-apply-button--top-card button:has-text("Apply")',
-            '.jobs-s-apply button:has-text("Apply")',
-            '.jobs-apply-button button:has-text("Easy Apply")',
-            'button[data-control-name="apply"]',
-            '.jobs-apply-button button[aria-label*="Apply"]',
-            'button:has-text("Apply"):has-text("Easy")',
             'button:has-text("Easy Apply")',
-            'button:has-text("Apply")'
+            'a[data-view-name="job-apply-button"]:has-text("Easy Apply")',
+            '.jobs-apply-button--top-card button:has-text("Easy Apply")',
+            '.jobs-apply-button button:has-text("Easy Apply")',
+            'button:has-text("Apply"):has-text("Easy")'
         ]
 
         for selector in selectors:
@@ -153,7 +145,7 @@ class EasyApplyAgent:
                         text = (await btn.text_content() or "").strip()
                         log.info(f"Button {idx+1} text: '{text}'")
 
-                        if "easy apply" in text.lower() or (selector == 'button:has-text("Apply")' and "apply" in text.lower()):
+                        if "easy apply" in text.lower():
                             log.info(f"Clicking Easy Apply button: '{text}'")
                             await btn.scroll_into_view_if_needed()
                             await asyncio.sleep(0.8)
@@ -1053,7 +1045,7 @@ class EasyApplyAgent:
                         lbl = self.page.locator(f'label[for="{rid}"]').first
                         lbl_txt = (await lbl.text_content() or "").lower() if await lbl.count() else ""
 
-                        if any(x in (value_attr + lbl_txt) for x in ("yes", "true", "y", "1")):
+                        if any(x in (value_attr + lbl_txt) for x in ("yes", "true", "y", "1", "immediate", "0")):
                             if await lbl.count():
                                 await lbl.click()
                             else:
@@ -1074,7 +1066,7 @@ class EasyApplyAgent:
                             txt = (txt or "").lower()
                             value_attr = (await r.get_attribute("value") or "").lower()
                             
-                            if any(x in (value_attr + txt) for x in ("yes", "true", "y", "1")):
+                            if any(x in (value_attr + txt) for x in ("yes", "true", "y", "1", "immediate", "0")):
                                 try:
                                     await r.click(timeout=2000)
                                 except:
