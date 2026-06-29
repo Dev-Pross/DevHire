@@ -963,7 +963,7 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
                 if isinstance(raw_payload, dict) and raw_payload.get("job_description"):
                     job_dict[url] = {
                         "job_url": url,
-                        "job_id": extract_job_id_from_url(url),
+                        "job_id": str(uuid.uuid4()),
                         "job_description": raw_payload.get("job_description", ""),
                         "title": raw_payload.get("title") or fallback_title,
                         "company_name": raw_payload.get("company_name", ""),
@@ -1095,7 +1095,7 @@ client = genai.Client(api_key=GOOGLE_API)
 def normalize_raw_job_payload(url: str, raw_payload) -> dict:
     normalized = {
         "job_url": url,
-        "job_id": extract_job_id_from_url(url),
+        "job_id": str(uuid.uuid4()),
         "title": "",
         "company_name": "",
         "location": "",
@@ -1108,7 +1108,7 @@ def normalize_raw_job_payload(url: str, raw_payload) -> dict:
     if isinstance(raw_payload, str):
         normalized["job_description"] = normalize_text(raw_payload)
     elif isinstance(raw_payload, dict):
-        normalized["job_id"] = normalize_text(raw_payload.get("job_id")) or normalized["job_id"]
+        # Keep the generated UUID to guarantee uniqueness
         normalized["title"] = normalize_text(raw_payload.get("title"))
         normalized["company_name"] = normalize_text(raw_payload.get("company_name"))
         normalized["location"] = normalize_text(raw_payload.get("location"))
@@ -1130,7 +1130,7 @@ def merge_gemini_with_raw(raw_job: dict, llm_job) -> dict:
 
     merged = {
         "title": raw_job.get("title") if has_meaningful_value(raw_job.get("title")) else normalize_text(llm_job.get("title")) or "Title not extracted",
-        "job_id": str(uuid.uuid4()),
+        "job_id": raw_job.get("job_id") or str(uuid.uuid4()),
         "company_name": raw_job.get("company_name") if has_meaningful_value(raw_job.get("company_name")) else normalize_text(llm_job.get("company_name")) or "Company not extracted",
         "location": raw_job.get("location") if has_meaningful_value(raw_job.get("location")) else normalize_text(llm_job.get("location")) or "Not specified",
         "experience": normalize_text(llm_job.get("experience")) or "Not specified",
