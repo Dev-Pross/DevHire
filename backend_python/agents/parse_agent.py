@@ -4,6 +4,8 @@ import fitz
 import io
 import re
 import json
+import os
+from .pdf_utils import extract_pdf_text_from_url
 from google import genai
 from google.genai import types
 from pdf2image import convert_from_bytes
@@ -462,44 +464,12 @@ def normalize_profile(parsed_json: Dict[str, Any], resume_text: str) -> Dict[str
     return profile
 
 def parse_pdf(url : str):
-    response = requests.get(url)
-    if response.status_code != 200 :
-        raise Exception("failed to fetch url")
-    else:
-        pdf_bytes = response.content
-        docs = fitz.open(stream=pdf_bytes, filetype="pdf")
-        text = ""
-        pages = len(docs)
-
-        for page_num in range(pages):
-            page = docs.load_page(page_num)
-            page_text = page.get_text()
-            if not isinstance(page_text, str):
-                page_text = str(page_text)
-            page_text = page_text.strip()
-            if page_text:
-                text += page_text
-            else:
-                # Fallback to OCR using pdf2image + pytesseract on page bytes
-                # Convert only the page to image
-                images = convert_from_bytes(pdf_bytes)
-                if images:
-                    text_from_image = pytesseract.image_to_string(images[0])
-                    if(text_from_image):
-                        text += text_from_image
-                        print("data fetched from resume using **tesseract**")
-                    else:
-                        print(f"unable to fetch the text from resume {page_num + 1}")
-                else:
-                    print(f"unable to convert the image from byte fallback method failed!")
-        if len(text)< 500 or text.count('') > (len(text) / 2):
-            print(text)
-            raise ValueError("invalid pdf")
-        print("data fetched from resume")
-
-
-        docs.close()
-        return text
+    text = extract_pdf_text_from_url(url)
+    if len(text) < 500 or text.count('') > (len(text) / 2):
+        print(text)
+        raise ValueError("invalid pdf")
+    print("data fetched from resume")
+    return text
 
 system_instruction = """
 You are a senior talent intelligence parser specialized in resume-to-role mapping.

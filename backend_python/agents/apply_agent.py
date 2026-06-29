@@ -1150,9 +1150,9 @@ async def login(page: Page, user_id: str|None, password: str| None) -> bool:
         log.error("❌ MISSING CREDENTIALS: No saved session found and no LinkedIn credentials provided in payload.")
         return False
         
-    await page.fill("#username", user_id)
-    await page.fill("#password", password)
-    await page.click('button[type="submit"]')
+    await page.fill('input[type="email"]:visible', user_id)
+    await page.fill('input[type="password"]:visible', password)
+    await page.click('button:has-text("Sign in"):not(:has-text("Apple")):not(:has-text("Microsoft")):visible, button:has-text("Log in"):not(:has-text("Apple")):not(:has-text("Microsoft")):visible, button[type="submit"]:visible')
 
     for _ in range(30):
         await asyncio.sleep(1)
@@ -1288,6 +1288,8 @@ async def main(
 
         if parsed.get("candidate_name"):
             RESUME_FILENAME = parsed["candidate_name"]
+            if not RESUME_FILENAME.lower().endswith(".pdf"):
+                RESUME_FILENAME += ".pdf"
 
         location = parsed.get("location", {})
         if location.get("city"):
@@ -1354,12 +1356,15 @@ async def main(
     if log_callback:
         log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
     pw = await async_playwright().start()
-    browser = await pw.chromium.launch(
-        headless=True,
-        args=[
+    launch_kwargs = {
+        "headless": True,
+        "args": [
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
-        ]        
-                                       )
+        ]
+    }
+    
+
+    browser = await pw.chromium.launch(**launch_kwargs)
 
     try:
         db_context = None
@@ -1370,9 +1375,27 @@ async def main(
         if db_context:
             print(f"FOUND STORAGE STATE IN DB!")
             print(f"Creating new context with current browser using saved state!")
+            
+            # Extract fingerprint before passing to Playwright
+            fingerprint = db_context.pop("fingerprint", {})
+            
+            context_kwargs = LINKEDIN_CONTEXT_OPTIONS.copy()
+            if fingerprint:
+                print("Applying user browser fingerprint to context...")
+                if fingerprint.get("userAgent"):
+                    context_kwargs["user_agent"] = fingerprint["userAgent"]
+                if fingerprint.get("timezone"):
+                    context_kwargs["timezone_id"] = fingerprint["timezone"]
+                if fingerprint.get("language"):
+                    context_kwargs["locale"] = fingerprint["language"]
+                if fingerprint.get("viewport"):
+                    context_kwargs["viewport"] = fingerprint["viewport"]
+                if fingerprint.get("screen"):
+                    context_kwargs["screen"] = fingerprint["screen"]
+
             context = await browser.new_context(
                 storage_state=db_context,
-                **LINKEDIN_CONTEXT_OPTIONS,
+                **context_kwargs
             )
         else:
             context = await browser.new_context(**LINKEDIN_CONTEXT_OPTIONS)

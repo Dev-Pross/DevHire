@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from pathlib import Path
 import sys
 import tempfile
@@ -171,17 +172,17 @@ async def linkedin_login(browser, email_val, password_val):
         print("✅ FORCED 50% zoom applied - LinkedIn should now be zoomed out")
         
         print("📧 Entering email...")
-        email_input = await page.wait_for_selector('#username', timeout=10000)
+        email_input = await page.wait_for_selector('input[type="email"]:visible', timeout=10000)
         await email_input.fill(email_val)
         
         print("🔑 Entering password...")
-        password_input = await page.wait_for_selector('#password', timeout=5000)
+        password_input = await page.wait_for_selector('input[type="password"]:visible', timeout=5000)
         await password_input.fill(password_val)
         
         await debug_capture_page(page, "02_credentials_filled")
 
         print("🚀 Clicking login button...")
-        login_button = await page.wait_for_selector('button[type="submit"]', timeout=5000)
+        login_button = await page.wait_for_selector('button:has-text("Sign in"):not(:has-text("Apple")):not(:has-text("Microsoft")):visible, button:has-text("Log in"):not(:has-text("Apple")):not(:has-text("Microsoft")):visible, button[type="submit"]:visible', timeout=5000)
         await login_button.click()
         await asyncio.sleep(5)
         
@@ -226,11 +227,28 @@ async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_passw
         print(f"♻️ FOUND STORAGE STATE IN DB!")
         print(f"✅ Creating new context with current browser using saved state!")
         
+        # Extract fingerprint before passing to Playwright
+        fingerprint = db_context.pop("fingerprint", {})
+        
+        context_kwargs = LINKEDIN_CONTEXT_OPTIONS.copy()
+        if fingerprint:
+            print("Applying user browser fingerprint to context...")
+            if fingerprint.get("userAgent"):
+                context_kwargs["user_agent"] = fingerprint["userAgent"]
+            if fingerprint.get("timezone"):
+                context_kwargs["timezone_id"] = fingerprint["timezone"]
+            if fingerprint.get("language"):
+                context_kwargs["locale"] = fingerprint["language"]
+            if fingerprint.get("viewport"):
+                context_kwargs["viewport"] = fingerprint["viewport"]
+            if fingerprint.get("screen"):
+                context_kwargs["screen"] = fingerprint["screen"]
+
         # Create NEW context with the CURRENT browser using saved storage_state
         try:
             context = await browser.new_context(
                 storage_state=db_context,
-                **LINKEDIN_CONTEXT_OPTIONS,
+                **context_kwargs
             )
             print(f"✅ New context created successfully with saved state!")
             LOGGED_IN_CONTEXT = context
@@ -793,17 +811,10 @@ async def extract_job_description_fixed(session: aiohttp.ClientSession, url, fal
 # ---------------------------------------------------------------------------
 
 
-async def scrape_platform_speed_optimized(browser, platform_name, config, job_title, user_id):
+async def scrape_platform_speed_optimized(context, platform_name, config, job_title, user_id):
     """SPEED OPTIMIZED: URL-deduped collection with raw metadata capture."""
     global PROCESSED_JOB_URLS
     
-    context = None
-    page = None
-
-    context = await ensure_logged_in(browser, user_id)
-    if context is None:
-        return {}
-
     page = await context.new_page()
     # page.set_viewport_size({'width': 2560, 'height': 2000})
     await page.evaluate('() => { document.body.style.zoom = "0.25"; }')
@@ -988,12 +999,6 @@ async def scrape_platform_speed_optimized(browser, platform_name, config, job_ti
     finally:
         if page:
             await page.close()
-        if context:
-            try:
-                save_linkedin_context(user_id, await context.storage_state())
-            except Exception as e:
-                print(f"⚠️ Unable to persist storage state: {e}")
-            await context.close()
 
 # ---------------------------------------------------------------------------
 # 5. GEMINI API PROCESSING FUNCTIONS (OPTIMIZED)
@@ -1125,7 +1130,7 @@ def merge_gemini_with_raw(raw_job: dict, llm_job) -> dict:
 
     merged = {
         "title": raw_job.get("title") if has_meaningful_value(raw_job.get("title")) else normalize_text(llm_job.get("title")) or "Title not extracted",
-        "job_id": normalize_text(raw_job.get("job_id")) or normalize_text(llm_job.get("job_id")) or extract_job_id_from_url(raw_job.get("job_url", "")),
+        "job_id": str(uuid.uuid4()),
         "company_name": raw_job.get("company_name") if has_meaningful_value(raw_job.get("company_name")) else normalize_text(llm_job.get("company_name")) or "Company not extracted",
         "location": raw_job.get("location") if has_meaningful_value(raw_job.get("location")) else normalize_text(llm_job.get("location")) or "Not specified",
         "experience": normalize_text(llm_job.get("experience")) or "Not specified",
@@ -1406,12 +1411,15 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
     print(f"🚀 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
     
     async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
+        launch_kwargs = {
+            "headless": True,
+            "args": [
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
             ]
-        )
+        }
+        
+
+        browser = await p.chromium.launch(**launch_kwargs)
         
         try:
             if log_callback:
@@ -1439,7 +1447,7 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
                 for platform_name in platforms:
                     try:
                         result = await scrape_platform_speed_optimized(
-                            browser, platform_name, PLATFORMS[platform_name], job_title, user_id
+                            login_context, platform_name, PLATFORMS[platform_name], job_title, user_id
                         )
                         title_result.update(result)
                         all_jobs.update(result)

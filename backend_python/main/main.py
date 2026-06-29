@@ -8,6 +8,7 @@ from main.routes.logout import logout_route
 from main.routes.portfolio_generator import router as portfolio
 from main.routes.get_resume import router as tailor
 from main.routes.jobs_api import router as jobs_api
+from main.routes.auth_api import router as auth_api
 
 from config import redis_client
 
@@ -49,6 +50,7 @@ app.add_middleware(
 
 # New workflow routes
 app.include_router(jobs_api)
+app.include_router(auth_api)
 
 # Retained stateless routes
 app.include_router(debug_router)
