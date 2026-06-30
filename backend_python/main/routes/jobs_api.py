@@ -20,7 +20,7 @@ class JobStartRequest(BaseModel):
     job_id: Optional[str] = None
 
 
-SESSION_STALE_SECONDS = int(os.getenv("SESSION_STALE_SECONDS", "45"))
+SESSION_STALE_SECONDS = int(os.getenv("SESSION_STALE_SECONDS", "300"))
 
 
 def _worker_heartbeat_key(job_id: str) -> str:

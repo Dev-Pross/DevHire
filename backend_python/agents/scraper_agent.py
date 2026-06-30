@@ -74,7 +74,8 @@ MAX_PAGES = 3
 
 
 def normalize_job_url(url: str) -> str:
-    return (url or "").split('?')[0].strip()
+    clean_url = (url or "").split('?')[0].strip()
+    return clean_url.replace("://in.linkedin.com", "://www.linkedin.com")
 
 
 def normalize_text(value) -> str:
@@ -230,6 +231,13 @@ async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_passw
         # Extract fingerprint before passing to Playwright
         fingerprint = db_context.pop("fingerprint", {})
         
+        # ── Fix: ensure critical cookies cover all subdomains ──
+        if "cookies" in db_context:
+            for cookie in db_context["cookies"]:
+                if cookie.get("domain") == ".www.linkedin.com" and cookie.get("name") in ["li_at", "JSESSIONID"]:
+                    cookie["domain"] = ".linkedin.com"
+                    print(f"🔧 Patched cookie domain for {cookie['name']}")
+        
         context_kwargs = LINKEDIN_CONTEXT_OPTIONS.copy()
         if fingerprint:
             print("Applying user browser fingerprint to context...")
@@ -268,6 +276,8 @@ async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_passw
     if context:
         # ✅ SAVE STORAGE STATE (not the context itself!)
         storage_state = await context.storage_state()
+        if fingerprint:
+            storage_state["fingerprint"] = fingerprint
 
         save_linkedin_context(user_id,storage_state)
         print(f"💾 Storage state saved to DB!")
@@ -1130,7 +1140,7 @@ def merge_gemini_with_raw(raw_job: dict, llm_job) -> dict:
 
     merged = {
         "title": raw_job.get("title") if has_meaningful_value(raw_job.get("title")) else normalize_text(llm_job.get("title")) or "Title not extracted",
-        "job_id": raw_job.get("job_id") or str(uuid.uuid4()),
+        "job_id": str(uuid.uuid4()),
         "company_name": raw_job.get("company_name") if has_meaningful_value(raw_job.get("company_name")) else normalize_text(llm_job.get("company_name")) or "Company not extracted",
         "location": raw_job.get("location") if has_meaningful_value(raw_job.get("location")) else normalize_text(llm_job.get("location")) or "Not specified",
         "experience": normalize_text(llm_job.get("experience")) or "Not specified",
@@ -1152,14 +1162,13 @@ def merge_gemini_with_raw(raw_job: dict, llm_job) -> dict:
 
 def create_bulk_prompt(jobs_dict: dict) -> str:
     system_instruction = """
-You are a professional job data extractor.
-
-For each job entry provided:
-- Extract and output all the following fields exactly as named: "title", "job_id", "company_name", "location", "experience", "salary", "key_skills", "job_url", "posted_at", "job_description", "source", "relevance_score", "job_type".
+You are a professional job-data extraction specialist. Extract precisely the requested job titles and keywords.
+- Extract and output all the following fields exactly as named: "title", "company_name", "location", "experience", "salary", "key_skills", "job_url", "posted_at", "job_description", "source", "relevance_score", "job_type".
+- Do NOT extract or return a job_id. It will be generated automatically.
+- If a field is not found in the raw text, output null or an empty string, do not hallucinate data.
 - You will receive known_metadata from Playwright scraping. Treat known_metadata as source of truth.
 - If a known_metadata field has a value, DO NOT overwrite it. Keep it unchanged.
 - Focus on filling missing fields from job_description, especially: experience, salary, key_skills, relevance_score.
-- Extract the job_id from the URL after '/jobs/view/' if missing.
 - Provide output only as a pure JSON array, with no explanations.
 
 Example:

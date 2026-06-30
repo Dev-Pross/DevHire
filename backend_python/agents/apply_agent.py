@@ -1139,9 +1139,14 @@ def normalize_company_name(company_name: str | None) -> str:
     return " ".join(str(company_name).split())
 
 async def login(page: Page, user_id: str|None, password: str| None) -> bool:
-    await page.goto(LINKEDIN_LOGIN_URL, wait_until="domcontentloaded")
-    await asyncio.sleep(10)
-    if "/feed" in page.url:
+    try:
+        log.info("🌐 Checking LinkedIn login status...")
+        await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=20000)
+        await asyncio.sleep(3)
+    except Exception as e:
+        log.warning(f"Initial feed check failed: {e}")
+
+    if "feed" in page.url:
         log.info("✅ Already logged in")
         return True
 
@@ -1149,6 +1154,10 @@ async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     if not user_id or not password:
         log.error("❌ MISSING CREDENTIALS: No saved session found and no LinkedIn credentials provided in payload.")
         return False
+        
+    if "login" not in page.url:
+        await page.goto(LINKEDIN_LOGIN_URL, wait_until="domcontentloaded", timeout=20000)
+        await asyncio.sleep(2)
         
     await page.fill('input[type="email"]:visible', user_id)
     await page.fill('input[type="password"]:visible', password)
@@ -1168,11 +1177,36 @@ async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     return False
 
 async def safe_goto(page: Page, url: str, retries: int = 3) -> bool:
+    # ── Diagnostic: verify cookies are alive before navigation ──
+    try:
+        ctx = page.context
+        cookies = await ctx.cookies(["https://www.linkedin.com"])
+        li_at = [c for c in cookies if c["name"] == "li_at"]
+        jsession = [c for c in cookies if c["name"] == "JSESSIONID"]
+        log.info(f"🍪 PRE-NAV cookie check: li_at={'YES' if li_at else '⚠️ MISSING'}, JSESSIONID={'YES' if jsession else '⚠️ MISSING'}, total={len(cookies)}")
+        if not li_at:
+            log.error("❌ li_at cookie is MISSING before navigation - session was lost!")
+    except Exception as diag_e:
+        log.warning(f"Cookie diagnostic failed: {diag_e}")
+
     for attempt in range(retries):
         try:
             log.info(f"🌐 Navigating to job page (attempt {attempt + 1})")
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
             await asyncio.sleep(2)
+            
+            # ── Diagnostic: check if we landed on a logged-out page ──
+            current_url = page.url
+            if "/login" in current_url or "signup" in current_url:
+                log.error(f"❌ POST-NAV: redirected to login page! URL={current_url}")
+                # Check cookies after redirect
+                try:
+                    cookies_after = await ctx.cookies(["https://www.linkedin.com"])
+                    li_at_after = [c for c in cookies_after if c["name"] == "li_at"]
+                    log.error(f"❌ POST-NAV cookies: li_at={'YES' if li_at_after else 'MISSING'}, total={len(cookies_after)}")
+                except Exception:
+                    pass
+            
             return True
         except Exception as e:
             log.warning(f"Navigation attempt {attempt + 1} failed: {e}")
@@ -1379,6 +1413,13 @@ async def main(
             # Extract fingerprint before passing to Playwright
             fingerprint = db_context.pop("fingerprint", {})
             
+            # ── Fix: ensure critical cookies cover all subdomains ──
+            if "cookies" in db_context:
+                for cookie in db_context["cookies"]:
+                    if cookie.get("domain") == ".www.linkedin.com" and cookie.get("name") in ["li_at", "JSESSIONID"]:
+                        cookie["domain"] = ".linkedin.com"
+                        log.info(f"🔧 Patched cookie domain for {cookie['name']}")
+            
             context_kwargs = LINKEDIN_CONTEXT_OPTIONS.copy()
             if fingerprint:
                 print("Applying user browser fingerprint to context...")
@@ -1408,8 +1449,19 @@ async def main(
         if log_callback:
             log_callback({"progress": 8, "status": "processing", "message": "LinkedIn session ready"})
 
+        # ── Diagnostic: baseline cookie check after login ──
         try:
-            save_linkedin_context(progress_user,dict(await context.storage_state()))
+            baseline_cookies = await context.cookies(["https://www.linkedin.com"])
+            li_at_baseline = [c for c in baseline_cookies if c["name"] == "li_at"]
+            log.info(f"🍪 BASELINE after login: li_at={'YES' if li_at_baseline else '⚠️ MISSING'}, total={len(baseline_cookies)}, page_url={page.url}")
+        except Exception as diag_e:
+            log.warning(f"Baseline cookie diagnostic failed: {diag_e}")
+
+        try:
+            state = await context.storage_state()
+            if fingerprint:
+                state["fingerprint"] = fingerprint
+            save_linkedin_context(progress_user, dict(state))
         except Exception as e:
             log.warning(f"Could not persist LinkedIn storage state: {e}")
 
