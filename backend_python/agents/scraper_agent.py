@@ -1395,7 +1395,7 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
     
     async with async_playwright() as p:
         launch_kwargs = {
-            "headless": False,
+            "headless": True,
             "args": [
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
             ]
