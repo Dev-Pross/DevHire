@@ -40,6 +40,7 @@ function formatElapsed(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+
 function formatCacheAge(ageMs: number | null): string {
   if (ageMs === null || !Number.isFinite(ageMs)) return "some time ago";
 
@@ -102,8 +103,8 @@ function mergeUniqueJobs(current: any[], incoming: any[]): any[] {
 const LogItem = ({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) => {
   const icon = entry.type === "done" ? <CheckIcon />
     : entry.type === "error" ? <ErrorIcon />
-    : isLatest ? <SpinnerIcon />
-    : <DotIcon />;
+      : isLatest ? <SpinnerIcon />
+        : <DotIcon />;
 
   return (
     <div
@@ -124,18 +125,18 @@ const Jobs = () => {
   const hasStarted = useRef(false);
 
   const [activityLog, setActivityLog] = useState<LogEntry[]>([]);
-  const [progress, setProgress]       = useState(0);
-  const [phase, setPhase]             = useState("Initializing");
-  const [jobs, setJobs]               = useState<any>(null);
-  const [error, setError]             = useState<string | null>(null);
-  const [url, setUrl]                 = useState("");
-  const [userId, setUserId]           = useState("");
-  const [password, setPassword]       = useState("");
+  const [progress, setProgress] = useState(0);
+  const [phase, setPhase] = useState("Initializing");
+  const [jobs, setJobs] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [url, setUrl] = useState("");
+  const [userId, setUserId] = useState("");
+  const [password, setPassword] = useState("");
   const [Progress_userId, setProgress_UserId] = useState("");
   const [credentialsReady, setCredentialsReady] = useState(false);
-  const [isDone, setIsDone]           = useState(false);
-  const [elapsed, setElapsed]         = useState(0);
-  const [retryCount, setRetryCount]   = useState(0);
+  const [isDone, setIsDone] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showRestorePrompt, setShowRestorePrompt] = useState(false);
   const [cacheCheckComplete, setCacheCheckComplete] = useState(false);
@@ -148,8 +149,8 @@ const Jobs = () => {
   const [jobTypeFilter, setJobTypeFilter] = useState<string[]>([]);
   const [experienceFilter, setExperienceFilter] = useState("");
 
-  const logEndRef  = useRef<HTMLDivElement>(null);
-  const startTime  = useRef(Date.now());
+  const logEndRef = useRef<HTMLDivElement>(null);
+  const startTime = useRef(Date.now());
   const accumulatedJobs = useRef<any[]>([]);
   const sseRef = useRef<SSEManager | null>(null);
   const jobsContainerRef = useRef<HTMLDivElement>(null);
@@ -338,23 +339,23 @@ const Jobs = () => {
         if (!activeJobId) {
           pushLog("Initiating job container...", "processing");
           const res = await fetch(`${API_URL}/api/jobs/start`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  user_id: Progress_userId,
-                  workflow_type: 'fetch_jobs',
-                  input_data: {
-                      user_id: Progress_userId,
-                      resume_url: url,
-                      ...(userId && { linkedin_id: userId }),
-                      ...(password && { linkedin_password: password })
-                  }
-              })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: Progress_userId,
+              workflow_type: 'fetch_jobs',
+              input_data: {
+                user_id: Progress_userId,
+                resume_url: url,
+                ...(userId && { linkedin_id: userId }),
+                ...(password && { linkedin_password: password })
+              }
+            })
           });
 
           if (!res.ok) {
-              const errData = await res.json().catch(() => ({}));
-              throw new Error(errData.detail || "Failed to start job");
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.detail || "Failed to start job");
           }
 
           const data = await res.json();
@@ -536,9 +537,8 @@ const Jobs = () => {
     <div className="flex flex-col min-h-screen">
 
       {/* ─── Activity Feed Panel (top on mobile, sidebar on desktop) ── */}
-      <div className={`shrink-0 w-full lg:fixed lg:top-[65px] lg:left-0 lg:h-[calc(100vh-65px)] lg:overflow-hidden bg-[#111] border-b lg:border-b-0 lg:border-r border-white/[0.06] cursor-default z-10 flex flex-col transition-all duration-300 ${
-        sidebarOpen ? "lg:w-72" : "lg:w-12"
-      }`}>
+      <div className={`shrink-0 w-full lg:fixed lg:top-[65px] lg:left-0 lg:h-[calc(100vh-65px)] lg:overflow-hidden bg-[#111] border-b lg:border-b-0 lg:border-r border-white/[0.06] cursor-default z-10 flex flex-col transition-all duration-300 ${sidebarOpen ? "lg:w-72" : "lg:w-12"
+        }`}>
 
         {/* Header + progress */}
         <div className={`px-4 pt-5 pb-3 sm:px-6 ${sidebarOpen ? "lg:px-5" : "lg:px-2 lg:pt-4 lg:pb-2"}`}>
@@ -580,9 +580,8 @@ const Jobs = () => {
           {/* Progress bar */}
           <div className={`w-full h-1 bg-white/[0.06] rounded-full overflow-hidden ${!sidebarOpen ? "lg:mt-2" : ""}`}>
             <div
-              className={`h-full rounded-full transition-all duration-700 ease-out ${
-                error ? "bg-red-500" : isDone ? "bg-emerald-500" : "bg-emerald-500/80"
-              }`}
+              className={`h-full rounded-full transition-all duration-700 ease-out ${error ? "bg-red-500" : isDone ? "bg-emerald-500" : "bg-emerald-500/80"
+                }`}
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
           </div>
@@ -612,9 +611,8 @@ const Jobs = () => {
       </div>
 
       {/* ─── Job Cards Area ───────────────────────────────────── */}
-      <div ref={jobsContainerRef} className={`flex-1 p-4 md:p-6 lg:p-8 transition-all duration-300 ${
-        sidebarOpen ? "lg:ml-72" : "lg:ml-12"
-      }`}>
+      <div ref={jobsContainerRef} className={`flex-1 p-4 md:p-6 lg:p-8 transition-all duration-300 ${sidebarOpen ? "lg:ml-72" : "lg:ml-12"
+        }`}>
         {USE_SAMPLE_DATA ? (
           <JobCards jobs={sampleJobs as any} />
         ) : error ? (
@@ -711,11 +709,10 @@ const Jobs = () => {
                       <button
                         key={t}
                         onClick={() => toggleJobType(t)}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition ${
-                          jobTypeFilter.includes(t)
+                        className={`text-xs px-3 py-1.5 rounded-full border transition ${jobTypeFilter.includes(t)
                             ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                             : "border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/[0.04]"
-                        }`}
+                          }`}
                       >
                         {t}
                       </button>
