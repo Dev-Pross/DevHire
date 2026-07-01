@@ -224,6 +224,8 @@ async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_passw
     db_context = get_linkedin_context(user_id)
     # print("context from db", db_context)
     print("HireHawk user", user_id)
+    fingerprint = {}
+    
     if db_context:
         print(f"♻️ FOUND STORAGE STATE IN DB!")
         print(f"✅ Creating new context with current browser using saved state!")

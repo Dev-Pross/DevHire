@@ -1405,6 +1405,7 @@ async def main(
         if not progress_user:
             raise Exception("Progress user not found")
         db_context = get_linkedin_context(progress_user)
+        fingerprint = {}
         
         if db_context:
             print(f"FOUND STORAGE STATE IN DB!")
