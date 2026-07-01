@@ -1391,7 +1391,7 @@ async def main(
         log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
     pw = await async_playwright().start()
     launch_kwargs = {
-        "headless": True,
+        "headless": False,
         "args": [
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]
@@ -1405,39 +1405,14 @@ async def main(
         if not progress_user:
             raise Exception("Progress user not found")
         db_context = get_linkedin_context(progress_user)
-        fingerprint = {}
         
         if db_context:
             print(f"FOUND STORAGE STATE IN DB!")
             print(f"Creating new context with current browser using saved state!")
             
-            # Extract fingerprint before passing to Playwright
-            fingerprint = db_context.pop("fingerprint", {})
-            
-            # ── Fix: ensure critical cookies cover all subdomains ──
-            if "cookies" in db_context:
-                for cookie in db_context["cookies"]:
-                    if cookie.get("domain") == ".www.linkedin.com" and cookie.get("name") in ["li_at", "JSESSIONID"]:
-                        cookie["domain"] = ".linkedin.com"
-                        log.info(f"🔧 Patched cookie domain for {cookie['name']}")
-            
-            context_kwargs = LINKEDIN_CONTEXT_OPTIONS.copy()
-            if fingerprint:
-                print("Applying user browser fingerprint to context...")
-                if fingerprint.get("userAgent"):
-                    context_kwargs["user_agent"] = fingerprint["userAgent"]
-                if fingerprint.get("timezone"):
-                    context_kwargs["timezone_id"] = fingerprint["timezone"]
-                if fingerprint.get("language"):
-                    context_kwargs["locale"] = fingerprint["language"]
-                if fingerprint.get("viewport"):
-                    context_kwargs["viewport"] = fingerprint["viewport"]
-                if fingerprint.get("screen"):
-                    context_kwargs["screen"] = fingerprint["screen"]
-
             context = await browser.new_context(
                 storage_state=db_context,
-                **context_kwargs
+                **LINKEDIN_CONTEXT_OPTIONS
             )
         else:
             context = await browser.new_context(**LINKEDIN_CONTEXT_OPTIONS)
@@ -1460,8 +1435,6 @@ async def main(
 
         try:
             state = await context.storage_state()
-            if fingerprint:
-                state["fingerprint"] = fingerprint
             save_linkedin_context(progress_user, dict(state))
         except Exception as e:
             log.warning(f"Could not persist LinkedIn storage state: {e}")
