@@ -212,10 +212,7 @@ const Apply: React.FC = () => {
 
             if (job_id) {
               if (status === 'running' || status === 'pending' || status === 'scraper_raw') {
-                // Wait, statusData in /active doesn't return input_data directly right now.
-                // But wait! If we are reconnecting to a running job in Apply.tsx, we need the jobs list from `input_data`!
-                // Ah. In the backend, get_active_session only selects id, status, workflow_type, output_data, last_active_at.
-                // I should probably fetch the full status using /status to get input_data, OR I can just use the job_id from /active to call /status!
+                // Fetch full status (including input_data) to hydrate the job list
                 const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${job_id}`);
                 if (statusRes.ok) {
                   const fullStatusData = await statusRes.json();
@@ -264,6 +261,7 @@ const Apply: React.FC = () => {
       }
 
       if (!jobData && !isReconnecting) {
+        // Server had no active/completed session, and no fresh job selections exist — try IndexedDB as fallback
         const persisted = await getApplyProgress().catch(() => null);
         if (!cancelled && persisted && (persisted.applied.length > 0 || persisted.failed.length > 0)) {
           const appliedUrls = persisted.applied.map((item) => item.job_url);
@@ -466,7 +464,7 @@ const Apply: React.FC = () => {
 
             let finalResult: any = null;
             try {
-              const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${jobId}`);
+              const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${activeJobId}`);
               if (statusRes.ok) {
                 const statusData = await statusRes.json();
                 finalResult = statusData.output_data;

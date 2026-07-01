@@ -245,39 +245,42 @@ const Jobs = () => {
         const activeRes = await fetch(`${API_URL}/api/jobs/active?user_id=${encodeURIComponent(Progress_userId)}&workflow_type=fetch_jobs`);
         if (activeRes.ok) {
           const statusData = await activeRes.json();
-          const { job_id, status, output_data } = statusData;
+          const { job_id, status, output_data, last_active_at } = statusData;
 
           if (job_id) {
             if (status === "completed") {
-              // Job finished while we were away - load results
-              const outputJobs = output_data?.jobs || [];
+              const outputJobs = Array.isArray(output_data) ? output_data : (output_data?.jobs || []);
               if (outputJobs.length > 0) {
-                accumulatedJobs.current = outputJobs;
-                setJobs(outputJobs);
-                await saveFetchedJobs(outputJobs);
-                setProgress(100);
-                setIsDone(true);
-                hasStarted.current = true;
-                pushLog("Loaded completed job results from server.", "done");
+                // Show these as restorable — let the user decide whether to
+                // view these results or start a fresh fetch.
+                const serverTime = last_active_at ? new Date(last_active_at).getTime() : 0;
+                const ageMs = serverTime > 0 ? Math.max(0, Date.now() - serverTime) : null;
+
+                if (!cancelled) {
+                  setRecentCachedJobs(outputJobs);
+                  setRecentCacheAgeLabel(formatCacheAge(ageMs));
+                  setCacheCheckComplete(true);
+                }
+                return;
               }
+              // Completed but empty output → allow fresh start
               if (!cancelled) setCacheCheckComplete(true);
               return;
             }
 
             if (status === "failed") {
-              // Job failed - clear and allow fresh start
               if (!cancelled) setCacheCheckComplete(true);
               return;
             }
 
             if (status === "running" || status === "pending" || status === "scraper_raw") {
-              // Job still running - reconnect to stream
               if (!cancelled) {
                 pushLog("Reconnecting to active job...", "processing");
                 setRecentCachedJobs(null);
-                setRecoveredJobId(job_id); // Pass the job_id to Effect 5
+                setRecoveredJobId(job_id);
                 setCacheCheckComplete(true);
               }
+              return; // Don't fall through to IndexedDB
             }
           }
         }
@@ -285,23 +288,20 @@ const Jobs = () => {
         console.error("Failed to check active job on server:", err);
       }
 
-      // No active job (or server check failed) - check for cached results in IndexedDB (fallback)
+      // No server session (or server unreachable) — check IndexedDB as fallback
       try {
         const cached = await getFetchedJobs();
         if (cancelled) return;
 
-        if (!cached?.jobs?.length) {
-          setCacheCheckComplete(true);
-          return;
+        if (cached?.jobs?.length) {
+          const fetchedAt = typeof cached.fetchedAt === "number" ? cached.fetchedAt : 0;
+          const ageMs = fetchedAt > 0 ? Math.max(0, Date.now() - fetchedAt) : null;
+
+          setRecentCachedJobs(cached.jobs);
+          setRecentCacheAgeLabel(formatCacheAge(ageMs));
         }
 
-        const fetchedAt = typeof cached.fetchedAt === "number" ? cached.fetchedAt : 0;
-        const ageMs = fetchedAt > 0 ? Math.max(0, Date.now() - fetchedAt) : null;
-
-        setRecentCachedJobs(cached.jobs);
-        setRecentCacheAgeLabel(formatCacheAge(ageMs));
-
-        setCacheCheckComplete(true);
+        if (!cancelled) setCacheCheckComplete(true);
       } catch (err) {
         console.error("Failed to restore cached jobs:", err);
         if (!cancelled) setCacheCheckComplete(true);
