@@ -1146,7 +1146,7 @@ async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     except Exception as e:
         log.warning(f"Initial feed check failed: {e}")
 
-    if "feed" in page.url:
+    if "login" not in page.url:
         log.info("✅ Already logged in")
         return True
 
