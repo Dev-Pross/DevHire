@@ -124,6 +124,7 @@ const Apply: React.FC = () => {
   const [appliedCount, setAppliedCount]     = useState(0);
   const [skippedCount, setSkippedCount]     = useState(0);
   const [totalJobs, setTotalJobs]           = useState(0);
+  const [recoveredJobId, setRecoveredJobId] = useState<string | null>(null);
 
   const logEndRef   = useRef<HTMLDivElement>(null);
   const startTime   = useRef(Date.now());
@@ -200,74 +201,65 @@ const Apply: React.FC = () => {
         return;
       }
 
-      // Check if there's an active job to reconnect to. This runs whenever a
-      // job_id is persisted — an in-progress run takes precedence over any
-      // stale selection lingering in sessionStorage, so returning to the page
-      // reattaches to the live run instead of starting a fresh apply.
+      // Check if there's an active job to reconnect to via the server.
       let isReconnecting = false;
-      const activeJobId = localStorage.getItem("apply_jobs_id");
-      if (activeJobId) {
+      if (id) {
         try {
-          const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${activeJobId}`);
-          if (statusRes.ok) {
-            const statusData = await statusRes.json();
+          const activeRes = await fetch(`${API_URL}/api/jobs/active?user_id=${encodeURIComponent(id)}&workflow_type=apply_jobs`);
+          if (activeRes.ok) {
+            const statusData = await activeRes.json();
+            const { job_id, status, output_data } = statusData;
 
-            // Active run: reattach. Restore jobs from input_data and let Effect 4
-            // reconnect to the SSE stream. Takes precedence over any new jobData.
-            if (statusData.status === 'running' || statusData.status === 'pending') {
-              const inputJobs = statusData.input_data?.jobs || [];
-              if (inputJobs.length > 0 && !cancelled) {
-                setJobs(inputJobs);
-                isReconnecting = true;
+            if (job_id) {
+              if (status === 'running' || status === 'pending' || status === 'scraper_raw') {
+                // Wait, statusData in /active doesn't return input_data directly right now.
+                // But wait! If we are reconnecting to a running job in Apply.tsx, we need the jobs list from `input_data`!
+                // Ah. In the backend, get_active_session only selects id, status, workflow_type, output_data, last_active_at.
+                // I should probably fetch the full status using /status to get input_data, OR I can just use the job_id from /active to call /status!
+                const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${job_id}`);
+                if (statusRes.ok) {
+                  const fullStatusData = await statusRes.json();
+                  const inputJobs = fullStatusData.input_data?.jobs || [];
+                  if (inputJobs.length > 0 && !cancelled) {
+                    setJobs(inputJobs);
+                    isReconnecting = true;
+                    setRecoveredJobId(job_id); // Pass to Effect 4
 
-                // Seed live counts from the SERVER's output_data (the source of truth),
-                // not local IndexedDB — which can be empty/stale on another device or a
-                // cleared browser, which is what made the displayed number "change".
-                // Overwrite IndexedDB too so SSE replay + new events build on the right base.
-                const outputData = statusData.output_data || {};
-                const appliedUrls = (Array.isArray(outputData.applied) ? outputData.applied : []).flat(Infinity).filter(Boolean);
-                const failedUrls = (Array.isArray(outputData.failed) ? outputData.failed : []).flat(Infinity).filter(Boolean);
-                const authoritativeTotal = outputData.total_jobs ?? inputJobs.length;
+                    const outData = fullStatusData.output_data || {};
+                    const appliedUrls = (Array.isArray(outData.applied) ? outData.applied : []).flat(Infinity).filter(Boolean);
+                    const failedUrls = (Array.isArray(outData.failed) ? outData.failed : []).flat(Infinity).filter(Boolean);
+                    const authoritativeTotal = outData.total_jobs ?? inputJobs.length;
 
-                setAppliedCount(appliedUrls.length);
-                setSkippedCount(failedUrls.length);
-                setTotalJobs(authoritativeTotal);
-                await seedApplyProgressFromServer(appliedUrls, failedUrls, authoritativeTotal).catch(() => {});
+                    setAppliedCount(appliedUrls.length);
+                    setSkippedCount(failedUrls.length);
+                    setTotalJobs(authoritativeTotal);
+                    await seedApplyProgressFromServer(appliedUrls, failedUrls, authoritativeTotal).catch(() => {});
 
-                pushLog("Reconnecting to active job...", "processing");
-                // Continue to fetch credentials - Effect 4 will connect to SSE
-              } else if (!cancelled) {
-                // No input jobs to restore - clean up and let fall through
-                localStorage.removeItem("apply_jobs_id");
-              }
-            } else if (statusData.status === 'completed') {
-              localStorage.removeItem("apply_jobs_id");
-              // Only surface the old results when the user hasn't queued a new
-              // selection; otherwise fall through to apply the new jobs.
-              if (!jobData) {
-                const outputData = statusData.output_data || {};
-                const applied = (outputData.applied ?? []).flat(Infinity);
-                const failed = (outputData.failed ?? []).flat(Infinity);
-
-                if (!cancelled) {
-                  setResults({ applied, failed, total_jobs: outputData.total_jobs || applied.length + failed.length });
-                  setAppliedCount(applied.length);
-                  setSkippedCount(failed.length);
-                  await saveApplyResults(applied, failed, outputData.total_jobs || applied.length + failed.length);
-                  setProgress(100);
-                  setIsDone(true);
-                  hasStarted.current = true;
-                  pushLog("Loaded completed application results.", "done");
+                    pushLog("Reconnecting to active job...", "processing");
+                  }
                 }
-                return;
+              } else if (status === 'completed') {
+                if (!jobData) {
+                  const applied = (output_data.applied ?? []).flat(Infinity);
+                  const failed = (output_data.failed ?? []).flat(Infinity);
+
+                  if (!cancelled) {
+                    setResults({ applied, failed, total_jobs: output_data.total_jobs || applied.length + failed.length });
+                    setAppliedCount(applied.length);
+                    setSkippedCount(failed.length);
+                    await saveApplyResults(applied, failed, output_data.total_jobs || applied.length + failed.length);
+                    setProgress(100);
+                    setIsDone(true);
+                    hasStarted.current = true;
+                    pushLog("Loaded completed application results from server.", "done");
+                  }
+                  return;
+                }
               }
-            } else if (statusData.status === 'failed') {
-              localStorage.removeItem("apply_jobs_id");
-              // Fall through to error handling / fresh start
             }
           }
         } catch (err) {
-          console.error("Failed to check job status:", err);
+          console.error("Failed to check active job on server:", err);
         }
       }
 
@@ -376,52 +368,45 @@ const Apply: React.FC = () => {
         // On a fresh start the selection IS the total; on reconnect the authoritative
         // server total was already set in Effect 1, so don't clobber it.
         setTotalJobs((t) => t || jobs.length);
-        let savedJobId = localStorage.getItem("apply_jobs_id");
-        const isFreshStart = !savedJobId;
-
-        if (!savedJobId) {
-            savedJobId = crypto.randomUUID();
-            localStorage.setItem("apply_jobs_id", savedJobId);
-            await initApplyProgress(jobs.length);
-        }
-
-        pushLog("Initiating job container...", "processing");
-        const res = await fetch(`${API_URL}/api/jobs/start`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: Progress_userId,
-                workflow_type: 'apply_jobs',
-                job_id: savedJobId,
-                input_data: {
-                    user_id: Progress_userId,
-                    resume_url: url,
-                    jobs: jobs,
-                    ...(userId && { linkedin_id: userId }),
-                    ...(password && { linkedin_password: password })
-                }
-            })
-        });
-
-        if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.detail || "Failed to start application process");
-        }
-
-        const data = await res.json();
-        const jobId = data.job_id;
         
-        // If server provided a different active job ID (auto-recover), update it
-        if (jobId && jobId !== savedJobId) {
-            localStorage.setItem("apply_jobs_id", jobId);
-            savedJobId = jobId;
+        let activeJobId = recoveredJobId;
+        const isFreshStart = !activeJobId;
+
+        if (!activeJobId) {
+            await initApplyProgress(jobs.length);
+            pushLog("Initiating job container...", "processing");
+            const res = await fetch(`${API_URL}/api/jobs/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: Progress_userId,
+                    workflow_type: 'apply_jobs',
+                    input_data: {
+                        user_id: Progress_userId,
+                        resume_url: url,
+                        jobs: jobs,
+                        ...(userId && { linkedin_id: userId }),
+                        ...(password && { linkedin_password: password })
+                    }
+                })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || "Failed to start application process");
+            }
+
+            const data = await res.json();
+            activeJobId = data.job_id;
         }
+
+        if (!activeJobId) throw new Error("Did not receive a valid job ID from server");
 
         pushLog("Job container started. Connecting to stream...", "processing");
 
         sseRef.current?.destroy();
         const manager = new SSEManager({
-          url: `${API_URL}/api/jobs/stream?job_id=${savedJobId}`,
+          url: `${API_URL}/api/jobs/stream?job_id=${activeJobId}`,
           staleThresholdMs: 90_000,
           reconnectBaseDelayMs: 1_500,
           reconnectMaxDelayMs: 12_000,
@@ -430,7 +415,6 @@ const Apply: React.FC = () => {
         sseRef.current = manager;
 
         manager.onTerminalError = async (message) => {
-          localStorage.removeItem("apply_jobs_id");
           await finalizeApplyProgress();
           setError(message);
           pushLog(message, "error");
@@ -441,7 +425,6 @@ const Apply: React.FC = () => {
         manager.onEvent = async (evData: any) => {
           if (evData?.error || evData?.progress === -1 || evData?.status === "error") {
             manager.destroy();
-            localStorage.removeItem("apply_jobs_id");
             await finalizeApplyProgress();
             setError(evData.error || evData.message || "Application process failed");
             pushLog(evData.message || evData.error || "Process interrupted", "error");
@@ -478,7 +461,6 @@ const Apply: React.FC = () => {
 
           if (evData?.progress === 100 && evData?.status === "done") {
             manager.destroy();
-            localStorage.removeItem("apply_jobs_id");
             // Clear selected jobs from sessionStorage to prevent re-triggering
             sessionStorage.removeItem("jobs");
 
@@ -622,7 +604,6 @@ const Apply: React.FC = () => {
               onClick={() => {
                 sseRef.current?.destroy();
                 sseRef.current = null;
-                localStorage.removeItem("apply_jobs_id");
                 void clearApplyProgress();
                 void clearApplyResults();
                 hasStarted.current = false;

@@ -207,6 +207,37 @@ async def _resume_existing_active_session(job_id: str, previous_status: str):
         "message": f"Reattached to {previous_status} job. Worker resume signal pending"
     }
 
+@router.get("/active")
+async def get_active_session(user_id: str, workflow_type: Optional[str] = None):
+    """
+    Returns the most recent workflow session for a given user.
+    """
+    user_res = supabase.table("User").select("id").eq("email", user_id).execute()
+    if not user_res.data:
+        user_res = supabase.table("User").select("id").eq("id", user_id).execute()
+        if not user_res.data:
+            return {"job_id": None, "status": "none"}
+            
+    internal_user_id = str(user_res.data[0]["id"])
+    
+    query = supabase.table("workflow_sessions").select("id, status, workflow_type, output_data, last_active_at").eq("user_id", internal_user_id)
+    if workflow_type:
+        query = query.eq("workflow_type", workflow_type)
+        
+    res = query.order("created_at", desc=True).limit(1).execute()
+    
+    if not res.data:
+        return {"job_id": None, "status": "none"}
+        
+    session = res.data[0]
+    return {
+        "job_id": session["id"],
+        "status": session["status"],
+        "workflow_type": session["workflow_type"],
+        "output_data": session.get("output_data") or {},
+        "last_active_at": session["last_active_at"]
+    }
+
 @router.post("/start")
 async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
     """
@@ -233,34 +264,7 @@ async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
     user_row = cast(Dict[str, Any], user_res.data[0])
     internal_user_id = str(user_row["id"])
 
-    # Reconnection handling: if frontend provides a job_id, check if it's already running
-    job_id = req.job_id
-    if job_id:
-        existing = supabase.table("workflow_sessions").select("status, workflow_type, last_active_at").eq("id", job_id).execute()
-        if existing.data:
-            existing_row = cast(Dict[str, Any], existing.data[0])
-            status = str(existing_row.get("status") or "")
-            existing_workflow = existing_row.get("workflow_type")
-            existing_last_active_at = cast(Optional[str], existing_row.get("last_active_at"))
-
-            if existing_workflow and existing_workflow != req.workflow_type:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Provided job_id belongs to workflow '{existing_workflow}', not '{req.workflow_type}'."
-                )
-
-            if status in ("pending", "running", "scraper_raw"):
-                if _should_resume_active_session(status, job_id, existing_last_active_at):
-                    print(f"🔁 Resuming stale {status} job: {job_id}")
-                    return await _resume_existing_active_session(job_id, status)
-
-                print(f"🔄 Reattaching to existing active job: {job_id}")
-                return {"job_id": job_id, "status": status, "message": "Reattached to existing job"}
-            else:
-                # If the job is failed or completed, generate a new one
-                job_id = str(uuid.uuid4())
-    else:
-        job_id = str(uuid.uuid4())
+    job_id = str(uuid.uuid4())
 
     try:
         supabase.table("workflow_sessions").insert({

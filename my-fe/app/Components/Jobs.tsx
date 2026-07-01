@@ -139,6 +139,7 @@ const Jobs = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showRestorePrompt, setShowRestorePrompt] = useState(false);
   const [cacheCheckComplete, setCacheCheckComplete] = useState(false);
+  const [recoveredJobId, setRecoveredJobId] = useState<string | null>(null);
   const [recentCachedJobs, setRecentCachedJobs] = useState<any[] | null>(null);
   const [recentCacheAgeLabel, setRecentCacheAgeLabel] = useState("some time ago");
 
@@ -238,19 +239,18 @@ const Jobs = () => {
     let cancelled = false;
 
     async function checkActiveOrCached() {
-      const activeJobId = localStorage.getItem("fetch_jobs_id");
+      if (!Progress_userId) return; // Wait until user is loaded
 
-      if (activeJobId) {
-        // Check if job is still running or completed
-        try {
-          const statusRes = await fetch(`${API_URL}/api/jobs/status?job_id=${activeJobId}`);
-          if (statusRes.ok) {
-            const statusData = await statusRes.json();
+      try {
+        const activeRes = await fetch(`${API_URL}/api/jobs/active?user_id=${encodeURIComponent(Progress_userId)}&workflow_type=fetch_jobs`);
+        if (activeRes.ok) {
+          const statusData = await activeRes.json();
+          const { job_id, status, output_data } = statusData;
 
-            if (statusData.status === "completed") {
+          if (job_id) {
+            if (status === "completed") {
               // Job finished while we were away - load results
-              localStorage.removeItem("fetch_jobs_id");
-              const outputJobs = statusData.output_data?.jobs || [];
+              const outputJobs = output_data?.jobs || [];
               if (outputJobs.length > 0) {
                 accumulatedJobs.current = outputJobs;
                 setJobs(outputJobs);
@@ -258,46 +258,37 @@ const Jobs = () => {
                 setProgress(100);
                 setIsDone(true);
                 hasStarted.current = true;
-                pushLog("Loaded completed job results.", "done");
+                pushLog("Loaded completed job results from server.", "done");
               }
               if (!cancelled) setCacheCheckComplete(true);
               return;
             }
 
-            if (statusData.status === "failed") {
+            if (status === "failed") {
               // Job failed - clear and allow fresh start
-              localStorage.removeItem("fetch_jobs_id");
               if (!cancelled) setCacheCheckComplete(true);
               return;
             }
 
-            if (
-              statusData.status === "running" ||
-              statusData.status === "pending" ||
-              statusData.status === "scraper_raw"
-            ) {
+            if (status === "running" || status === "pending" || status === "scraper_raw") {
               // Job still running - reconnect to stream
               if (!cancelled) {
                 pushLog("Reconnecting to active job...", "processing");
+                setRecentCachedJobs(null);
+                setRecoveredJobId(job_id); // Pass the job_id to Effect 5
                 setCacheCheckComplete(true);
-                // The main effect (Effect 5) will handle reconnection since activeJobId exists
               }
-              return;
             }
           }
-        } catch (err) {
-          console.error("Failed to check job status:", err);
         }
-        if (!cancelled) setCacheCheckComplete(true);
-        return;
+      } catch (err) {
+        console.error("Failed to check active job on server:", err);
       }
 
-      // No active job - check for cached results
+      // No active job (or server check failed) - check for cached results in IndexedDB (fallback)
       try {
         const cached = await getFetchedJobs();
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         if (!cached?.jobs?.length) {
           setCacheCheckComplete(true);
@@ -321,7 +312,7 @@ const Jobs = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [Progress_userId]);
 
   // Effect 4 — cleanup stream resources on unmount
   useEffect(() => {
@@ -342,48 +333,41 @@ const Jobs = () => {
 
     async function triggerJob() {
       try {
-        let savedJobId = localStorage.getItem("fetch_jobs_id");
-        if (!savedJobId) {
-            savedJobId = crypto.randomUUID();
-            localStorage.setItem("fetch_jobs_id", savedJobId);
+        let activeJobId = recoveredJobId;
+
+        if (!activeJobId) {
+          pushLog("Initiating job container...", "processing");
+          const res = await fetch(`${API_URL}/api/jobs/start`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  user_id: Progress_userId,
+                  workflow_type: 'fetch_jobs',
+                  input_data: {
+                      user_id: Progress_userId,
+                      resume_url: url,
+                      ...(userId && { linkedin_id: userId }),
+                      ...(password && { linkedin_password: password })
+                  }
+              })
+          });
+
+          if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.detail || "Failed to start job");
+          }
+
+          const data = await res.json();
+          activeJobId = data.job_id;
         }
 
-        pushLog("Initiating job container...", "processing");
-        const res = await fetch(`${API_URL}/api/jobs/start`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: Progress_userId,
-                workflow_type: 'fetch_jobs',
-                job_id: savedJobId,
-                input_data: {
-                    user_id: Progress_userId,
-                    resume_url: url,
-                    ...(userId && { linkedin_id: userId }),
-                    ...(password && { linkedin_password: password })
-                }
-            })
-        });
+        if (!activeJobId) throw new Error("Did not receive a valid job ID from server");
 
-        if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.detail || "Failed to start job");
-        }
-
-        const data = await res.json();
-        const jobId = data.job_id;
-        
-        // If server provided a different active job ID (auto-recover), update it
-        if (jobId && jobId !== savedJobId) {
-            localStorage.setItem("fetch_jobs_id", jobId);
-            savedJobId = jobId;
-        }
-        
         pushLog("Job container started. Connecting to stream...", "processing");
 
         sseRef.current?.destroy();
         const manager = new SSEManager({
-          url: `${API_URL}/api/jobs/stream?job_id=${savedJobId}`,
+          url: `${API_URL}/api/jobs/stream?job_id=${activeJobId}`,
           staleThresholdMs: 90_000,
           reconnectBaseDelayMs: 1_500,
           reconnectMaxDelayMs: 12_000,
@@ -392,7 +376,6 @@ const Jobs = () => {
         sseRef.current = manager;
 
         manager.onTerminalError = (message) => {
-          localStorage.removeItem("fetch_jobs_id");
           setError(message);
           pushLog(message, "error");
           toast.error(message);
@@ -402,7 +385,6 @@ const Jobs = () => {
         manager.onEvent = async (evData: any) => {
           if (evData?.error || evData?.progress === -1 || evData?.status === "error") {
             manager.destroy();
-            localStorage.removeItem("fetch_jobs_id");
             setError(evData.error || evData.message || "Failed to fetch jobs");
             pushLog(evData.message || evData.error || "Process interrupted", "error");
             toast.error(evData.error || evData.message || "Something went wrong");
@@ -448,7 +430,6 @@ const Jobs = () => {
 
             await saveFetchedJobs(accumulatedJobs.current);
             manager.destroy();
-            localStorage.removeItem("fetch_jobs_id");
             setProgress(100);
             setIsDone(true);
           }
@@ -487,7 +468,6 @@ const Jobs = () => {
   function handleRetry() {
     sseRef.current?.destroy();
     sseRef.current = null;
-    localStorage.removeItem("fetch_jobs_id");
     hasStarted.current = false;
     accumulatedJobs.current = [];
     void clearFetchedJobs();
