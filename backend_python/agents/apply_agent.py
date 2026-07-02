@@ -1142,7 +1142,7 @@ async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     try:
         log.info("🌐 Checking LinkedIn login status...")
         await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=20000)
-        await asyncio.sleep(3)
+        await asyncio.sleep(10)
     except Exception as e:
         log.warning(f"Initial feed check failed: {e}")
 
@@ -1391,7 +1391,7 @@ async def main(
         log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
     pw = await async_playwright().start()
     launch_kwargs = {
-        "headless": True,
+        "headless": False,
         "args": [
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]
