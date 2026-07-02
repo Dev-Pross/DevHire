@@ -120,6 +120,14 @@ class EasyApplyAgent:
         await self.page.wait_for_load_state("domcontentloaded")
         await asyncio.sleep(2)
 
+        # Try to close any page-load blocking dialog box using Escape key
+        try:
+            log.info("⌨️ Pressing Escape key to dismiss any page-load dialogs...")
+            await self.page.keyboard.press("Escape")
+            await asyncio.sleep(0.5)
+        except Exception as esc_e:
+            log.debug(f"Escape key press failed: {esc_e}")
+
         selectors = [
             'button[aria-label*="Easy Apply"]',
             'a[aria-label*="Easy Apply to this job"]',
@@ -186,6 +194,26 @@ class EasyApplyAgent:
                             # Wait longer for modal to appear after click
                             log.info("⏳ Waiting for modal to appear...")
                             await asyncio.sleep(3)
+
+                            # --- Check for "Resume application" or "Continue applying" intermediate popups ---
+                            try:
+                                dialog_elements = await self.page.locator('div[role="dialog"], .artdeco-modal').all()
+                                for dlg in dialog_elements:
+                                    if await dlg.is_visible():
+                                        dlg_text = (await dlg.text_content() or "").lower()
+                                        if any(x in dlg_text for x in ["resume", "continue", "unsubmitted"]):
+                                            log.info("🕵️ Intermediate dialog detected. Checking buttons...")
+                                            btns = await dlg.locator('button').all()
+                                            for b in btns:
+                                                if await b.is_visible() and await b.is_enabled():
+                                                    b_text = (await b.text_content() or "").strip()
+                                                    if any(x in b_text.lower() for x in ["continue", "resume", "start new"]):
+                                                        log.info(f"🎯 Clicking intermediate dialog button: '{b_text}'")
+                                                        await b.click()
+                                                        await asyncio.sleep(2)
+                                                        break
+                            except Exception as dlg_e:
+                                log.debug(f"Error checking intermediate dialog: {dlg_e}")
 
                             # Check for modal with multiple attempts
                             modal_selectors = [
@@ -264,7 +292,6 @@ class EasyApplyAgent:
         )
         await asyncio.sleep(0.4)
 
-    # ───────────────────────────────────────────────────────
     async def _handle_location_autocomplete(self, input_element, location_text: str):
         """Handle LinkedIn's autocomplete location dropdown with NO external clicking"""
         try:
@@ -533,12 +560,36 @@ class EasyApplyAgent:
                 return str(MY_EXPECTED_CTC)
             return str(MY_CURRENT_CTC)
 
-        # Notice period
+        # Notice period / availability / joining timeline
         if any(word in q for word in [
             "notice", "notice period", "joining", "available", "availability",
-            "when can you join", "start date", "how soon"
+            "when can you join", "start date", "how soon", "takes to join",
+            "take you to join", "how long", "joining timeline", "earliest start",
+            "time to join", "earliest join", "days to start", "days notice",
+            "weeks notice", "months notice"
         ]):
-            return str(MY_NOTICE_PERIOD)
+            try:
+                days = int(float(MY_NOTICE_PERIOD))
+            except:
+                days = 0
+
+            # If it's a number field or specifically asks for number of days/weeks/months
+            if field_type == "number" or any(x in q for x in ["days", "weeks", "months", "how many", "number"]):
+                if "month" in q:
+                    months = round(days / 30)
+                    return str(max(1 if days > 0 else 0, months))
+                if "week" in q:
+                    weeks = round(days / 7)
+                    return str(max(1 if days > 0 else 0, weeks))
+                return str(days)
+            
+            # Text or dropdown
+            if days == 0:
+                if field_type in ["radio", "select"]:
+                    return "Immediate"
+                return "Immediate"
+            else:
+                return f"{days} days"
 
         # Authorization/Visa questions
         if any(word in q for word in [
@@ -783,6 +834,29 @@ class EasyApplyAgent:
             # Check for save dialog at start of each step
             await self._handle_save_dialog()
 
+            # Dismiss overlay dialogs if multiple dialogs are visible (e.g. intermediate confirmation popup)
+            try:
+                dialog_elements = await self.page.locator('div[role="dialog"], .artdeco-modal').all()
+                visible_dialogs = []
+                for d in dialog_elements:
+                    if await d.is_visible():
+                        visible_dialogs.append(d)
+                
+                if len(visible_dialogs) > 1:
+                    overlay = visible_dialogs[-1]
+                    log.info("🚨 Multiple dialogs detected. Handling overlay dialog...")
+                    btns = await overlay.locator('button').all()
+                    for b in btns:
+                        if await b.is_visible() and await b.is_enabled():
+                            b_text = (await b.text_content() or "").strip().lower()
+                            if any(x in b_text for x in ["continue", "resume", "start new", "keep", "yes", "confirm"]):
+                                log.info(f"🎯 Clicking button in overlay dialog: '{b_text}'")
+                                await b.click()
+                                await asyncio.sleep(1.5)
+                                break
+            except Exception as overlay_e:
+                log.debug(f"Error handling multi-dialog overlay: {overlay_e}")
+
             # Try to upload resume on EVERY step until successful
             if resume_payload and not self._resume_uploaded:
                 await self._force_upload_resume(resume_payload)
@@ -948,9 +1022,8 @@ class EasyApplyAgent:
                             if not current_value or current_value.lower() == "yes" or not current_value.replace("+", "").replace("-", "").replace(" ", "").isdigit():
                                 answer = user["phone"]
                                 await inp.click()
-                                await inp.press("Control+A")
-                                await inp.press("Delete")
-                                await asyncio.sleep(0.2)
+                                await inp.fill("")
+                                await asyncio.sleep(0.1)
                                 await inp.fill(answer)
                                 log.info(f"📱 Filled phone: {answer}")
                                 self._phone_filled = True
@@ -986,7 +1059,10 @@ class EasyApplyAgent:
                         await asyncio.sleep(0.3)  # Wait for validation
             
                         # Check for validation error
-                        if any(word in question.lower() for word in ["salary", "ctc", "compensation", "pay"]):
+                        is_salary_q = any(word in question.lower() for word in ["salary", "ctc", "compensation", "pay"])
+                        is_current_salary = is_salary_q and any(word in question.lower() for word in ["current", "present", "existing", "now"])
+                        
+                        if is_salary_q and is_current_salary:
                             try:
                                 # Look for validation error message
                                 error_found = False
@@ -1003,15 +1079,29 @@ class EasyApplyAgent:
                                         error_found = True
                                         break
                                 
-                                # If validation error, retry with 100
-                                if error_found or (answer == "0" and typ == "number"):
-                                    log.warning(f"⚠️ Salary validation failed with '{answer}', retrying with 100")
-                                    await inp.fill("100")
-                                    await asyncio.sleep(0.3)
-                                    log.info("✅ Filled salary with minimum value: 100")
+                                if error_found:
+                                    if answer != "0":
+                                        log.warning(f"⚠️ Current salary validation failed with '{answer}', trying 0 first")
+                                        await inp.fill("0")
+                                        await asyncio.sleep(0.3)
+                                        
+                                        still_error = False
+                                        for err_sel in error_selectors:
+                                            if await self.page.locator(err_sel).count() > 0:
+                                                still_error = True
+                                                break
+                                        if not still_error:
+                                            log.info("✅ Filled current salary with 0 successfully")
+                                            error_found = False
                                     
-                            except Exception:
-                                pass
+                                    if error_found:
+                                        log.warning("⚠️ Current salary validation failed, retrying with 100")
+                                        await inp.fill("100")
+                                        await asyncio.sleep(0.3)
+                                        log.info("✅ Filled current salary with 100")
+                                        
+                            except Exception as ctc_e:
+                                log.debug(f"Current salary retry error: {ctc_e}")
 
                 except Exception as e:
                     log.debug(f"Text input error: {e}")
@@ -1299,7 +1389,11 @@ async def main(
     log_callback = None,
     total_jobs: int = 0,
     jobs_applied_counter: list | None = None,
-    user_profile: dict = None
+    user_profile: dict = None,
+    pw = None,
+    browser = None,
+    context = None,
+    page = None
 ):
     if jobs_applied_counter is None:
         jobs_applied_counter = [0]
@@ -1378,7 +1472,7 @@ async def main(
     except Exception as e:
         print(f"fetching details from resume failed in applier agent: {e}")
     
- # ── Load jobs ─────────────────────────────────────────────────────────────
+    # ── Load jobs ─────────────────────────────────────────────────────────────
 
     if total_jobs == 0:
         total_jobs = 1
@@ -1387,20 +1481,19 @@ async def main(
 
    # ── Browser setup ─────────────────────────────────────────────────────────
 
-    if log_callback:
-        log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
-    pw = await async_playwright().start()
-    launch_kwargs = {
-        "headless": False,
-        "args": [
-            '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
-        ]
-    }
-    
-
-    browser = await pw.chromium.launch(**launch_kwargs)
-
-    try:
+    if not browser:
+        if log_callback:
+            log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
+        pw = await async_playwright().start()
+        launch_kwargs = {
+            "headless": False,
+            "args": [
+                '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
+            ]
+        }
+        
+        browser = await pw.chromium.launch(**launch_kwargs)
+        
         db_context = None
         if not progress_user:
             raise Exception("Progress user not found")
@@ -1419,9 +1512,10 @@ async def main(
         page = await context.new_page()
         await Stealth().apply_stealth_async(page)
 
-
         if not await login(page, user_id, password):
-            return
+            raise Exception("LinkedIn login failed or credentials missing.")
+
+    try:
         if log_callback:
             log_callback({"progress": 8, "status": "processing", "message": "LinkedIn session ready"})
 
@@ -1565,6 +1659,44 @@ async def main(
 if __name__ == "__main__":
     asyncio.run(main(resume_url="https://uunldfxygooitgmgtcis.supabase.co/storage/v1/object/sign/user-resume/1756181362034_Sai%20%20Balaji%20.Net%20AWS.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iZjI4OTBiZS0wYmYxLTRmNTUtOTI3Mi0xZGNiNTRmNzNhYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLXJlc3VtZS8xNzU2MTgxMzYyMDM0X1NhaSAgQmFsYWppIC5OZXQgQVdTLnBkZiIsImlhdCI6MTc1NjE4MTM2MywiZXhwIjoxNzU2MjY3NzYzfQ.t1ovmlXr_dpQJSVJFe-6cFsiysReflatBIv3UjlBBUw"))
 
+async def setup_and_login(progress_user, user_id, password, log_callback=None):
+    if log_callback:
+        log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
+    pw = await async_playwright().start()
+    launch_kwargs = {
+        "headless": False,
+        "args": [
+            '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
+        ]
+    }
+    browser = await pw.chromium.launch(**launch_kwargs)
+    try:
+        db_context = get_linkedin_context(progress_user)
+        if db_context:
+            print(f"FOUND STORAGE STATE IN DB!")
+            print(f"Creating new context with current browser using saved state!")
+            context = await browser.new_context(
+                storage_state=db_context,
+                **LINKEDIN_CONTEXT_OPTIONS
+            )
+        else:
+            context = await browser.new_context(**LINKEDIN_CONTEXT_OPTIONS)
+        
+        page = await context.new_page()
+        await Stealth().apply_stealth_async(page)
+        
+        if not await login(page, user_id, password):
+            raise Exception("LinkedIn login failed or credentials missing.")
+            
+        return pw, browser, context, page
+    except Exception as e:
+        try:
+            await browser.close()
+            await pw.stop()
+        except:
+            pass
+        raise e
+
 def run_apply_pipeline(job_id: str, job_data: dict, log_callback):
     """
     Entry point for the apply_jobs Worker.
@@ -1597,6 +1729,11 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     # Extract credentials from payload
     l_email = input_data.get("linkedin_id")
     l_pass = input_data.get("linkedin_password")
+
+    # Pre-check credentials early to fail fast and save Gemini calls
+    db_context = get_linkedin_context(email)
+    if not db_context and (not l_email or not l_pass):
+        raise Exception("MISSING CREDENTIALS: No saved session found and no LinkedIn credentials provided in payload.")
 
     if not jobs_to_apply:
         raise Exception("No jobs provided to apply to")
@@ -1744,26 +1881,38 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
             print(f"Producer thread died: {e}")
             await jobs_queue.put(None)
 
+    # Setup browser and verify login before starting tailor task to save Gemini API calls
+    pw, browser, context, page = await setup_and_login(email, l_email, l_pass, log_callback)
+
     # Launch Producer in background
     producer_task = asyncio.create_task(tailor_producer())
 
-    # Consumer (Playwright Application Loop). The counter is pre-seeded with the
-    # number of jobs already accounted for so progress resumes rather than
-    # restarting at 0, and the checkpoint callback persists each outcome.
-    await main(
-        jobs_queue=jobs_queue,
-        user_id=l_email,
-        password=l_pass,
-        progress_user=email,
-        resume_url=resume_url,
-        log_callback=checkpoint_callback,
-        total_jobs=total_jobs,
-        jobs_applied_counter=[total_jobs - len(remaining)],
-        user_profile=user_profile
-    )
-
-    # Await producer to gracefully stop
-    await producer_task
+    try:
+        # Consumer (Playwright Application Loop). The counter is pre-seeded with the
+        # number of jobs already accounted for so progress resumes rather than
+        # restarting at 0, and the checkpoint callback persists each outcome.
+        await main(
+            jobs_queue=jobs_queue,
+            user_id=l_email,
+            password=l_pass,
+            progress_user=email,
+            resume_url=resume_url,
+            log_callback=checkpoint_callback,
+            total_jobs=total_jobs,
+            jobs_applied_counter=[total_jobs - len(remaining)],
+            user_profile=user_profile,
+            pw=pw,
+            browser=browser,
+            context=context,
+            page=page
+        )
+    finally:
+        if not producer_task.done():
+            producer_task.cancel()
+            try:
+                await producer_task
+            except asyncio.CancelledError:
+                pass
 
     # Safety-net: ensure every selected job is accounted for (applied + failed ==
     # total_jobs), even if a producer-level abort dropped a batch before the consumer.
