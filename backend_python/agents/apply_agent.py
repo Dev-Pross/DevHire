@@ -19,7 +19,7 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
-from database.linkedin_context import get_linkedin_context, save_linkedin_context
+from database.linkedin_context import get_linkedin_context, save_linkedin_context, clear_linkedin_context
 from config import LINKEDIN_CONTEXT_OPTIONS
 from pdf2image import convert_from_bytes
 import pytesseract
@@ -1276,7 +1276,10 @@ async def safe_goto(page: Page, url: str, retries: int = 3) -> bool:
         log.info(f"🍪 PRE-NAV cookie check: li_at={'YES' if li_at else '⚠️ MISSING'}, JSESSIONID={'YES' if jsession else '⚠️ MISSING'}, total={len(cookies)}")
         if not li_at:
             log.error("❌ li_at cookie is MISSING before navigation - session was lost!")
+            raise Exception("LinkedIn session connection lost (cookie missing).")
     except Exception as diag_e:
+        if "session connection lost" in str(diag_e):
+            raise diag_e
         log.warning(f"Cookie diagnostic failed: {diag_e}")
 
     for attempt in range(retries):
@@ -1289,16 +1292,12 @@ async def safe_goto(page: Page, url: str, retries: int = 3) -> bool:
             current_url = page.url
             if "/login" in current_url or "signup" in current_url:
                 log.error(f"❌ POST-NAV: redirected to login page! URL={current_url}")
-                # Check cookies after redirect
-                try:
-                    cookies_after = await ctx.cookies(["https://www.linkedin.com"])
-                    li_at_after = [c for c in cookies_after if c["name"] == "li_at"]
-                    log.error(f"❌ POST-NAV cookies: li_at={'YES' if li_at_after else 'MISSING'}, total={len(cookies_after)}")
-                except Exception:
-                    pass
+                raise Exception("LinkedIn session connection lost (redirected to login).")
             
             return True
         except Exception as e:
+            if "session connection lost" in str(e):
+                raise e
             log.warning(f"Navigation attempt {attempt + 1} failed: {e}")
             if attempt < retries - 1:
                 await asyncio.sleep(3)
@@ -1486,7 +1485,7 @@ async def main(
             log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
         pw = await async_playwright().start()
         launch_kwargs = {
-            "headless": False,
+            "headless": True,
             "args": [
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
             ]
@@ -1664,7 +1663,7 @@ async def setup_and_login(progress_user, user_id, password, log_callback=None):
         log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
     pw = await async_playwright().start()
     launch_kwargs = {
-        "headless": True,
+        "headless": False,
         "args": [
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]
@@ -1760,7 +1759,7 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     # Safety-net: guarantee applied + failed == total_jobs. Any selected job that never
     # produces an applied/skipped event — one filtered out as already-applied, or dropped
     # by a producer-level abort — is recorded as failed here so no job silently vanishes.
-    def reconcile_unaccounted():
+    def reconcile_unaccounted(reason: str = "not processed"):
         accounted = set(applied_so_far) | set(failed_so_far)
         for j in jobs_to_apply:
             ju = j.get("job_url")
@@ -1778,11 +1777,11 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
                     "job_url": ju, "job_company": company,
                 })
             else:
-                # Genuinely never processed (e.g. a producer-level drop) — failed.
+                # Genuinely never processed — failed.
                 failed_so_far.append(ju)
                 log_callback({
                     "progress": 99, "status": "skipped", "success": False,
-                    "message": f"Skipped (not processed) - {company}",
+                    "message": f"Skipped ({reason}) - {company}",
                     "job_url": ju, "job_company": company,
                 })
 
@@ -1881,65 +1880,112 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
             print(f"Producer thread died: {e}")
             await jobs_queue.put(None)
 
-    # Setup browser and verify login before starting tailor task to save Gemini API calls
-    pw, browser, context, page = await setup_and_login(email, l_email, l_pass, log_callback)
-
-    # Launch Producer in background
-    producer_task = asyncio.create_task(tailor_producer())
+    pw_instance = None
+    browser_instance = None
 
     try:
-        # Consumer (Playwright Application Loop). The counter is pre-seeded with the
-        # number of jobs already accounted for so progress resumes rather than
-        # restarting at 0, and the checkpoint callback persists each outcome.
-        await main(
-            jobs_queue=jobs_queue,
-            user_id=l_email,
-            password=l_pass,
-            progress_user=email,
-            resume_url=resume_url,
-            log_callback=checkpoint_callback,
-            total_jobs=total_jobs,
-            jobs_applied_counter=[total_jobs - len(remaining)],
-            user_profile=user_profile,
-            pw=pw,
-            browser=browser,
-            context=context,
-            page=page
-        )
-    finally:
-        if not producer_task.done():
-            producer_task.cancel()
+        # Phase 1: Setup browser and verify login to fail fast and save Gemini calls
+        pw_check, browser_check, context_check, page_check = await setup_and_login(email, l_email, l_pass, log_callback)
+        # Close check browser completely to save resources during tailoring
+        try:
+            await browser_check.close()
+            await pw_check.stop()
+        except:
+            pass
+
+        # Phase 2: Launch Producer (tailoring task) in background
+        producer_task = asyncio.create_task(tailor_producer())
+
+        # Once tailoring completes/starts producing batches, we relaunch Playwright for application
+        pw_instance, browser_instance, context_instance, page_instance = await setup_and_login(email, l_email, l_pass, log_callback)
+
+        try:
+            # Phase 3: Consumer (Playwright Application Loop)
+            await main(
+                jobs_queue=jobs_queue,
+                user_id=l_email,
+                password=l_pass,
+                progress_user=email,
+                resume_url=resume_url,
+                log_callback=checkpoint_callback,
+                total_jobs=total_jobs,
+                jobs_applied_counter=[total_jobs - len(remaining)],
+                user_profile=user_profile,
+                pw=pw_instance,
+                browser=browser_instance,
+                context=context_instance,
+                page=page_instance
+            )
+        finally:
+            if not producer_task.done():
+                producer_task.cancel()
+                try:
+                    await producer_task
+                except asyncio.CancelledError:
+                    pass
+            # Cleanup main browser instance
             try:
-                await producer_task
-            except asyncio.CancelledError:
+                await browser_instance.close()
+                await pw_instance.stop()
+            except:
                 pass
 
-    # Safety-net: ensure every selected job is accounted for (applied + failed ==
-    # total_jobs), even if a producer-level abort dropped a batch before the consumer.
-    reconcile_unaccounted()
+        # Reconcile any remaining unaccounted jobs on normal completion
+        reconcile_unaccounted("not processed")
 
-    # Build the final result from the durable accumulators (the checkpoint has
-    # gathered the full set, including any pre-existing outcomes from a resume).
-    total_done = len(applied_so_far) + len(failed_so_far)
-    result = {
-        "applied": applied_so_far,
-        "failed": failed_so_far,
-        "total_jobs": total_jobs,
-        "success_rate": round(len(applied_so_far) / total_done * 100, 2) if total_done > 0 else 0,
-    }
+        # Build final success metrics
+        total_done = len(applied_so_far) + len(failed_so_far)
+        result = {
+            "applied": applied_so_far,
+            "failed": failed_so_far,
+            "total_jobs": total_jobs,
+            "success_rate": round(len(applied_so_far) / total_done * 100, 2) if total_done > 0 else 0,
+        }
+        log_callback({"progress": 100, "status": "done", "message": f"Workflow Complete! Applied: {len(applied_so_far)}, Failed: {len(failed_so_far)}"})
 
-    log_callback({"progress": 100, "status": "done", "message": f"Workflow Complete! Applied: {len(applied_so_far)}, Failed: {len(failed_so_far)}"})
+        # Update DB to completed status
+        supabase.table("workflow_sessions").update({
+            "status": "completed",
+            "output_data": result
+        }).eq("id", job_id).execute()
 
-    # Update DB state
-    supabase.table("workflow_sessions").update({
-        "status": "completed",
-        "output_data": result
-    }).eq("id", job_id).execute()
-
-    # Final merge into User.applied_jobs (checkpoint already did this incrementally).
-    if applied_so_far and user_id:
+    except Exception as run_error:
+        log.error(f"❌ Autoplay Pipeline Failed: {run_error}")
+        
+        # Cleanup any dangling browser processes
         try:
-            merged = list(history_applied | set(applied_so_far))
-            supabase.table("User").update({"applied_jobs": merged}).eq("id", user_id).execute()
-        except Exception as e:
-            print(f"Failed to update User.applied_jobs: {e}")
+            if browser_instance:
+                await browser_instance.close()
+            if pw_instance:
+                await pw_instance.stop()
+        except:
+            pass
+
+        # Clear the LinkedIn session from PostgreSQL since it is invalid/expired
+        try:
+            clear_linkedin_context(email)
+            log.info(f"🧹 Successfully cleared invalid LinkedIn session for {email}")
+        except Exception as clear_err:
+            print(f"Failed to clear linkedin context: {clear_err}")
+
+        # Reconcile all remaining jobs as failed due to connection loss
+        reconcile_unaccounted("connection lost")
+
+        # Build final partial results
+        total_done = len(applied_so_far) + len(failed_so_far)
+        result = {
+            "applied": applied_so_far,
+            "failed": failed_so_far,
+            "total_jobs": total_jobs,
+            "success_rate": round(len(applied_so_far) / total_done * 100, 2) if total_done > 0 else 0,
+        }
+        log_callback({"progress": 100, "status": "failed", "message": f"Pipeline Aborted! Connection Lost. Applied: {len(applied_so_far)}, Failed: {len(failed_so_far)}"})
+
+        # Update DB to failed status with the partial data
+        supabase.table("workflow_sessions").update({
+            "status": "failed",
+            "output_data": result
+        }).eq("id", job_id).execute()
+
+        # Re-raise error to bubble up
+        raise run_error
