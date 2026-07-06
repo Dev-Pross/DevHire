@@ -1,10 +1,12 @@
 "use client"
 import { useEffect, useRef, useState, MouseEvent, WheelEvent, KeyboardEvent } from 'react'
-
+import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 
 export default function StreamViewer() {
-    const wsServerUrl = process.env.NEXT_PUBLIC_STREAM_SERVER || "http://localhost:8080"
-    const streamToken = 'postman_test_123'
+    const router = useRouter()
+    const [wsServerUrl, setWsServerUrl] = useState<string>('')
+    const [streamToken, setStreamToken] = useState<string>('')
 
     const [status, setStatus] = useState<"connecting" | "connected" | "success" | "error" | "disconnected">("connecting");
     const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -15,10 +17,17 @@ export default function StreamViewer() {
         const width = window.innerWidth || 1366;
         const height = window.innerHeight || 768;
         setDimensions({ width, height });
+
+        // Retrieve params client-side to prevent hydration mismatches
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token') || 'postman_test_123';
+        const rawStreamUrl = params.get('stream_url') || process.env.NEXT_PUBLIC_STREAM_SERVER || "http://localhost:8080";
+        setStreamToken(token);
+        setWsServerUrl(rawStreamUrl);
     }, [])
 
     useEffect(() => {
-        if (!dimensions) return;
+        if (!dimensions || !wsServerUrl) return;
 
         // Convert http/https to ws/wss protocols dynamically to prevent browser connection failures
         const formattedUrl = wsServerUrl.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://')
@@ -56,14 +65,15 @@ export default function StreamViewer() {
                 }
                 else if (msg.type === 'success') {
                     setStatus("success")
-                    window.location.href = '/'
+                    toast.success("LinkedIn Connected successfully!")
+                    router.push('/')
                 }
             }
             catch (error) {
                 console.log(`Error parsing stream message ${error}`)
             }
         }
-    }, [streamToken, wsServerUrl, dimensions])
+    }, [streamToken, wsServerUrl, dimensions, router])
 
     function scaleCalculation(e: MouseEvent<HTMLCanvasElement> | WheelEvent<HTMLCanvasElement>) {
         const canvas = canvasRef.current;

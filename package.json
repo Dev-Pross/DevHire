@@ -2,6 +2,7 @@
   "dependencies": {
     "@types/axios": "^0.14.4",
     "axios": "^1.11.0",
+    "docx": "^9.7.1",
     "react-hot-toast": "^2.6.0"
   }
 }

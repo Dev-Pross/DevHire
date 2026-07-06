@@ -5,11 +5,64 @@ import getLoginUser from "../../utiles/getUserData";
 import Navbar from "../../Components/Navbar";
 import { supabase } from "../../utiles/supabaseClient";
 import toast from "react-hot-toast";
+import { API_URL } from "../../utiles/api";
 
 const ProfilePage = () => {
   const [data, setDbData] = useState<any | null>(null);
   const [jobCount, setJobCount] = useState<string | null>(null);
   const [workflowHistory, setWorkflowHistory] = useState<any[]>([]);
+  const [showDisconnectModal, setShowDisconnectModal] = useState<boolean>(false);
+
+  const handleLinkedInToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isChecked = e.target.checked;
+    if (isChecked) {
+      if (!data?.id && !data?.email) return;
+      const userIdStr = data?.id;
+      const loadToast = toast.loading("Generating connection token...");
+      try {
+        const response = await fetch(`${API_URL}/api/linkedin/connect-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: userIdStr })
+        });
+        const result = await response.json();
+        if (response.ok) {
+          toast.success("Token generated! Redirecting...", { id: loadToast });
+          window.location.href = `/connect?token=${result.token}&stream_url=${encodeURIComponent(result.stream_server_url)}`;
+        } else {
+          toast.error(result.detail || "Failed to generate token", { id: loadToast });
+        }
+      } catch (err: any) {
+        toast.error("Failed to connect: " + err.message, { id: loadToast });
+      }
+    } else {
+      setShowDisconnectModal(true);
+    }
+  };
+
+  const confirmDisconnect = async () => {
+    setShowDisconnectModal(false);
+    if (!data?.id) return;
+    const loadToast = toast.loading("Disconnecting LinkedIn...");
+    try {
+      const res = await fetch("/api/User?action=update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: data.id,
+          data: { column: "linkedin_context", value: null }
+        })
+      });
+      if (res.ok) {
+        toast.success("LinkedIn disconnected successfully!", { id: loadToast });
+        setDbData((prev: any) => ({ ...prev, linkedin_context: null }));
+      } else {
+        toast.error("Failed to disconnect", { id: loadToast });
+      }
+    } catch (err: any) {
+      toast.error("Error: " + err.message, { id: loadToast });
+    }
+  };
 
   useEffect(() => {
     try {
@@ -216,10 +269,76 @@ const ProfilePage = () => {
                   </div>
                 </div>
               </div>
+
+              {/* LinkedIn Connection */}
+              <div className="group p-4 md:p-6 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] transition-all duration-300">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <h3 className="text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">LinkedIn Connection</h3>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs md:text-sm font-semibold px-2.5 py-1 rounded-full ${
+                        data?.linkedin_context 
+                          ? "text-emerald-300 bg-emerald-950/40 border border-emerald-500/20" 
+                          : "text-gray-400 bg-white/[0.03] border border-white/[0.08]"
+                      }`}>
+                        {data?.linkedin_context ? "Connected" : "Disconnected"}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Toggle Switch */}
+                  <div className="flex items-center flex-shrink-0">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={!!data?.linkedin_context} 
+                        onChange={handleLinkedInToggle}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-white/[0.08] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-gray-400 peer-checked:after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Custom Disconnect Confirmation Modal */}
+      {showDisconnectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="surface-card border border-white/[0.08] max-w-md w-full p-6 md:p-8 space-y-6 shadow-2xl rounded-2xl transform transition-all">
+            <div className="flex items-center gap-4 text-amber-400">
+              <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-white">Disconnect LinkedIn?</h3>
+            </div>
+            
+            <p className="text-gray-400 text-sm md:text-base leading-relaxed">
+              Are you sure you want to disconnect your LinkedIn account? Your auto-applier bot won't be able to apply to new jobs until you reconnect.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                onClick={confirmDisconnect}
+                className="flex-1 bg-red-600 hover:bg-red-500 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 cursor-pointer"
+              >
+                Disconnect
+              </button>
+              <button
+                onClick={() => setShowDisconnectModal(false)}
+                className="flex-1 bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

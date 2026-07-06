@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Request, HTTPException
 from database.linkedin_context import get_linkedin_context, save_linkedin_context
 from typing import Dict, Any
+import uuid
+import os
+from config import redis_client
 
 router = APIRouter()
 
@@ -76,4 +79,33 @@ async def store_cookie(request: Request):
 
     except Exception as e:
         print(f"Failed to store cookie payload: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/linkedin/connect-token")
+async def generate_connect_token(payload: dict):
+    user_id = payload.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Missing user_id in payload")
+
+    if not redis_client:
+        raise HTTPException(status_code=500, detail="Redis connection not available")
+
+    try:
+        # Generate a random UUID token
+        token = str(uuid.uuid4())
+        
+        # Save stream_token:<token> -> user_id in Redis with 5-minute expiration
+        redis_key = f"stream_token:{token}"
+        redis_client.setex(redis_key, 300, user_id)
+        
+        # Get stream server URL from config/environment
+        stream_url = os.getenv("NEXT_PUBLIC_STREAM_SERVER") or os.getenv("STREAM_SERVER_URL") or "http://localhost:8080"
+        
+        print(f"Generated connection token {token} for user {user_id}")
+        return {
+            "token": token,
+            "stream_server_url": stream_url
+        }
+    except Exception as e:
+        print(f"Failed to generate connect token: {e}")
         raise HTTPException(status_code=500, detail=str(e))

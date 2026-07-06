@@ -37,6 +37,9 @@ DevHire is a **full-stack AI automation platform** that:
 6. **Generates Portfolios** – 🆕 **AI-powered portfolio website generator** creates professional HTML/CSS portfolio pages from your resume (supports **5 templates**)
 7. **Tracks Progress** – Provides real-time progress tracking and application history in the web dashboard
 8. **Persistent Sessions** – 🆕 Stores LinkedIn browser context in database for seamless session resumption
+9. **Remote Browser Webcast Stream (Remote Login)** – 🆕 Streams a headless browser session directly to a Next.js client-side `<canvas>` element via WebSocket and CDP (Chrome DevTools Protocol), supporting real-time mouse clicks, scrolls, and keystrokes to authenticate securely.
+10. **Dynamic Viewport Emulation** – 🆕 Dynamically reads client screen resolution and resizes the remote browser context (supporting touch-based mobile layouts) for accurate coordinate mappings.
+11. **Fail-Fast Session Guard** – 🆕 Validates LinkedIn session cookies *before* run starts to prevent wasted Gemini API costs, shuts down browser memory resources while tailoring, and aborts immediately on mid-run session loss (preserving completed jobs).
 
 **Result:** Apply to 50+ tailored job applications in the time it used to take to apply to 5.
 
@@ -49,20 +52,18 @@ DevHire is a **full-stack AI automation platform** that:
 │        Frontend (Next.js 15 + React 19)             │
 │  ✨ Dashboard, Login, Job Selection, Apply Flow    │
 │  🆕 Portfolio Builder, Pricing Plans, Password Reset│
+│  🆕 Canvas-based Remote Login Webcast Control       │
 │         Supabase Auth + Prisma ORM                 │
 └─────────────────────────────────────────────────────┘
-                        ↕ (API calls)
-┌─────────────────────────────────────────────────────┐
-│    Backend (Python FastAPI + Uvicorn)              │
-│  • /get-jobs – Parse resume & scrape LinkedIn     │
-│  • /apply-jobs – Apply with tailored resumes      │
-│  • /tailor – AI resume customization (Gemini)     │
-│  • /store-cookie – Receive auth from extension    │
-│  • 🆕 /portfolio – AI portfolio website generator │
-│  • 🆕 /logout – Clear LinkedIn context            │
-│  • 🆕 /debug/* – Visual debugging dashboard       │
-└─────────────────────────────────────────────────────┘
-                        ↕ (Browser control)
+         ↕ (API calls)                      ↕ (CDP Webcast Stream)
+┌──────────────────────────────────┐      ┌─────────────────────────────┐
+│ Backend (Python FastAPI)         │      │ WS Streaming Server (Node)  │
+│ • /get-jobs /apply-jobs /tailor  │      │ • Streams headless browser  │
+│ • 🆕 /linkedin/connect-token     │ ───> │   session to Next.js canvas │
+│ • 🆕 /portfolio generator        │      │ • Syncs mouse/touch inputs  │
+│ • 🆕 /logout, /debug/*           │      │ • Saves session to Postgres │
+└──────────────────────────────────┘      └─────────────────────────────┘
+         ↕ (Browser control)
 ┌─────────────────────────────────────────────────────┐
 │   Chrome Extension (Manifest V3)                   │
 │  • Captures LinkedIn cookies & localStorage       │
@@ -99,6 +100,7 @@ DevHire is a **full-stack AI automation platform** that:
 | **Auth** | Supabase + JWT + AES-256 | User registration, login, session management, credential encryption |
 | **Database** | PostgreSQL + Prisma | User profiles, applied jobs, resume URLs, LinkedIn context |
 | **Extension** | Chrome Manifest V3 | Cookie/fingerprint capture, credential sync, session persistence |
+| **Webcast Server** | Node.js, Playwright, WS, CDP | Streams remote headless browser login session to frontend canvas with mouse/keyboard/scroll sync |
 
 ---
 
@@ -658,6 +660,7 @@ Create `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_key
 NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_STREAM_SERVER=http://localhost:8080
 DATABASE_URL=postgresql://user:password@localhost:5432/devhire
 ```
 
@@ -684,13 +687,20 @@ cd my-fe
 npx prisma migrate dev --name init
 ```
 
-#### 4. Run Backend
+#### 4. Run Backend API
 ```bash
 cd backend_python
 python -m uvicorn main.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### 5. Run Frontend
+#### 5. Run Webcast Streaming Server
+```bash
+cd auth-server
+npm install
+npm run dev
+```
+
+#### 6. Run Frontend Dashboard
 ```bash
 cd my-fe
 npm run dev
