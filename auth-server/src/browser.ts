@@ -7,8 +7,8 @@ import stealth from 'puppeteer-extra-plugin-stealth'
 chromium.use(stealth())
 
 
-export async function handleBrowser(ws: WebSocket, authUser: string, width: number, height: number) {
-    console.log(`Starting isolated browser session for user: ${authUser}`);
+export async function handleBrowser(ws: WebSocket, authUser: string, width: number, height: number, dpr: number) {
+    console.log(`Starting isolated browser session for user: ${authUser} with DPR: ${dpr}`);
 
     try {
         const browser = await chromium.launch({
@@ -22,7 +22,7 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
             ]
         })
 
-        const isMobile = width < 1024
+        const isMobile = width < 1024;
 
         const desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
         const mobileUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";
@@ -30,17 +30,53 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
         const context = await browser.newContext({
             userAgent: isMobile ? mobileUA : desktopUA,
             viewport: { width: width, height: height },
+            deviceScaleFactor: dpr, // Emulate high-DPI screens for crystal clear text
             locale: "en-US",
             timezoneId: "Asia/Calcutta",
             isMobile: isMobile,
             hasTouch: isMobile
         })
 
+        await context.exposeFunction('onFocusChanged', (isInput: boolean) => {
+            if (ws.readyState === ws.OPEN) {
+                ws.send(JSON.stringify({ type: 'focus_changed', isInput }));
+            }
+        });
+
         await context.addInitScript(() => {
             if (window.navigator && window.navigator.credentials) {
                 window.navigator.credentials.get = async () => { throw new Error("WebAuthn not supported"); };
                 window.navigator.credentials.create = async () => { throw new Error("WebAuthn not supported"); };
             }
+
+            const isInputField = (el: Element | null): boolean => {
+                if (!el) return false;
+                const tagName = el.tagName.toLowerCase();
+                if (tagName === 'textarea' || el.getAttribute('contenteditable') === 'true') {
+                    return true;
+                }
+                if (tagName === 'input') {
+                    const type = el.getAttribute('type')?.toLowerCase() || 'text';
+                    const nonTextInputTypes = ['checkbox', 'radio', 'button', 'submit', 'image', 'file', 'hidden', 'range', 'color'];
+                    return !nonTextInputTypes.includes(type);
+                }
+                return false;
+            };
+
+            document.addEventListener('focusin', (e) => {
+                const target = e.target as HTMLElement;
+                if (isInputField(target)) {
+                    (window as any).onFocusChanged(true);
+                }
+            });
+
+            document.addEventListener('focusout', () => {
+                setTimeout(() => {
+                    if (!isInputField(document.activeElement)) {
+                        (window as any).onFocusChanged(false);
+                    }
+                }, 50);
+            });
         });
 
         let mainPage: Page | null = null;
@@ -50,8 +86,10 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
             const targetClient = await targetPage.context().newCDPSession(targetPage);
 
             await targetClient.send('Page.startScreencast', {
-                format: 'jpeg',
-                quality: 80, // 100 causes heavy network latency; 80 is the sweet spot
+                format: 'png',
+                maxWidth: Math.round(width * dpr),
+                maxHeight: Math.round(height * dpr),
+                quality: 100,
                 everyNthFrame: 1
             });
 

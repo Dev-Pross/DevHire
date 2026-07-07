@@ -34,6 +34,7 @@ server.on("upgrade", async (req, socket, head) => {
         const token = reqUrl.searchParams.get("token");
         const width = parseInt(reqUrl.searchParams.get("width") || "1366")
         const height = parseInt(reqUrl.searchParams.get("height") || "768")
+        const dpr = parseFloat(reqUrl.searchParams.get("dpr") || "1")
         if (!token) {
             socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n')
             socket.destroy()
@@ -51,7 +52,7 @@ server.on("upgrade", async (req, socket, head) => {
         await redis.del(`stream_token:${token}`)
 
         wss.handleUpgrade(req, socket, head, (ws: WebSocket) => {
-            wss.emit('connection', ws, req, authUser, width, height)
+            wss.emit('connection', ws, req, authUser, width, height, dpr)
         })
     } catch (error) {
         console.error(error);
@@ -60,12 +61,12 @@ server.on("upgrade", async (req, socket, head) => {
     }
 })
 
-wss.on('connection', async (ws: WebSocket, _req: http.IncomingMessage, authUser: string, width: number, height: number) => {
-    await handleBrowser(ws, authUser, width, height)
+wss.on('connection', async (ws: WebSocket, _req: http.IncomingMessage, authUser: string, width: number, height: number, dpr: number) => {
+    await handleBrowser(ws, authUser, width, height, dpr)
 })
 
 const PORT = process.env.PORT || 8080;
 
-server.listen(PORT, () => {
-    console.log(`Server is running on  http://localhost:${PORT}`)
+server.listen(Number(PORT), "0.0.0.0", () => {
+    console.log(`Server is running on http://0.0.0.0:${PORT}`)
 })
