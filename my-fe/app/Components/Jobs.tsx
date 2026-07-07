@@ -211,7 +211,6 @@ const Jobs = () => {
 
     if (!pdf) {
       toast.error("Resume not found. Please upload your resume");
-      router.push("/Jobs/LinkedinUserDetails");
       return;
     }
     setUrl(pdf);
@@ -227,7 +226,6 @@ const Jobs = () => {
           setCredentialsReady(true);
         } else {
           toast.error("LinkedIn credentials not provided");
-          router.push("/Jobs/LinkedinUserDetails");
         }
       } catch (e: any) {
         toast.error("Error fetching credentials: " + e.message);

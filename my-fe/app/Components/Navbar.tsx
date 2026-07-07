@@ -105,6 +105,9 @@ const Navbar = () => {
                 onClick={() => setOpen(!open)}
                 onMouseEnter={() => setOpen(true)}
               >
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${user?.tier === 'PRO' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_8px_rgba(99,102,241,0.4)]' : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'}`}>
+                  {user?.tier || 'FREE'}
+                </span>
                 {user.profile_image ? (
                   <img
                     src={user.profile_image}

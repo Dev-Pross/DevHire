@@ -181,7 +181,6 @@ const Apply: React.FC = () => {
 
       if (!pdf) {
         toast.error("Resume not found");
-        router.push("/Jobs/LinkedinUserDetails");
         return;
       }
       setUrl(pdf);
@@ -315,7 +314,6 @@ const Apply: React.FC = () => {
             setCredentialsReady(true);
           } else {
             toast.error("LinkedIn credentials not provided");
-            router.push("/Jobs/LinkedinUserDetails");
           }
         } catch (e: any) {
           toast.error("Error fetching credentials: " + e.message);
