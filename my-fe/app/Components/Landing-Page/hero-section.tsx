@@ -55,7 +55,7 @@ const OrbitDot = ({
 
 export const HeroTalent = () => {
   const { user, loading, isLoggedIn } = useUser();
-  const { fileInputRef, uploading, uploadError, uploadSuccess, onUploadClick } = useResumeUpload(user?.id);
+  const { fileInputRef, uploading, uploadError, uploadSuccess, onUploadClick } = useResumeUpload(user?.id || "");
 
   const containerVariants = {
     hidden: { opacity: 0 },
