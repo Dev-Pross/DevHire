@@ -29,3 +29,4 @@ backend_python/data_dump/localStorage.json
 backend_python/data_dump/apply.py
 backend_python/myenv/
 backend_python/.devhire_backend/
+auth-server/dist/

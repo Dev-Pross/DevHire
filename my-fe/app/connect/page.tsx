@@ -67,14 +67,14 @@ export default function StreamViewer() {
                         const canvas = canvasRef.current;
                         if (!canvas) return;
 
-                        if (canvas.width !== msg.width || canvas.height !== msg.height) {
-                            canvas.width = msg.width;
-                            canvas.height = msg.height;
+                        if (canvas.width !== img.width || canvas.height !== img.height) {
+                            canvas.width = img.width;
+                            canvas.height = img.height;
                         }
 
                         const ctx = canvas.getContext('2d')
                         if (ctx) {
-                            ctx.drawImage(img, 0, 0, msg.width, msg.height)
+                            ctx.drawImage(img, 0, 0, img.width, img.height)
                         }
                     }
 
@@ -123,11 +123,6 @@ export default function StreamViewer() {
             x: x,
             y: y
         }));
-        
-        // Focus hidden input to prompt keyboard trigger on tap/click
-        setTimeout(() => {
-            inputRef.current?.focus();
-        }, 30);
     };
 
     const handleWheel = (e: WheelEvent<HTMLCanvasElement>) => {
@@ -222,7 +217,7 @@ export default function StreamViewer() {
                 Math.pow(touch.clientX - start.x, 2) +
                 Math.pow(touch.clientY - start.y, 2)
             );
-            if (totalDist > 8) {
+            if (totalDist > 20) {
                 hasMovedRef.current = true;
             }
         }
@@ -247,7 +242,7 @@ export default function StreamViewer() {
 
         const duration = Date.now() - touchStartRef.current.time;
 
-        if (!hasMovedRef.current && duration < 300) {
+        if (!hasMovedRef.current && duration < 500) {
             const { x, y } = scaleCalculationCoords(touchStartRef.current.x, touchStartRef.current.y);
 
             if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -257,10 +252,6 @@ export default function StreamViewer() {
                     y: y
                 }));
             }
-
-            setTimeout(() => {
-                inputRef.current?.focus();
-            }, 30);
         }
 
         touchStartRef.current = null;
@@ -272,7 +263,7 @@ export default function StreamViewer() {
     }
 
     return (
-        <div className="w-screen h-screen flex items-center justify-center bg-[#F3F2EF] overflow-hidden select-none touch-none">
+        <div className="w-screen h-screen flex items-center justify-center bg-white overflow-hidden select-none touch-none">
             {/* Hidden capture input for virtual keyboard */}
             <input
                 ref={inputRef}
@@ -280,13 +271,13 @@ export default function StreamViewer() {
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                className="absolute opacity-0 pointer-events-none w-px h-px p-0 border-0"
-                style={{ top: '50%', left: '50%' }}
+                className="absolute opacity-0 pointer-events-none w-px h-px p-0 border-0 top-0 left-0 -z-10"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="none"
                 spellCheck="false"
             />
+
 
             {/* Canvas representing remote browser viewport */}
             <canvas

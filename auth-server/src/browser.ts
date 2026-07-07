@@ -18,7 +18,7 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
-                `--window-size=${width},${height}`
+                `--window-size=${Math.round(width * dpr)},${Math.round(height * dpr)}`
             ]
         })
 
@@ -37,47 +37,52 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
             hasTouch: isMobile
         })
 
-        await context.exposeFunction('onFocusChanged', (isInput: boolean) => {
-            if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: 'focus_changed', isInput }));
-            }
-        });
-
-        await context.addInitScript(() => {
+        await context.addInitScript((isMobile) => {
             if (window.navigator && window.navigator.credentials) {
                 window.navigator.credentials.get = async () => { throw new Error("WebAuthn not supported"); };
                 window.navigator.credentials.create = async () => { throw new Error("WebAuthn not supported"); };
             }
 
-            const isInputField = (el: Element | null): boolean => {
-                if (!el) return false;
-                const tagName = el.tagName.toLowerCase();
-                if (tagName === 'textarea' || el.getAttribute('contenteditable') === 'true') {
-                    return true;
+            // Google Auth UI Purge CSS style injection
+            const injectStyle = () => {
+                const style = document.createElement('style');
+                style.textContent = 'iframe[src*="google.com/gsi"], iframe[src*="smartlock"], button[data-provider="GOOGLE"], .nsm7Bb-HzV7m-LgbsSe { display: none !important; }';
+                if (document.head) {
+                    document.head.appendChild(style);
+                } else if (document.documentElement) {
+                    document.documentElement.appendChild(style);
+                } else {
+                    setTimeout(injectStyle, 1);
                 }
-                if (tagName === 'input') {
-                    const type = el.getAttribute('type')?.toLowerCase() || 'text';
-                    const nonTextInputTypes = ['checkbox', 'radio', 'button', 'submit', 'image', 'file', 'hidden', 'range', 'color'];
-                    return !nonTextInputTypes.includes(type);
-                }
-                return false;
             };
+            injectStyle();
 
-            document.addEventListener('focusin', (e) => {
-                const target = e.target as HTMLElement;
-                if (isInputField(target)) {
-                    (window as any).onFocusChanged(true);
-                }
-            });
-
-            document.addEventListener('focusout', () => {
-                setTimeout(() => {
-                    if (!isInputField(document.activeElement)) {
-                        (window as any).onFocusChanged(false);
+            // Mobile viewport retention logic
+            if (isMobile) {
+                const forceViewport = () => {
+                    if (!document.head) return;
+                    const meta = document.querySelector('meta[name="viewport"]');
+                    const expectedContent = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0';
+                    if (!meta || meta.getAttribute('content') !== expectedContent) {
+                        if (meta) {
+                            meta.remove();
+                        }
+                        document.head.insertAdjacentHTML('beforeend', '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">');
                     }
-                }, 50);
-            });
-        });
+                };
+
+                const initViewportMonitor = () => {
+                    if (document.head) {
+                        forceViewport();
+                        const observer = new MutationObserver(forceViewport);
+                        observer.observe(document.head, { childList: true, subtree: true, attributes: true });
+                    } else {
+                        setTimeout(initViewportMonitor, 1);
+                    }
+                };
+                initViewportMonitor();
+            }
+        }, isMobile);
 
         let mainPage: Page | null = null;
         let activePage: Page | null = null;
@@ -86,9 +91,7 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
             const targetClient = await targetPage.context().newCDPSession(targetPage);
 
             await targetClient.send('Page.startScreencast', {
-                format: 'png',
-                maxWidth: Math.round(width * dpr),
-                maxHeight: Math.round(height * dpr),
+                format: 'jpeg',
                 quality: 100,
                 everyNthFrame: 1
             });
@@ -137,15 +140,52 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
         activePage = mainPage; // Set initial active page
         await attachStream(mainPage);
 
+        // Server-side focus detection: after each click, evaluate the actual
+        // focused element in the DOM and tell the client whether to show keyboard
+        const checkFocusAndNotify = async (page: Page) => {
+            try {
+                const isInput = await page.evaluate(() => {
+                    const el = document.activeElement;
+                    if (!el) return false;
+                    const tag = el.tagName.toLowerCase();
+                    if (tag === 'textarea') return true;
+                    if (tag === 'input') {
+                        const type = el.getAttribute('type')?.toLowerCase() || 'text';
+                        return ['text', 'password', 'email', 'number', 'tel'].includes(type);
+                    }
+                    return false;
+                });
+                if (ws.readyState === ws.OPEN) {
+                    ws.send(JSON.stringify({ type: 'focus_changed', isInput }));
+                }
+            } catch (_) { }
+        };
+
         ws.on('message', async (message) => {
             try {
                 if (!activePage) return;
                 const event = JSON.parse(message.toString());
 
                 if (event.type === 'mouse') {
-                    await activePage.mouse.click(event.x, event.y);
+                    // Mobile pages (LinkedIn) listen for touch events on UI controls.
+                    // mouse.click() only fires mouse events, so buttons/checkboxes
+                    // get visual feedback but their touch handlers never execute.
+                    if (isMobile) {
+                        await activePage.touchscreen.tap(event.x, event.y);
+                    } else {
+                        await activePage.mouse.click(event.x, event.y);
+                    }
+
+                    // After click settles, check if a text input is now focused
+                    await checkFocusAndNotify(activePage);
                 } else if (event.type === 'keyboard') {
-                    await activePage.keyboard.press(event.key);
+                    if (event.key && event.key !== 'Unidentified') {
+                        try {
+                            await activePage.keyboard.press(event.key);
+                        } catch (e) {
+                            console.log(`Failed to press key: ${event.key}`);
+                        }
+                    }
                 } else if (event.type === 'scroll') {
                     await activePage.mouse.wheel(event.deltaX, event.deltaY);
                 }
