@@ -10,6 +10,9 @@ interface UserData {
   profile_image: string | null;
   linkedin_context: boolean;
   applied_jobs: string[];
+  tier: string;
+  shared_generation_credits: number;
+  fetch_jobs_credits: number;
 }
 
 interface UserContextType {
@@ -28,6 +31,9 @@ const defaultUser: UserData = {
   profile_image: null,
   linkedin_context: false,
   applied_jobs: [],
+  tier: "FREE",
+  shared_generation_credits: 0,
+  fetch_jobs_credits: 0,
 };
 
 const UserContext = createContext<UserContextType>({
@@ -71,6 +77,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       let linkedinContext = false;
       let dbName: string | null = null;
       let appliedJobs: string[] = [];
+      let tier = "FREE";
+      let sharedGenerationCredits = 0;
+      let fetchJobsCredits = 0;
 
       try {
         const res = await fetch(`/api/User?id=${userId}`, {
@@ -94,6 +103,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
           if (Array.isArray(userData.user.applied_jobs)) {
             appliedJobs = userData.user.applied_jobs;
           }
+          if (userData.user.tier) {
+            tier = userData.user.tier;
+          }
+          if (typeof userData.user.shared_generation_credits === "number") {
+            sharedGenerationCredits = userData.user.shared_generation_credits;
+          }
+          if (typeof userData.user.fetch_jobs_credits === "number") {
+            fetchJobsCredits = userData.user.fetch_jobs_credits;
+          }
         }
       } catch (err) {
         console.error("Error fetching user data from DB:", err);
@@ -115,6 +133,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         profile_image: profileImage,
         linkedin_context: linkedinContext,
         applied_jobs: appliedJobs,
+        tier: tier,
+        shared_generation_credits: sharedGenerationCredits,
+        fetch_jobs_credits: fetchJobsCredits,
       });
       setLoading(false);
     } catch (err) {

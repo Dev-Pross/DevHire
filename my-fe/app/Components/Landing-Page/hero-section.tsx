@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion, useInView, useMotionValue, useTransform, animate } from "framer-motion";
 import { useUser } from "@/app/utiles/UserContext";
+import { useResumeUpload } from "@/app/utiles/useUploadResume";
 
 /* ── Animated Counter ── */
 const AnimatedCounter = ({ target, suffix = "" }: { target: number; suffix?: string }) => {
@@ -54,6 +55,7 @@ const OrbitDot = ({
 
 export const HeroTalent = () => {
   const { user, loading, isLoggedIn } = useUser();
+  const { fileInputRef, uploading, uploadError, uploadSuccess, onUploadClick } = useResumeUpload(user?.id);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -126,14 +128,33 @@ export const HeroTalent = () => {
             <motion.div variants={itemVariants} className="flex flex-wrap gap-4 justify-center lg:justify-start">
               {isLoggedIn ? (
                 <>
-                  <Link href="/Jobs/LinkedinUserDetails">
-                    <button className="btn-primary text-base px-8 py-4">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                      Upload Resume
+                  <div className="flex flex-col gap-2">
+                    <button
+                      className="btn-primary text-base px-8 py-4 disabled:opacity-50"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? (
+                        <span className="flex items-center gap-2">
+                          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                          </svg>
+                          Uploading...
+                        </span>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          Upload Resume
+                        </>
+                      )}
                     </button>
-                  </Link>
+                    <input ref={fileInputRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={onUploadClick} />
+                    {uploadSuccess && <span className="text-emerald-400 text-xs text-center">{uploadSuccess}</span>}
+                    {uploadError && <span className="text-red-400 text-xs text-center">{uploadError}</span>}
+                  </div>
                   {user.resume_url && (
                     <Link href="/Jobs">
                       <button className="btn-secondary text-base px-8 py-4">

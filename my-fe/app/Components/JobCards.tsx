@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
 import { motion, type Variants } from "framer-motion";
+import { useUser } from "../utiles/UserContext";
+import { UpgradePopup } from "./UpgradePopup";
 
 interface JobcardProps {
   title: string;
@@ -51,8 +53,10 @@ function parseScore(raw: string): number | null {
 
 const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
   const router = useRouter();
+  const { user } = useUser();
   const [selectedIds, setSelectedIds] = useState<{ job_id: string; job_url: string; job_description: string; company_name?: string }[]>([]);
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [showPopup, setShowPopup] = useState(false);
 
   const isSelected = (id: string) => selectedIds.some((s) => s.job_id === id);
 
@@ -65,6 +69,10 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
   };
 
   const ApplierHandler = () => {
+    if (user?.tier === "FREE") {
+      setShowPopup(true);
+      return;
+    }
     if (selectedIds.length === 0) {
       toast.error("Please select jobs to proceed");
       return;
@@ -87,6 +95,12 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
 
   return (
     <>
+      <UpgradePopup 
+        isOpen={showPopup} 
+        onClose={() => setShowPopup(false)} 
+        message="Smart Apply is a Pro feature. Upgrade to automatically apply to jobs with AI!" 
+      />
+
       {/* ─── Sticky Toolbar ─── */}
       <div className="w-full px-5 py-3.5 flex flex-wrap justify-between items-center gap-3 sticky top-[65px] backdrop-blur-xl bg-[#0A0A0A]/85 z-10 border border-white/[0.06] rounded-2xl mb-6">
         {/* Left section */}

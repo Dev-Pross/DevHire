@@ -31,9 +31,34 @@ async function fetch(id:any) {
   if(!id){
     throw new Error("id not provided")
   }
-  return prisma.user.findFirst({
+  const user = await prisma.user.findFirst({
     where: {id}
-  })
+  });
+
+  if (user) {
+    // Check if we need to reset daily credits
+    const now = new Date();
+    const lastReset = user.credits_last_reset ? new Date(user.credits_last_reset) : new Date(0);
+    
+    // Compare UTC days to see if it's a new day
+    if (
+      lastReset.getUTCFullYear() !== now.getUTCFullYear() ||
+      lastReset.getUTCMonth() !== now.getUTCMonth() ||
+      lastReset.getUTCDate() !== now.getUTCDate()
+    ) {
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          shared_generation_credits: 5,
+          fetch_jobs_credits: 2,
+          credits_last_reset: now
+        }
+      });
+      return updatedUser;
+    }
+  }
+
+  return user;
 }
 export async function POST(request: Request) {
   const url = new URL(request.url)
@@ -90,6 +115,41 @@ export async function POST(request: Request) {
           },
         });
         return new Response(JSON.stringify({ success: true, user: upserted }), { status: 200 });
+
+      case "deduct_credit": {
+        const { id: creditUserId, type: creditType } = body;
+        if (!creditUserId) throw new Error("id not provided");
+        
+        const user = await prisma.user.findFirst({ where: { id: creditUserId } });
+        if (!user) throw new Error("user not found");
+
+        // PRO users have unlimited credits
+        if (user.tier === "PRO") {
+          return new Response(JSON.stringify({ success: true, message: "PRO user, no deduction" }), { status: 200 });
+        }
+
+        if (creditType === "generation") {
+          if (user.shared_generation_credits <= 0) {
+            return new Response(JSON.stringify({ success: false, message: "Out of generation credits" }), { status: 403 });
+          }
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { shared_generation_credits: user.shared_generation_credits - 1 }
+          });
+        } else if (creditType === "fetch") {
+          if (user.fetch_jobs_credits <= 0) {
+            return new Response(JSON.stringify({ success: false, message: "Out of fetch jobs credits" }), { status: 403 });
+          }
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { fetch_jobs_credits: user.fetch_jobs_credits - 1 }
+          });
+        } else {
+          throw new Error("Invalid credit type");
+        }
+
+        return new Response(JSON.stringify({ success: true, message: "Credit deducted" }), { status: 200 });
+      }
 
       default:
         return new Response(JSON.stringify({ success: false, message: "Invalid action" }), 

@@ -30,3 +30,4 @@ backend_python/data_dump/apply.py
 backend_python/myenv/
 backend_python/.devhire_backend/
 auth-server/dist/
+my-fe/prisma/schema.prisma.backup

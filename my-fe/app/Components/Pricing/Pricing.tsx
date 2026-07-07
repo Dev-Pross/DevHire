@@ -8,13 +8,13 @@ const plans = [
     description: "Perfect for exploring HireHawk's capabilities",
     features: [
       "Access to Standard Resume template",
-      "Tailor your resume 2 times/day",
-      "Build your Portfolio 3 times/day",
-      "Apply up to 5 applications/day",
-      "Limited access to Smart Applier",
+      "Limited access to Tailoring (5 shared credits/day)",
+      "Limited access to Portfolio (5 shared credits/day)",
+      "Fetch jobs up to 2 times/day",
     ],
     cta: "Get Started",
     popular: false,
+    link: "/register"
   },
   {
     name: "Pro",
@@ -23,14 +23,15 @@ const plans = [
     description: "For serious job seekers who want maximum results",
     features: [
       "Access to all advanced resume templates",
-      "Tailor your resume 10 times/day",
-      "Build your Portfolio 10 times/day",
-      "Apply up to 20 applications/day",
+      "Unlimited resume tailoring",
+      "Unlimited portfolio building",
+      "Unlimited job fetching",
       "Full access to Smart Applier",
       "Priority support",
     ],
     cta: "Upgrade to Pro",
     popular: true,
+    link: "mailto:tejabudumuru3@gmail.com"
   },
 ];
 
@@ -111,15 +112,16 @@ export const Pricing = () => {
                 ))}
               </ul>
 
-              <button
-                className={`w-full py-3.5 px-6 rounded-xl font-semibold text-sm transition-all duration-300 cursor-pointer ${
+              <a
+                href={plan.link}
+                className={`w-full block text-center py-3.5 px-6 rounded-xl font-semibold text-sm transition-all duration-300 cursor-pointer ${
                   plan.popular
                     ? "bg-black text-white hover:bg-gray-900 hover:shadow-lg"
                     : "bg-white/[0.05] border border-white/[0.1] text-white hover:bg-emerald-500 hover:text-black hover:border-emerald-500"
                 }`}
               >
                 {plan.cta}
-              </button>
+              </a>
             </div>
           ))}
         </div>

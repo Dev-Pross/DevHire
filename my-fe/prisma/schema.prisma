@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -14,23 +15,38 @@ model User {
   applied_jobs       String[]
   linkedin_context   Json?              @db.Json
   context_updated_at DateTime?          @db.Timestamp(6)
-  user_data          Json?              @db.Json
-  profile_image      String?
-  workflow_sessions  workflow_sessions[]
+  user_data          Json?
+  profile_image             String?
+  tier                      String             @default("FREE")
+  shared_generation_credits Int                @default(5)
+  fetch_jobs_credits        Int                @default(2)
+  credits_last_reset        DateTime           @default(now()) @db.Timestamptz(6)
+  workflow_sessions         workflow_sessions?
 
   @@map("User")
 }
 
 model workflow_sessions {
-  id             String   @id @db.Uuid
-  user_id        String   @db.Uuid
-  workflow_type  String   @db.VarChar(20)
-  status         String   @default("pending") @db.VarChar(20)
-  input_data     Json?    @db.JsonB
-  output_data    Json?    @db.JsonB
-  last_active_at DateTime @default(now()) @db.Timestamptz(6)
-  created_at     DateTime @default(now()) @db.Timestamptz(6)
-  user           User     @relation(fields: [user_id], references: [id])
+  id             String              @id @db.Uuid
+  user_id        String              @unique(map: "one_active_job_per_user", where: raw("(status = ANY (ARRAY['pending'::session_status_enum, 'running'::session_status_enum, 'scraper_raw'::session_status_enum]))")) @db.Uuid
+  workflow_type  workflow_type_enum
+  status         session_status_enum @default(pending)
+  input_data     Json?
+  output_data    Json?
+  last_active_at DateTime            @default(now()) @db.Timestamptz(6)
+  created_at     DateTime            @default(now()) @db.Timestamptz(6)
+  user           User                @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
 
-  @@index([user_id])
+enum session_status_enum {
+  pending
+  running
+  scraper_raw
+  completed
+  failed
+}
+
+enum workflow_type_enum {
+  fetch_jobs
+  apply_jobs
 }

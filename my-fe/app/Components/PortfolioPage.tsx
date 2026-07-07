@@ -4,6 +4,7 @@ import { useResumeUpload } from "../utiles/useUploadResume";
 import toast from "react-hot-toast";
 import { API_URL } from "../utiles/api";
 import { useUser } from "../utiles/UserContext";
+import { UpgradePopup } from "./UpgradePopup";
 
 const PortfolioPage = () => {
   const { user, loading: userLoading, isLoggedIn } = useUser();
@@ -12,14 +13,45 @@ const PortfolioPage = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [code, setCode] = useState<string>("");
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupMessage, setPopupMessage] = useState("");
 
   const handlePortfolio = async () => {
-    setLoading(true);
     if (!resume) {
-      setLoading(false);
       toast.error("Please upload resume first");
       return;
     }
+
+    // Tier checks
+    if (user?.tier === "FREE") {
+      if (selectedTemplate !== 0) {
+        setPopupMessage("Advanced templates are only available on the Pro tier. Upgrade to unlock all templates!");
+        setShowPopup(true);
+        return;
+      }
+      if ((user?.shared_generation_credits || 0) <= 0) {
+        setPopupMessage("You have exhausted your daily limit of 5 portfolio credits. Upgrade to Pro for unlimited generation!");
+        setShowPopup(true);
+        return;
+      }
+    }
+    // Deduct credit before processing if FREE
+    if (user?.tier === "FREE") {
+      try {
+        await fetch("/api/User?action=deduct_credit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: user.id, type: "generation" })
+        });
+        if (user.shared_generation_credits) {
+          user.shared_generation_credits -= 1;
+        }
+      } catch (err) {
+        console.error("Failed to deduct credit:", err);
+      }
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`${API_URL}/portfolio`, {
         method: "POST",
@@ -49,7 +81,16 @@ const PortfolioPage = () => {
   ];
 
   return (
-    <div className="min-h-screen lg:h-full flex flex-col p-4 md:p-8 gap-5">
+    <div className="min-h-screen lg:h-full flex flex-col p-4 md:p-8 gap-5 relative">
+      <UpgradePopup isOpen={showPopup} onClose={() => setShowPopup(false)} message={popupMessage} />
+      
+      {user?.tier === "FREE" && (
+        <div className="fixed bottom-6 right-6 bg-[#1A1A1A] border border-white/[0.08] text-gray-400 text-xs px-4 py-2 rounded-full font-medium z-50 shadow-2xl flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+          Credits: {user?.shared_generation_credits || 0}/5
+        </div>
+      )}
+
       {/* Upload section */}
       <input type="file" ref={fileInputRef} onChange={onUploadClick} accept=".pdf" style={{ display: "none" }} />
       <div className="flex gap-3 justify-center items-center">

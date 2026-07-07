@@ -4,6 +4,7 @@ import { useResumeUpload } from "../utiles/useUploadResume";
 import toast from "react-hot-toast";
 import { API_URL } from "../utiles/api";
 import { useUser } from "../utiles/UserContext";
+import { UpgradePopup } from "./UpgradePopup";
 
 const Tailor_resume = () => {
   const { user, loading, isLoggedIn } = useUser();
@@ -12,6 +13,8 @@ const Tailor_resume = () => {
   const [description, setDescription] = useState<string>();
   const [selectedTemplate, setSelectedTemplate] = useState<number>(0);
   const [tailoredUrl, setTailoredUrl] = useState<string | null>(null);
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupMessage, setPopupMessage] = useState("");
 
   const resumeTemplates = [
     { id: 0, name: "Template 0", preview: "/templete-0.png", description: "Professional Modern Template" },
@@ -26,6 +29,38 @@ const Tailor_resume = () => {
       toast.error("Enter a job description to proceed");
       return;
     }
+
+    // Tier checks
+    if (user?.tier === "FREE") {
+      if (selectedTemplate !== 0) {
+        setPopupMessage("Advanced templates are only available on the Pro tier. Upgrade to unlock all templates!");
+        setShowPopup(true);
+        return;
+      }
+      if ((user?.shared_generation_credits || 0) <= 0) {
+        setPopupMessage("You have exhausted your daily limit of 5 tailoring credits. Upgrade to Pro for unlimited tailoring!");
+        setShowPopup(true);
+        return;
+      }
+    }
+
+    // Deduct credit before processing if FREE
+    if (user?.tier === "FREE") {
+      try {
+        await fetch("/api/User?action=deduct_credit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: user.id, type: "generation" })
+        });
+        if (user.shared_generation_credits) {
+          user.shared_generation_credits -= 1;
+        }
+      } catch (err) {
+        console.error("Failed to deduct credit:", err);
+        // proceed anyway, backend limits will catch eventually
+      }
+    }
+
     setLocalLoading(true);
     try {
       const response = await fetch(`${API_URL}/tailor`, {
@@ -58,8 +93,17 @@ const Tailor_resume = () => {
 
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col md:flex-row p-4 md:p-8 gap-5">
+      <UpgradePopup isOpen={showPopup} onClose={() => setShowPopup(false)} message={popupMessage} />
+      
+      {user?.tier === "FREE" && (
+        <div className="fixed bottom-6 right-6 bg-[#1A1A1A] border border-white/[0.08] text-gray-400 text-xs px-4 py-2 rounded-full font-medium z-50 shadow-2xl flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+          Credits: {user?.shared_generation_credits || 0}/5
+        </div>
+      )}
+
       {/* Left panel - Description input */}
-      <div className="order-2 md:order-1 w-full md:w-1/2 lg:w-2/5 surface-card h-auto md:h-[90dvh] flex items-end justify-center gap-2 p-4">
+      <div className="order-2 md:order-1 w-full md:w-1/2 lg:w-2/5 surface-card h-auto md:h-[90dvh] flex items-end justify-center gap-2 p-4 relative">
         <div className="w-full h-full flex flex-col xl:gap-16 justify-between p-3">
           <h1 className="text-gray-300 text-sm lg:text-base px-6 py-4 uppercase text-center leading-relaxed">
             Drop that dream job description here.

@@ -10,6 +10,7 @@ import { sampleJobs } from "./sampleJobs";
 import { SSEManager } from "../utiles/sseManager";
 import { appendFetchedJobs, clearFetchedJobs, getFetchedJobs, saveFetchedJobs } from "../utiles/jobStorage";
 import { useUser } from "../utiles/UserContext";
+import { UpgradePopup } from "./UpgradePopup";
 
 const USE_SAMPLE_DATA = false;
 
@@ -143,6 +144,8 @@ const Jobs = () => {
   const [recoveredJobId, setRecoveredJobId] = useState<string | null>(null);
   const [recentCachedJobs, setRecentCachedJobs] = useState<any[] | null>(null);
   const [recentCacheAgeLabel, setRecentCacheAgeLabel] = useState("some time ago");
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupMessage, setPopupMessage] = useState("");
 
   // ── Job filters (Keyword / Job type / Experience) ──
   const [keyword, setKeyword] = useState("");
@@ -333,6 +336,29 @@ const Jobs = () => {
     startTime.current = Date.now();
 
     async function triggerJob() {
+      // Tier Check
+      if (user?.tier === "FREE") {
+        if ((user?.fetch_jobs_credits || 0) <= 0) {
+          setPopupMessage("You have exhausted your daily limit of 2 job fetches. Upgrade to Pro for unlimited job searches!");
+          setShowPopup(true);
+          setIsDone(true);
+          setError("Fetch limit reached");
+          return;
+        }
+
+        // Deduct credit before processing
+        try {
+          await fetch("/api/User?action=deduct_credit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: user.id, type: "fetch" })
+          });
+          if (user.fetch_jobs_credits) user.fetch_jobs_credits -= 1;
+        } catch (err) {
+          console.error("Failed to deduct credit:", err);
+        }
+      }
+
       try {
         let activeJobId = recoveredJobId;
 
@@ -415,22 +441,24 @@ const Jobs = () => {
             await appendFetchedJobs(evData.jobs);
           }
 
-          if (evData?.status === "done") {
-            if (Array.isArray(evData.jobs) && evData.jobs.length > 0) {
-              accumulatedJobs.current = mergeUniqueJobs(accumulatedJobs.current, evData.jobs);
-              // Preserve scroll position before update
-              if (jobsContainerRef.current) {
-                scrollPositionRef.current = window.scrollY;
-              }
-              setJobs([...accumulatedJobs.current]);
-              // Restore scroll position after React re-render
-              requestAnimationFrame(() => {
-                window.scrollTo(0, scrollPositionRef.current);
-              });
-            }
-
-            await saveFetchedJobs(accumulatedJobs.current);
+          if (evData?.status === "done" && Array.isArray(evData.jobs)) {
             manager.destroy();
+            const fetched = evData.jobs;
+
+
+            if (fetched.length > 0) {
+              await saveFetchedJobs(fetched);
+              accumulatedJobs.current = mergeUniqueJobs(accumulatedJobs.current, fetched);
+            }
+            // Preserve scroll position before update
+            if (jobsContainerRef.current) {
+              scrollPositionRef.current = window.scrollY;
+            }
+            setJobs([...accumulatedJobs.current]);
+            // Restore scroll position after React re-render
+            requestAnimationFrame(() => {
+              window.scrollTo(0, scrollPositionRef.current);
+            });
             setProgress(100);
             setIsDone(true);
           }
@@ -534,7 +562,16 @@ const Jobs = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen relative">
+
+      <UpgradePopup isOpen={showPopup} onClose={() => setShowPopup(false)} message={popupMessage} />
+
+      {user?.tier === "FREE" && (
+        <div className="fixed bottom-6 right-6 bg-[#1A1A1A] border border-white/[0.08] text-gray-400 text-xs px-4 py-2 rounded-full font-medium z-50 shadow-2xl flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+          Credits: {user?.fetch_jobs_credits || 0}/2
+        </div>
+      )}
 
       {/* ─── Activity Feed Panel (top on mobile, sidebar on desktop) ── */}
       <div className={`shrink-0 w-full lg:fixed lg:top-[65px] lg:left-0 lg:h-[calc(100vh-65px)] lg:overflow-hidden bg-[#111] border-b lg:border-b-0 lg:border-r border-white/[0.06] cursor-default z-10 flex flex-col transition-all duration-300 ${sidebarOpen ? "lg:w-72" : "lg:w-12"

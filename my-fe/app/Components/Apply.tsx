@@ -20,6 +20,7 @@ import {
   syncApplyProgressFromFinal,
 } from "../utiles/jobStorage";
 import { useUser } from "../utiles/UserContext";
+import { UpgradePopup } from "./UpgradePopup";
 
 interface JobsData {
   job_url: string;
@@ -101,7 +102,7 @@ const LogItem = ({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) =>
 
 const Apply: React.FC = () => {
   const router     = useRouter();
-  const { refreshUser } = useUser();
+  const { user: globalUser, refreshUser } = useUser();
   const hasStarted = useRef(false);
   const abortRef   = useRef<AbortController | null>(null);
 
@@ -125,6 +126,7 @@ const Apply: React.FC = () => {
   const [skippedCount, setSkippedCount]     = useState(0);
   const [totalJobs, setTotalJobs]           = useState(0);
   const [recoveredJobId, setRecoveredJobId] = useState<string | null>(null);
+  const [showPopup, setShowPopup]           = useState(false);
 
   const logEndRef   = useRef<HTMLDivElement>(null);
   const startTime   = useRef(Date.now());
@@ -168,6 +170,10 @@ const Apply: React.FC = () => {
     let cancelled = false;
 
     async function bootstrap() {
+      if (globalUser?.tier === "FREE") {
+        setShowPopup(true);
+        return;
+      }
       const pdf     = sessionStorage.getItem("resume");
       const context = sessionStorage.getItem("Lcontext");
       const jobData = sessionStorage.getItem("jobs");
@@ -520,11 +526,16 @@ const Apply: React.FC = () => {
     startStream();
   }, [user, jobs, dbData, Progress_userId, url, credentialsReady, retryCount]);
 
-
-
   return (
     <div className="w-full min-h-screen overflow-x-hidden flex flex-col">
-
+      <UpgradePopup 
+        isOpen={showPopup} 
+        onClose={() => {
+          setShowPopup(false);
+          router.push("/Jobs");
+        }} 
+        message="Smart Apply is a Pro feature. Upgrade to automatically apply to jobs with AI!" 
+      />
       {/* ─── Activity Feed Panel ──────────────────────────────── */}
       <div className="shrink-0 w-full bg-[#111] border-b border-white/[0.06] cursor-default">
 
