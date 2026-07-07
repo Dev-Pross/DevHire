@@ -1,4 +1,4 @@
-import { Page } from "playwright";
+import { Page, CDPSession } from "playwright";
 import { WebSocket } from "ws";
 import { db } from "./db";
 import { chromium } from "playwright-extra";
@@ -86,12 +86,22 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
 
         let mainPage: Page | null = null;
         let activePage: Page | null = null;
+        // Store the CDP session for each page so we can use it for both
+        // screencast AND input dispatch without creating new sessions per click
+        let activePageCdp: CDPSession | null = null;
 
         const attachStream = async (targetPage: Page) => {
             const targetClient = await targetPage.context().newCDPSession(targetPage);
 
+            // If this is the active page, store the CDP session for input dispatch
+            if (targetPage === activePage || !activePageCdp) {
+                activePageCdp = targetClient;
+            }
+
             await targetClient.send('Page.startScreencast', {
                 format: 'jpeg',
+                maxWidth: Math.round(width * dpr),
+                maxHeight: Math.round(height * dpr),
                 quality: 100,
                 everyNthFrame: 1
             });
@@ -111,6 +121,8 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
                     await targetClient.send('Page.screencastFrameAck', { sessionId: frameObj.sessionId });
                 } catch (error) { }
             });
+
+            return targetClient;
         };
 
         // Set up popup interceptor BEFORE creating the main page to catch any user-initiated popups
@@ -123,7 +135,7 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
             await popUp.waitForLoadState()
 
             activePage = popUp
-            await attachStream(popUp)
+            activePageCdp = await attachStream(popUp)
 
             popUp.on('close', async () => {
                 console.log(`Popup closed for ${authUser}. Reverting to main context.`);
@@ -138,7 +150,7 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
         // Create the initial page (This will fire the 'page' event, but the guard clause will safely ignore it)
         mainPage = await context.newPage();
         activePage = mainPage; // Set initial active page
-        await attachStream(mainPage);
+        activePageCdp = await attachStream(mainPage);
 
         // Server-side focus detection: after each click, evaluate the actual
         // focused element in the DOM and tell the client whether to show keyboard
@@ -167,11 +179,20 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
                 const event = JSON.parse(message.toString());
 
                 if (event.type === 'mouse') {
-                    // Mobile pages (LinkedIn) listen for touch events on UI controls.
-                    // mouse.click() only fires mouse events, so buttons/checkboxes
-                    // get visual feedback but their touch handlers never execute.
                     if (isMobile) {
-                        await activePage.touchscreen.tap(event.x, event.y);
+                        // CAPTCHAs are in cross-origin iframes and only respond to mouse clicks.
+                        // LinkedIn UI elements are in the main DOM and need touch taps.
+                        // We dynamically check if the target is an iframe to pick the correct event.
+                        const isIframe = await activePage.evaluate(({x, y}) => {
+                            const el = document.elementFromPoint(x, y);
+                            return el ? el.tagName.toLowerCase() === 'iframe' : false;
+                        }, {x: event.x, y: event.y}).catch(() => false);
+
+                        if (isIframe) {
+                            await activePage.mouse.click(event.x, event.y);
+                        } else {
+                            await activePage.touchscreen.tap(event.x, event.y);
+                        }
                     } else {
                         await activePage.mouse.click(event.x, event.y);
                     }

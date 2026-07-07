@@ -65,8 +65,11 @@ export default function StreamViewer() {
 
                     img.onload = () => {
                         const canvas = canvasRef.current;
-                        if (!canvas) return;
+                        if (!canvas || !dimensions) return;
 
+                        // Keep canvas buffer at the physical high-DPR image size.
+                        // CSS max-w-full will visually scale it down to the logical screen size,
+                        // giving us crystal-clear retina/high-DPI sharpness.
                         if (canvas.width !== img.width || canvas.height !== img.height) {
                             canvas.width = img.width;
                             canvas.height = img.height;
@@ -137,25 +140,34 @@ export default function StreamViewer() {
         }));
     };
 
-    const handleKeyDown = (e: KeyboardEvent<HTMLCanvasElement | HTMLInputElement>) => {
+    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
         if (wsRef.current?.readyState !== WebSocket.OPEN || !wsRef.current) {
             return;
         }
 
-        // Prevent browser scrolling and default behaviors for keys we want to route to browser
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter', 'Backspace'].includes(e.key)) {
+        // Only send control/navigation keys from onKeyDown.
+        // Character keys are handled exclusively by handleInputChange
+        // to prevent double-sending (canvas onKeyDown + input onKeyDown).
+        const controlKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter', 'Backspace'];
+        if (controlKeys.includes(e.key)) {
             e.preventDefault();
             wsRef.current.send(JSON.stringify({
                 type: 'keyboard',
                 key: e.key
             }));
-            return;
         }
+        // All printable characters flow through handleInputChange only
+    };
 
-        if (e.key === ' ' && e.currentTarget.tagName === 'CANVAS') {
-            e.preventDefault();
-        }
+    // Desktop-only: when canvas is focused (before any text field is clicked),
+    // allow typing directly. Once a text field is focused, the hidden input
+    // takes over and this stops firing.
+    const handleCanvasKeyDown = (e: KeyboardEvent<HTMLCanvasElement>) => {
+        // If the hidden input is focused, skip — it handles keys already
+        if (document.activeElement === inputRef.current) return;
 
+        if (wsRef.current?.readyState !== WebSocket.OPEN || !wsRef.current) return;
+        e.preventDefault();
         wsRef.current.send(JSON.stringify({
             type: 'keyboard',
             key: e.key
@@ -243,6 +255,11 @@ export default function StreamViewer() {
         const duration = Date.now() - touchStartRef.current.time;
 
         if (!hasMovedRef.current && duration < 500) {
+            // Prevent the browser from synthesizing a compatibility `mousedown` / `click` event!
+            // Without this, tapping on mobile fires both handleTouchEnd AND handleMouseDown,
+            // sending TWO websocket messages to the backend, causing the infamous "double click".
+            e.preventDefault();
+
             const { x, y } = scaleCalculationCoords(touchStartRef.current.x, touchStartRef.current.y);
 
             if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -286,7 +303,7 @@ export default function StreamViewer() {
                 height={dimensions!.height}
                 onMouseDown={handleMouseDown}
                 onWheel={handleWheel}
-                onKeyDown={handleKeyDown}
+                onKeyDown={handleCanvasKeyDown}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
