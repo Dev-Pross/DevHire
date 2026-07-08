@@ -29,6 +29,9 @@ const ProfilePage = () => {
         if (response.ok) {
           toast.success("Token generated! Redirecting...", { id: loadToast });
           window.location.href = `/connect?token=${result.token}&stream_url=${encodeURIComponent(result.stream_server_url)}`;
+        } else if (response.status === 409) {
+          const remaining = result.remaining_seconds || 60;
+          toast.error(`Another session is running. Wait ${remaining}s or try again later.`, { id: loadToast });
         } else {
           toast.error(result.detail || "Failed to generate token", { id: loadToast });
         }

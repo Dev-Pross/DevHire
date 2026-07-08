@@ -3,15 +3,21 @@ import { useEffect, useRef, useState, MouseEvent, WheelEvent, KeyboardEvent, Tou
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY_MS = 2000;
+
 export default function StreamViewer() {
     const router = useRouter()
     const [wsServerUrl, setWsServerUrl] = useState<string>('')
     const [streamToken, setStreamToken] = useState<string>('')
 
-    const [status, setStatus] = useState<"connecting" | "connected" | "success" | "error" | "disconnected">("connecting");
+    const [status, setStatus] = useState<"connecting" | "connected" | "reconnecting" | "success" | "error" | "disconnected">("connecting");
     const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
+    const reconnectAttemptsRef = useRef<number>(0);
+    const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isIntentionalCloseRef = useRef<boolean>(false);
 
     // Mobile keyboard input capturing
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -35,8 +41,8 @@ export default function StreamViewer() {
         setWsServerUrl(rawStreamUrl);
     }, [])
 
-    useEffect(() => {
-        if (!dimensions || !wsServerUrl) return;
+    function connectWebSocket() {
+        if (!dimensions || !wsServerUrl || !streamToken) return;
 
         const formattedUrl = wsServerUrl.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://')
         const dpr = window.devicePixelRatio || 1;
@@ -45,15 +51,33 @@ export default function StreamViewer() {
 
         ws.onopen = () => {
             setStatus("connected")
+            reconnectAttemptsRef.current = 0;
             canvasRef.current?.focus()
         }
 
         ws.onclose = () => {
-            setStatus("disconnected")
+            // If this was an intentional close (success), don't reconnect
+            if (isIntentionalCloseRef.current) return;
+
+            // Try to reconnect (user may have just switched apps for OTP)
+            if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+                setStatus("reconnecting");
+                reconnectAttemptsRef.current += 1;
+                console.log(`WebSocket closed. Reconnect attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS}...`);
+
+                reconnectTimerRef.current = setTimeout(() => {
+                    connectWebSocket();
+                }, RECONNECT_DELAY_MS);
+            } else {
+                // Max attempts exhausted — session timed out
+                setStatus("disconnected");
+                toast.error("Session timed out. Please try again.");
+                router.push("/Jobs/profile");
+            }
         }
 
         ws.onerror = () => {
-            setStatus("error")
+            // onerror is always followed by onclose, so let onclose handle reconnection
         }
 
         ws.onmessage = (event) => {
@@ -91,6 +115,7 @@ export default function StreamViewer() {
                     }
                 }
                 else if (msg.type === 'success') {
+                    isIntentionalCloseRef.current = true;
                     setStatus("success")
                     toast.success("LinkedIn Connected successfully!")
                     router.push('/')
@@ -100,7 +125,22 @@ export default function StreamViewer() {
                 console.log(`Error parsing stream message ${error}`)
             }
         }
-    }, [streamToken, wsServerUrl, dimensions, router])
+    }
+
+    useEffect(() => {
+        if (!dimensions || !wsServerUrl || !streamToken) return;
+
+        connectWebSocket();
+
+        return () => {
+            // Clean up on unmount
+            isIntentionalCloseRef.current = true;
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+            }
+            wsRef.current?.close();
+        }
+    }, [streamToken, wsServerUrl, dimensions])
 
     function scaleCalculationCoords(clientX: number, clientY: number) {
         const canvas = canvasRef.current;
@@ -275,8 +315,21 @@ export default function StreamViewer() {
         lastTouchRef.current = null;
     };
 
+    // Show reconnecting overlay
+    if (status === 'reconnecting') {
+        return (
+            <div className="w-screen h-screen bg-[#F3F2EF] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
+                    <p className="text-gray-600 text-sm font-medium">Reconnecting...</p>
+                    <p className="text-gray-400 text-xs">Please wait while we restore your session</p>
+                </div>
+            </div>
+        );
+    }
+
     if (!dimensions || status === 'success' || status === 'error' || status === 'disconnected' || status === 'connecting') {
-        return <div className="w-screen h-screen bg-[#F3F2EF]" />;
+        return <div className="w-screen h-screen bg-[#F3F2EF]" />
     }
 
     return (

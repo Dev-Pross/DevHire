@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import JSONResponse
 from database.linkedin_context import get_linkedin_context, save_linkedin_context
 from typing import Dict, Any
 import uuid
@@ -91,12 +92,28 @@ async def generate_connect_token(payload: dict):
         raise HTTPException(status_code=500, detail="Redis connection not available")
 
     try:
+        # Check for existing active session for this user
+        existing_session_key = f"stream_token_user:{user_id}"
+        existing_token = redis_client.get(existing_session_key)
+        if existing_token:
+            remaining_ttl = redis_client.ttl(existing_session_key)
+            if remaining_ttl > 0:
+                return JSONResponse(
+                    status_code=409,
+                    content={
+                        "detail": f"Another session is active. Please wait {remaining_ttl} seconds.",
+                        "remaining_seconds": remaining_ttl
+                    }
+                )
+
         # Generate a random UUID token
         token = str(uuid.uuid4())
         
         # Save stream_token:<token> -> user_id in Redis with 5-minute expiration
         redis_key = f"stream_token:{token}"
         redis_client.setex(redis_key, 300, user_id)
+        # Reverse mapping: stream_token_user:<user_id> -> token (same TTL)
+        redis_client.setex(existing_session_key, 300, token)
         
         # Get stream server URL from config/environment
         stream_url = os.getenv("NEXT_PUBLIC_STREAM_SERVER") or os.getenv("STREAM_SERVER_URL") or "http://localhost:8080"

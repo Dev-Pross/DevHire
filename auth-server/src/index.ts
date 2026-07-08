@@ -2,7 +2,7 @@ import http from "http";
 import { URL } from "url";
 import { WebSocketServer, WebSocket } from "ws";
 import Redis from "ioredis";
-import { handleBrowser } from "./browser";
+import { handleBrowser, reattachSession, activeSessions } from "./browser";
 import { config } from "dotenv";
 
 config({ path: '../.env' })
@@ -49,10 +49,11 @@ server.on("upgrade", async (req, socket, head) => {
             return;
         }
 
-        await redis.del(`stream_token:${token}`)
+        // Token kept alive for reconnections during OTP flow.
+        // 5-minute Redis TTL handles automatic cleanup.
 
         wss.handleUpgrade(req, socket, head, (ws: WebSocket) => {
-            wss.emit('connection', ws, req, authUser, width, height, dpr)
+            wss.emit('connection', ws, req, authUser, width, height, dpr, token)
         })
     } catch (error) {
         console.error(error);
@@ -61,8 +62,17 @@ server.on("upgrade", async (req, socket, head) => {
     }
 })
 
-wss.on('connection', async (ws: WebSocket, _req: http.IncomingMessage, authUser: string, width: number, height: number, dpr: number) => {
-    await handleBrowser(ws, authUser, width, height, dpr)
+wss.on('connection', async (ws: WebSocket, _req: http.IncomingMessage, authUser: string, width: number, height: number, dpr: number, token: string) => {
+    // Check if there's an existing browser session for this token (reconnect case)
+    const existingSession = activeSessions.get(token);
+    if (existingSession) {
+        console.log(`Reattaching WebSocket for user ${authUser} (token: ${token.slice(0, 8)}...)`);
+        reattachSession(existingSession, ws, redis, token, authUser);
+        return;
+    }
+
+    // Fresh connection — launch a new browser session
+    await handleBrowser(ws, authUser, width, height, dpr, redis, token)
 })
 
 const PORT = process.env.PORT || 8080;

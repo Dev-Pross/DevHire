@@ -158,6 +158,7 @@ const Jobs = () => {
   const sseRef = useRef<SSEManager | null>(null);
   const jobsContainerRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
+  const seenLogMessages = useRef<Set<string>>(new Set());
 
   const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456";
   const IV = "741852963qwerty0";
@@ -170,8 +171,12 @@ const Jobs = () => {
     }).toString(CryptoJS.enc.Utf8);
   }
 
-  /* push to log */
+  /* push to log — deduplicate to prevent replays on SSE reconnect */
   function pushLog(message: string, type: string) {
+    const dedupeKey = `${type}::${message}`;
+    if (seenLogMessages.current.has(dedupeKey)) return;
+    seenLogMessages.current.add(dedupeKey);
+
     setActivityLog(prev => {
       const nextId = prev.length > 0 ? prev[prev.length - 1].id + 1 : 1;
       return [...prev, { id: nextId, message, type, timestamp: Date.now() }];
@@ -186,9 +191,12 @@ const Jobs = () => {
     return () => clearInterval(iv);
   }, [isDone, error]);
 
-  /* Auto-scroll log */
+  /* Auto-scroll log — only scroll the log container, not the whole page */
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = logEndRef.current?.parentElement;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [activityLog]);
 
   // Effect 1 — progress user id
@@ -439,10 +447,9 @@ const Jobs = () => {
             await appendFetchedJobs(evData.jobs);
           }
 
-          if (evData?.status === "done" && Array.isArray(evData.jobs)) {
+          if (evData?.status === "done") {
             manager.destroy();
-            const fetched = evData.jobs;
-
+            const fetched = Array.isArray(evData.jobs) ? evData.jobs : [];
 
             if (fetched.length > 0) {
               await saveFetchedJobs(fetched);
@@ -497,6 +504,7 @@ const Jobs = () => {
     sseRef.current = null;
     hasStarted.current = false;
     accumulatedJobs.current = [];
+    seenLogMessages.current.clear();
     void clearFetchedJobs();
     setShowRestorePrompt(false);
     setRecentCachedJobs(null);

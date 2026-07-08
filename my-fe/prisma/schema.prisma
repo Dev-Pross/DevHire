@@ -8,19 +8,19 @@ datasource db {
 }
 
 model User {
-  id                 String             @id @default(uuid()) @db.Uuid
-  email              String             @unique
-  name               String?
-  resume_url         String?
-  applied_jobs       String[]
-  linkedin_context   Json?              @db.Json
-  context_updated_at DateTime?          @db.Timestamp(6)
-  user_data          Json?
+  id                        String             @id @default(uuid()) @db.Uuid
+  email                     String             @unique
+  name                      String?
+  resume_url                String?
+  applied_jobs              String[]
+  linkedin_context          Json?              @db.Json
+  context_updated_at        DateTime?          @db.Timestamp(6)
+  user_data                 Json?
   profile_image             String?
-  tier                      String             @default("FREE")
-  shared_generation_credits Int                @default(5)
-  fetch_jobs_credits        Int                @default(2)
   credits_last_reset        DateTime           @default(now()) @db.Timestamptz(6)
+  fetch_jobs_credits        Int                @default(2)
+  shared_generation_credits Int                @default(5)
+  tier                      TIER               @default(FREE)
   workflow_sessions         workflow_sessions?
 
   @@map("User")
@@ -49,4 +49,9 @@ enum session_status_enum {
 enum workflow_type_enum {
   fetch_jobs
   apply_jobs
+}
+
+enum TIER {
+  FREE
+  PRO
 }

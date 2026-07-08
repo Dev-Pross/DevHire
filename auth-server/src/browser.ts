@@ -1,13 +1,143 @@
-import { Page, CDPSession } from "playwright";
+import { Page, CDPSession, BrowserContext, Browser } from "playwright";
 import { WebSocket } from "ws";
 import { db } from "./db";
 import { chromium } from "playwright-extra";
 import stealth from 'puppeteer-extra-plugin-stealth'
+import Redis from "ioredis";
 
 chromium.use(stealth())
 
+const GRACE_PERIOD_MS = 60_000; // 60 seconds before killing browser on disconnect
 
-export async function handleBrowser(ws: WebSocket, authUser: string, width: number, height: number, dpr: number) {
+export interface BrowserSession {
+    browser: Browser;
+    context: BrowserContext;
+    mainPage: Page | null;
+    activePage: Page | null;
+    activePageCdp: CDPSession | null;
+    authUser: string;
+    ws: WebSocket | null;
+    gracePeriodTimer: ReturnType<typeof setTimeout> | null;
+    attachStream: (targetPage: Page) => Promise<CDPSession>;
+    checkFocusAndNotify: (page: Page) => Promise<void>;
+    width: number;
+    height: number;
+    dpr: number;
+    isMobile: boolean;
+}
+
+// In-memory map: token → active browser session
+export const activeSessions = new Map<string, BrowserSession>();
+
+
+/**
+ * Reattach a new WebSocket to an existing browser session (reconnect after mobile background)
+ */
+export function reattachSession(session: BrowserSession, newWs: WebSocket, redis: Redis, token: string, authUser: string) {
+    // Cancel the grace period timer — user is back
+    if (session.gracePeriodTimer) {
+        clearTimeout(session.gracePeriodTimer);
+        session.gracePeriodTimer = null;
+        console.log(`Grace period cancelled for ${authUser}. User reconnected.`);
+    }
+
+    // Replace the WebSocket reference
+    session.ws = newWs;
+
+    // Reattach the screencast stream to push frames to the new WebSocket
+    if (session.activePage) {
+        session.attachStream(session.activePage).then((cdp) => {
+            session.activePageCdp = cdp;
+        }).catch((err) => {
+            console.error(`Failed to reattach stream for ${authUser}:`, err);
+        });
+    }
+
+    // Set up close handler for the new WebSocket
+    newWs.on('close', () => {
+        handleWsClose(session, redis, token);
+    });
+
+    // Set up message handler for the new WebSocket
+    setupMessageHandler(newWs, session);
+}
+
+
+/**
+ * Handle WebSocket close with a 60-second grace period
+ */
+function handleWsClose(session: BrowserSession, redis: Redis, token: string) {
+    console.log(`Connection dropped for ${session.authUser}. Starting ${GRACE_PERIOD_MS / 1000}s grace period...`);
+    session.ws = null;
+
+    session.gracePeriodTimer = setTimeout(async () => {
+        console.log(`Grace period expired for ${session.authUser}. Terminating browser.`);
+
+        // Clean up Redis tokens so user can initiate a new session
+        try {
+            await redis.del(`stream_token:${token}`);
+            await redis.del(`stream_token_user:${session.authUser}`);
+        } catch (e) {
+            console.error(`Failed to clean up Redis tokens for ${session.authUser}:`, e);
+        }
+
+        // Clean up browser
+        await session.browser.close().catch(() => { });
+        activeSessions.delete(token);
+    }, GRACE_PERIOD_MS);
+}
+
+
+/**
+ * Set up mouse/keyboard/scroll message handling on a WebSocket
+ */
+function setupMessageHandler(ws: WebSocket, session: BrowserSession) {
+    ws.on('message', async (message) => {
+        try {
+            if (!session.activePage) return;
+            const event = JSON.parse(message.toString());
+
+            if (event.type === 'mouse') {
+                if (session.isMobile) {
+                    // CAPTCHAs are in cross-origin iframes and only respond to mouse clicks.
+                    // LinkedIn UI elements are in the main DOM and need touch taps.
+                    // We dynamically check if the target is an iframe to pick the correct event.
+                    const isIframe = await session.activePage.evaluate(({x, y}) => {
+                        const el = document.elementFromPoint(x, y);
+                        return el ? el.tagName.toLowerCase() === 'iframe' : false;
+                    }, {x: event.x, y: event.y}).catch(() => false);
+
+                    if (isIframe) {
+                        await session.activePage.mouse.click(event.x, event.y);
+                    } else {
+                        await session.activePage.touchscreen.tap(event.x, event.y);
+                    }
+                } else {
+                    await session.activePage.mouse.click(event.x, event.y);
+                }
+
+                // After click settles, check if a text input is now focused
+                await session.checkFocusAndNotify(session.activePage);
+            } else if (event.type === 'keyboard') {
+                if (event.key && event.key !== 'Unidentified') {
+                    try {
+                        await session.activePage.keyboard.press(event.key);
+                    } catch (e) {
+                        console.log(`Failed to press key: ${event.key}`);
+                    }
+                }
+            } else if (event.type === 'scroll') {
+                await session.activePage.mouse.wheel(event.deltaX, event.deltaY);
+            }
+        }
+        catch (error) {
+            console.log(`error in middle of the events ${error}`)
+        }
+    })
+}
+
+
+export async function handleBrowser(ws: WebSocket, authUser: string, width: number, height: number, dpr: number, redis: Redis, token: string) {
     console.log(`Starting isolated browser session for user: ${authUser} with DPR: ${dpr}`);
 
     try {
@@ -84,18 +214,30 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
             }
         }, isMobile);
 
-        let mainPage: Page | null = null;
-        let activePage: Page | null = null;
-        // Store the CDP session for each page so we can use it for both
-        // screencast AND input dispatch without creating new sessions per click
-        let activePageCdp: CDPSession | null = null;
+        // Create the session object
+        const session: BrowserSession = {
+            browser,
+            context,
+            mainPage: null,
+            activePage: null,
+            activePageCdp: null,
+            authUser,
+            ws,
+            gracePeriodTimer: null,
+            width,
+            height,
+            dpr,
+            isMobile,
+            attachStream: async () => null as any, // placeholder, set below
+            checkFocusAndNotify: async () => {},    // placeholder, set below
+        };
 
-        const attachStream = async (targetPage: Page) => {
+        const attachStream = async (targetPage: Page): Promise<CDPSession> => {
             const targetClient = await targetPage.context().newCDPSession(targetPage);
 
             // If this is the active page, store the CDP session for input dispatch
-            if (targetPage === activePage || !activePageCdp) {
-                activePageCdp = targetClient;
+            if (targetPage === session.activePage || !session.activePageCdp) {
+                session.activePageCdp = targetClient;
             }
 
             await targetClient.send('Page.startScreencast', {
@@ -109,8 +251,9 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
             targetClient.on('Page.screencastFrame', async (frameObj) => {
                 try {
                     // Only push frames to the client if this is the currently active window
-                    if (ws.readyState === ws.OPEN && activePage === targetPage) {
-                        ws.send(JSON.stringify({
+                    // and the WebSocket is open
+                    if (session.ws && session.ws.readyState === session.ws.OPEN && session.activePage === targetPage) {
+                        session.ws.send(JSON.stringify({
                             type: 'frame',
                             data: frameObj.data,
                             width: frameObj.metadata.deviceWidth,
@@ -124,33 +267,6 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
 
             return targetClient;
         };
-
-        // Set up popup interceptor BEFORE creating the main page to catch any user-initiated popups
-        context.on('page', async (popUp) => {
-            // Guard clause: If mainPage isn't set yet, or if the emitted page IS the mainPage, ignore it.
-            if (!mainPage || popUp === mainPage) return;
-
-            console.log(`OAuth Popup intercepted for ${authUser}. Switching active context.`);
-            await popUp.setViewportSize({ width: width, height: height });
-            await popUp.waitForLoadState()
-
-            activePage = popUp
-            activePageCdp = await attachStream(popUp)
-
-            popUp.on('close', async () => {
-                console.log(`Popup closed for ${authUser}. Reverting to main context.`);
-                activePage = mainPage;
-
-                if (mainPage) {
-                    await mainPage.bringToFront().catch(() => { });
-                }
-            });
-        })
-
-        // Create the initial page (This will fire the 'page' event, but the guard clause will safely ignore it)
-        mainPage = await context.newPage();
-        activePage = mainPage; // Set initial active page
-        activePageCdp = await attachStream(mainPage);
 
         // Server-side focus detection: after each click, evaluate the actual
         // focused element in the DOM and tell the client whether to show keyboard
@@ -167,63 +283,57 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
                     }
                     return false;
                 });
-                if (ws.readyState === ws.OPEN) {
-                    ws.send(JSON.stringify({ type: 'focus_changed', isInput }));
+                if (session.ws && session.ws.readyState === session.ws.OPEN) {
+                    session.ws.send(JSON.stringify({ type: 'focus_changed', isInput }));
                 }
             } catch (_) { }
         };
 
-        ws.on('message', async (message) => {
-            try {
-                if (!activePage) return;
-                const event = JSON.parse(message.toString());
+        // Assign the real functions to the session
+        session.attachStream = attachStream;
+        session.checkFocusAndNotify = checkFocusAndNotify;
 
-                if (event.type === 'mouse') {
-                    if (isMobile) {
-                        // CAPTCHAs are in cross-origin iframes and only respond to mouse clicks.
-                        // LinkedIn UI elements are in the main DOM and need touch taps.
-                        // We dynamically check if the target is an iframe to pick the correct event.
-                        const isIframe = await activePage.evaluate(({x, y}) => {
-                            const el = document.elementFromPoint(x, y);
-                            return el ? el.tagName.toLowerCase() === 'iframe' : false;
-                        }, {x: event.x, y: event.y}).catch(() => false);
+        // Set up popup interceptor BEFORE creating the main page to catch any user-initiated popups
+        context.on('page', async (popUp) => {
+            // Guard clause: If mainPage isn't set yet, or if the emitted page IS the mainPage, ignore it.
+            if (!session.mainPage || popUp === session.mainPage) return;
 
-                        if (isIframe) {
-                            await activePage.mouse.click(event.x, event.y);
-                        } else {
-                            await activePage.touchscreen.tap(event.x, event.y);
-                        }
-                    } else {
-                        await activePage.mouse.click(event.x, event.y);
-                    }
+            console.log(`OAuth Popup intercepted for ${authUser}. Switching active context.`);
+            await popUp.setViewportSize({ width: width, height: height });
+            await popUp.waitForLoadState()
 
-                    // After click settles, check if a text input is now focused
-                    await checkFocusAndNotify(activePage);
-                } else if (event.type === 'keyboard') {
-                    if (event.key && event.key !== 'Unidentified') {
-                        try {
-                            await activePage.keyboard.press(event.key);
-                        } catch (e) {
-                            console.log(`Failed to press key: ${event.key}`);
-                        }
-                    }
-                } else if (event.type === 'scroll') {
-                    await activePage.mouse.wheel(event.deltaX, event.deltaY);
+            session.activePage = popUp
+            session.activePageCdp = await attachStream(popUp)
+
+            popUp.on('close', async () => {
+                console.log(`Popup closed for ${authUser}. Reverting to main context.`);
+                session.activePage = session.mainPage;
+
+                if (session.mainPage) {
+                    await session.mainPage.bringToFront().catch(() => { });
                 }
-            }
-            catch (error) {
-                console.log(`error in middle of the events ${error}`)
-            }
+            });
         })
 
-        ws.on('close', async () => {
-            console.log(`Connection dropped for ${authUser}. Terminating browser.`);
-            await browser.close().catch(() => { }); // Catch prevents crash if already closed
+        // Create the initial page (This will fire the 'page' event, but the guard clause will safely ignore it)
+        session.mainPage = await context.newPage();
+        session.activePage = session.mainPage; // Set initial active page
+        session.activePageCdp = await attachStream(session.mainPage);
+
+        // Register the session in the active sessions map
+        activeSessions.set(token, session);
+
+        // Set up message handler for this WebSocket
+        setupMessageHandler(ws, session);
+
+        // Set up close handler with grace period
+        ws.on('close', () => {
+            handleWsClose(session, redis, token);
         });
 
-        await mainPage.goto('https://www.linkedin.com/login/')
+        await session.mainPage.goto('https://www.linkedin.com/login/')
 
-        mainPage.on('framenavigated', async (frame) => {
+        session.mainPage.on('framenavigated', async (frame) => {
             const currentUrl = frame.url();
 
             if (currentUrl.includes('linkedin.com/feed')) {
@@ -234,10 +344,20 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
                     await db.query(`UPDATE "User" SET linkedin_context = $1, context_updated_at = NOW() WHERE id = $2`, [sessionState, authUser])
 
                     console.log(`Session securely saved to PostgreSQL for ${authUser}.`);
-                    if (ws.readyState === ws.OPEN) {
-                        ws.send(JSON.stringify({ type: 'success' }));
+                    if (session.ws && session.ws.readyState === session.ws.OPEN) {
+                        session.ws.send(JSON.stringify({ type: 'success' }));
                     }
-                    // Terminate the browser session to stop streaming
+
+                    // Clean up Redis tokens
+                    try {
+                        await redis.del(`stream_token:${token}`);
+                        await redis.del(`stream_token_user:${authUser}`);
+                    } catch (e) {
+                        console.error(`Failed to clean up Redis tokens:`, e);
+                    }
+
+                    // Terminate the browser session and clean up
+                    activeSessions.delete(token);
                     await browser.close().catch(() => { });
                 }
                 catch (error) {
@@ -248,6 +368,12 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
     }
     catch (error) {
         console.error(`Fatal browser error for user ${authUser}:`, error);
+        // Clean up Redis tokens on fatal error
+        try {
+            await redis.del(`stream_token:${token}`);
+            await redis.del(`stream_token_user:${authUser}`);
+        } catch (e) { }
+        activeSessions.delete(token);
         if (ws.readyState === ws.OPEN) {
             ws.close();
         }

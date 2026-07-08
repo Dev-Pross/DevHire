@@ -160,9 +160,12 @@ const Apply: React.FC = () => {
     return () => clearInterval(iv);
   }, [isDone, error]);
 
-  /* Auto-scroll log to bottom */
+  /* Auto-scroll log to bottom — only scroll the log container, not the whole page */
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = logEndRef.current?.parentElement;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [activityLog]);
 
   // Effect 1 — session data + credentials + db jobs
