@@ -120,13 +120,17 @@ class EasyApplyAgent:
         await self.page.wait_for_load_state("domcontentloaded")
         await asyncio.sleep(2)
 
-        # Try to close any page-load blocking dialog box using Escape key
+        # Smart dismiss of page-load blocking dialogs
         try:
-            log.info("⌨️ Pressing Escape key to dismiss any page-load dialogs...")
-            await self.page.keyboard.press("Escape")
-            await asyncio.sleep(0.5)
+            blocking_dialogs = await self.page.locator('div[role="dialog"], .artdeco-modal').all()
+            for dlg in blocking_dialogs:
+                if await dlg.is_visible():
+                    log.info("⌨️ Blocking page-load dialog detected. Pressing Escape to dismiss...")
+                    await self.page.keyboard.press("Escape")
+                    await asyncio.sleep(0.5)
+                    break
         except Exception as esc_e:
-            log.debug(f"Escape key press failed: {esc_e}")
+            log.debug(f"Smart Escape key press failed: {esc_e}")
 
         selectors = [
             'button[aria-label*="Easy Apply"]',
@@ -195,62 +199,113 @@ class EasyApplyAgent:
                             log.info("⏳ Waiting for modal to appear...")
                             await asyncio.sleep(3)
 
-                            # --- Check for "Resume application" or "Continue applying" intermediate popups ---
-                            try:
-                                dialog_elements = await self.page.locator('div[role="dialog"], .artdeco-modal').all()
-                                for dlg in dialog_elements:
-                                    if await dlg.is_visible():
-                                        dlg_text = (await dlg.text_content() or "").lower()
-                                        if any(x in dlg_text for x in ["resume", "continue", "unsubmitted"]):
-                                            log.info("🕵️ Intermediate dialog detected. Checking buttons...")
-                                            btns = await dlg.locator('button').all()
-                                            for b in btns:
-                                                if await b.is_visible() and await b.is_enabled():
-                                                    b_text = (await b.text_content() or "").strip()
-                                                    if any(x in b_text.lower() for x in ["continue", "resume", "start new"]):
-                                                        log.info(f"🎯 Clicking intermediate dialog button: '{b_text}'")
-                                                        await b.click()
-                                                        await asyncio.sleep(2)
-                                                        break
-                            except Exception as dlg_e:
-                                log.debug(f"Error checking intermediate dialog: {dlg_e}")
-
-                            # Check for modal with multiple attempts
+                            # --- Evidence-Based Modal Detection ---
                             modal_selectors = [
+                                "div[role='dialog']",
+                                ".artdeco-modal",
                                 "[aria-labelledby='dialog-header']",
-                                "[data-sdui-screen$='easyapply.EasyApply']",
-                                ".artdeco-modal-overlay.artdeco-modal-overlay--layer-default",
-                                ".artdeco-modal-overlay--is-top-layer",
-                                ".artdeco-modal.jobs-easy-apply-modal", 
-                                "div[role='dialog'].jobs-easy-apply-modal",
-                                "div.artdeco-modal",
-                                "[aria-labelledby*='apply']",
-                                ".artdeco-modal--layer-default"
+                                ".jobs-easy-apply-modal"
                             ]
                             
-                            modal_found = False
-                            for attempt in range(5):
+                            app_modal_found = False
+                            for attempt in range(8):
+                                current_modal = None
+                                # Try to find any visible modal
                                 for modal_sel in modal_selectors:
                                     try:
-                                        modal = await self.page.wait_for_selector(modal_sel, timeout=2000)
-                                        if modal and await modal.is_visible():
-                                            log.info(f"🪟 Easy-Apply modal found with: {modal_sel}")
-                                            self.active_modal_sel = modal_sel
-                                            modal_found = True
+                                        modals = await self.page.locator(modal_sel).all()
+                                        for m in modals:
+                                            if await m.is_visible():
+                                                current_modal = m
+                                                self.active_modal_sel = modal_sel
+                                                break
+                                        if current_modal:
                                             break
                                     except:
                                         continue
                                 
-                                if modal_found:
-                                    log.info("✅ Modal opened successfully!")
-                                    return True
+                                if current_modal:
+                                    # We found a modal. Let's gather evidence.
+                                    dlg_text = (await current_modal.text_content() or "").lower()
+                                    
+                                    # 1. Is it the Safety Reminder?
+                                    if any(x in dlg_text for x in ["safety reminder", "research the company", "suspicious jobs", "job search safety"]):
+                                        log.info("🛡️ Job search safety reminder detected. Looking for Continue applying button...")
+                                        btns = await current_modal.locator('button, a, span, [role="button"]').all()
+                                        for b in btns:
+                                            if await b.is_visible():
+                                                b_text = (await b.text_content() or "").strip().lower()
+                                                b_href = ""
+                                                try:
+                                                    b_href = (await b.get_attribute("href") or "").lower()
+                                                except:
+                                                    pass
+                                                
+                                                if "continue" in b_text or "/apply" in b_href:
+                                                    log.info(f"🎯 Clicking button on safety reminder (text: '{b_text}', href: '{b_href}')")
+                                                    try:
+                                                        await b.click()
+                                                    except:
+                                                        await self.page.evaluate("(b)=>b.click()", b)
+                                                    
+                                                    # Actively wait for it to disappear
+                                                    for _ in range(5):
+                                                        if not await current_modal.is_visible():
+                                                            break
+                                                        await asyncio.sleep(0.5)
+                                                    break
+                                        await asyncio.sleep(1)
+                                        continue # Go to next attempt to find the REAL modal
+                                    
+                                    # 2. Is it an Intermediate Resume/Unsubmitted Dialog?
+                                    if any(x in dlg_text for x in ["resume", "unsubmitted"]) and any(x in dlg_text for x in ["application", "apply", "continue"]):
+                                        log.info("🕵️ Intermediate dialog detected. Checking buttons...")
+                                        btns = await current_modal.locator('button').all()
+                                        for b in btns:
+                                            if await b.is_visible() and await b.is_enabled():
+                                                b_text = (await b.text_content() or "").strip().lower()
+                                                if any(x in b_text for x in ["continue", "resume", "start new"]):
+                                                    log.info(f"🎯 Clicking intermediate dialog button: '{b_text}'")
+                                                    await b.click()
+                                                    for _ in range(5):
+                                                        if not await current_modal.is_visible():
+                                                            break
+                                                        await asyncio.sleep(0.5)
+                                                    break
+                                        await asyncio.sleep(1)
+                                        continue # Go to next attempt
+                                        
+                                    # 3. Is it the actual Application Modal?
+                                    # Evidence: Header contains "apply to" or it has application steps/buttons
+                                    is_app_modal = False
+                                    if "apply to " in dlg_text or "apply for " in dlg_text:
+                                        is_app_modal = True
+                                    elif any(x in dlg_text for x in ["contact info", "additional questions", "home address", "work authorization", "voluntarily provide", "review your application"]):
+                                        is_app_modal = True
+                                    else:
+                                        # Check buttons for evidence
+                                        try:
+                                            btns = await current_modal.locator('button').all()
+                                            for b in btns:
+                                                if await b.is_visible():
+                                                    b_text = (await b.text_content() or "").strip().lower()
+                                                    if b_text in ["next", "review", "submit application"]:
+                                                        is_app_modal = True
+                                                        break
+                                        except:
+                                            pass
+                                                    
+                                    if is_app_modal:
+                                        log.info("✅ Verified Application Modal via text evidence!")
+                                        app_modal_found = True
+                                        break
+                                    else:
+                                        log.warning("⚠️ Unrecognized modal. Waiting to see if it changes...")
                                 
-                                if attempt < 4:
-                                    log.warning(f"Modal not visible yet, waiting... (attempt {attempt + 1}/5)")
-                                    await asyncio.sleep(2)
-                            
-                            if not modal_found:
-                                log.warning("⚠️ Modal did not appear after click, trying next selector")
+                                await asyncio.sleep(2)
+                                
+                            if not app_modal_found:
+                                log.warning("❌ Application Modal did not appear or could not be verified.")
                                 continue
                             
                             return True
@@ -526,6 +581,9 @@ class EasyApplyAgent:
         ]):
             return MY_CURRENT_COUNTRY
 
+        if "middle name" in q:
+            return ""
+
         # Referral questions
         if any(word in q for word in [
             "referred", "referral", "reference", "recommended", "suggest",
@@ -582,6 +640,12 @@ class EasyApplyAgent:
                     weeks = round(days / 7)
                     return str(max(1 if days > 0 else 0, weeks))
                 return str(days)
+            # If it's a Yes/No question about serving notice period
+            if "serving" in q or "are you on notice" in q:
+                if days == 0:
+                    return "No"
+                else:
+                    return "Yes"
             
             # Text or dropdown
             if days == 0:
@@ -597,7 +661,22 @@ class EasyApplyAgent:
             "legal", "legally", "work authorization", "work permit", "right to work",
             "sponsor", "sponsorship"
         ]):
-            return "Yes"
+            # Detect if it's asking about a foreign country
+            foreign_country_pattern = r'\b(u\.s\.?|us|united states|u\.k\.?|uk|united kingdom|canada|australia|europe|eu|germany|new zealand|usa)\b'
+            mentions_foreign_country = bool(re.search(foreign_country_pattern, q))
+            mentions_my_country = MY_CURRENT_COUNTRY.lower() in q
+            
+            is_foreign = mentions_foreign_country and not mentions_my_country
+            
+            # Sponsorship vs Authorization
+            is_sponsorship_q = any(word in q for word in ["sponsor", "sponsorship", "require visa"])
+            
+            if is_foreign:
+                # If foreign job: Not authorized (usually), and DO require sponsorship
+                return "Yes" if is_sponsorship_q else "No"
+            else:
+                # If domestic job (or no country mentioned): Authorized, and NO sponsorship needed
+                return "No" if is_sponsorship_q else "Yes"
 
         # Relocation questions
         if any(word in q for word in [
@@ -1048,6 +1127,9 @@ class EasyApplyAgent:
                         await inp.fill(user["email"])
                     elif "first" in name:
                         await inp.fill(user["first"])
+                    elif "middle" in name.lower() or "middle" in question.lower():
+                        await inp.fill("")
+                        continue
                     elif "last" in name:
                         await inp.fill(user["last"])
                     elif self._country_not_in_list and any(w in (placeholder + question.lower()) for w in ["country", "specify", "other"]):
@@ -1057,62 +1139,28 @@ class EasyApplyAgent:
                         await inp.fill(answer)
 
                         await asyncio.sleep(0.3)  # Wait for validation
-            
-                        # Check for validation error
-                        is_salary_q = any(word in question.lower() for word in ["salary", "ctc", "compensation", "pay"])
-                        is_current_salary = is_salary_q and any(word in question.lower() for word in ["current", "present", "existing", "now"])
-                        
-                        if is_salary_q and is_current_salary:
-                            try:
-                                # Look for validation error message
-                                error_found = False
-                                error_selectors = [
-                                    "span:has-text('minimum')",
-                                    "span:has-text('must be')",
-                                    "[role='alert']",
-                                    ".error-message",
-                                    ".validation-error"
-                                ]
-                                
-                                for err_sel in error_selectors:
-                                    if await self.page.locator(err_sel).count() > 0:
-                                        error_found = True
-                                        break
-                                
-                                if error_found:
-                                    if answer != "0":
-                                        log.warning(f"⚠️ Current salary validation failed with '{answer}', trying 0 first")
-                                        await inp.fill("0")
-                                        await asyncio.sleep(0.3)
-                                        
-                                        still_error = False
-                                        for err_sel in error_selectors:
-                                            if await self.page.locator(err_sel).count() > 0:
-                                                still_error = True
-                                                break
-                                        if not still_error:
-                                            log.info("✅ Filled current salary with 0 successfully")
-                                            error_found = False
-                                    
-                                    if error_found:
-                                        log.warning("⚠️ Current salary validation failed, retrying with 100")
-                                        await inp.fill("100")
-                                        await asyncio.sleep(0.3)
-                                        log.info("✅ Filled current salary with 100")
-                                        
-                            except Exception as ctc_e:
-                                log.debug(f"Current salary retry error: {ctc_e}")
+                        # Check for validation errors (scoped check)
+                        try:
+                            error_found = await inp.evaluate("""el => {
+                                const container = el.closest('.jobs-easy-apply-form-element') || 
+                                                  el.closest('.fb-dash-form-element') || 
+                                                  el.closest('.artdeco-text-input--container') || 
+                                                  el.parentElement.parentElement;
+                                if (!container) return false;
+                                return container.querySelectorAll('.artdeco-inline-feedback--error, [role="alert"], p[id*="error"]').length > 0;
+                            }""")
+                            
+                            if error_found:
+                                log.warning(f"⚠️ Validation failed for '{answer}'.")
+                                if not answer.isdigit():
+                                    log.warning("Retrying with '0'")
+                                    await inp.fill("0")
+                                    await asyncio.sleep(0.3)
+                        except Exception as err_check:
+                            log.debug(f"Validation check error: {err_check}")
 
                 except Exception as e:
-                    log.debug(f"Text input error: {e}")
-
-                if any(word in question.lower() for word in ["experience", "years", "how many years"]):
-                    try:
-                        int_answer = str(int(float(answer)))
-                        await inp.fill(int_answer)
-                        log.info(f"⚠️ Retried with integer experience answer: {int_answer}")
-                    except Exception as e2:
-                        log.debug(f"Fallback integer fill error: {e2}")
+                    log.error(f"Text input error for '{question}': {e}")
 
 
             # Handle radio buttons
@@ -1130,17 +1178,59 @@ class EasyApplyAgent:
                     group_radios = await group.all()
 
                     for r in group_radios:
-                        value_attr = (await r.get_attribute("value") or "").lower()
-                        rid = await r.get_attribute("id") or ""
-                        lbl = self.page.locator(f'label[for="{rid}"]').first
-                        lbl_txt = (await lbl.text_content() or "").lower() if await lbl.count() else ""
+                        if not await r.is_visible(): continue
+                        question = await self._get_question_text(r)
+                        if question: break
+                    else:
+                        question = ""
 
-                        if any(x in (value_attr + lbl_txt) for x in ("yes", "true", "y", "1", "immediate", "0")):
-                            if await lbl.count():
-                                await lbl.click()
-                            else:
-                                await r.check()
-                            break
+                    if question:
+                        smart_answer = self._get_smart_answer(question, "radio").lower()
+                        log.info(f"🔘 Processing radio: '{question}' - Answer: '{smart_answer}'")
+                        
+                        match_found = False
+                        for r in group_radios:
+                            value_attr = (await r.get_attribute("value") or "").lower()
+                            rid = await r.get_attribute("id") or ""
+                            lbl = self.page.locator(f'label[for="{rid}"]').first
+                            lbl_txt = (await lbl.text_content() or "").lower() if await lbl.count() else ""
+
+                            if smart_answer in value_attr or smart_answer in lbl_txt or (smart_answer == "yes" and "true" in value_attr):
+                                if await lbl.count():
+                                    await lbl.click()
+                                else:
+                                    await r.check()
+                                log.info(f"✅ Selected radio button matching '{smart_answer}'")
+                                match_found = True
+                                break
+                        
+                        if not match_found:
+                            log.warning(f"⚠️ Could not find exact match for '{smart_answer}', falling back...")
+                            # Fallback if no match is found
+                            fallback_success = False
+                            for r in group_radios:
+                                value_attr = (await r.get_attribute("value") or "").lower()
+                                rid = await r.get_attribute("id") or ""
+                                lbl = self.page.locator(f'label[for="{rid}"]').first
+                                lbl_txt = (await lbl.text_content() or "").lower() if await lbl.count() else ""
+                                if any(x in (value_attr + lbl_txt) for x in ("yes", "true", "y", "1")):
+                                    if await lbl.count():
+                                        await lbl.click()
+                                    else:
+                                        await r.check()
+                                    log.warning("✅ Fallback to Yes/True")
+                                    fallback_success = True
+                                    break
+                                    
+                            if not fallback_success and len(group_radios) > 0:
+                                log.warning("⚠️ No Yes/True found, selecting the first option as a last resort")
+                                r = group_radios[0]
+                                rid = await r.get_attribute("id") or ""
+                                lbl = self.page.locator(f'label[for="{rid}"]').first
+                                if await lbl.count():
+                                    await lbl.click()
+                                else:
+                                    await r.check()
 
                 except Exception as e:
                     log.debug(f"Radio error: {e}")
@@ -1151,19 +1241,53 @@ class EasyApplyAgent:
                 for group in radio_groups:
                     try:
                         aria_radios = await group.locator("[role='radio']").all()
+                        if not aria_radios: continue
+                        
+                        question = await self._get_question_text(aria_radios[0])
+                        smart_answer = self._get_smart_answer(question, "radio").lower() if question else "yes"
+                        log.info(f"🔘 Processing ARIA radio: '{question}' - Answer: '{smart_answer}'")
+                        
+                        match_found = False
                         for r in aria_radios:
                             txt = await r.evaluate('el => el.parentElement ? el.parentElement.textContent : el.textContent')
                             txt = (txt or "").lower()
                             value_attr = (await r.get_attribute("value") or "").lower()
                             
-                            if any(x in (value_attr + txt) for x in ("yes", "true", "y", "1", "immediate", "0")):
+                            if smart_answer in value_attr or smart_answer in txt or (smart_answer == "yes" and "true" in value_attr):
                                 try:
                                     await r.click(timeout=2000)
                                 except:
                                     await r.evaluate('el => el.click()')
-                                log.info(f"✅ Selected ARIA radio button (Yes/True)")
+                                log.info(f"✅ Selected ARIA radio button matching '{smart_answer}'")
                                 await asyncio.sleep(0.3)
+                                match_found = True
                                 break
+                        
+                        if not match_found:
+                            fallback_success = False
+                            for r in aria_radios:
+                                txt = await r.evaluate('el => el.parentElement ? el.parentElement.textContent : el.textContent')
+                                txt = (txt or "").lower()
+                                value_attr = (await r.get_attribute("value") or "").lower()
+                                
+                                if any(x in (value_attr + txt) for x in ("yes", "true", "y", "1")):
+                                    try:
+                                        await r.click(timeout=2000)
+                                    except:
+                                        await r.evaluate('el => el.click()')
+                                    log.info(f"✅ Fallback ARIA radio button (Yes/True)")
+                                    await asyncio.sleep(0.3)
+                                    fallback_success = True
+                                    break
+                                    
+                            if not fallback_success and len(aria_radios) > 0:
+                                log.warning("⚠️ No Yes/True found, selecting the first ARIA option as a last resort")
+                                r = aria_radios[0]
+                                try:
+                                    await r.click(timeout=2000)
+                                except:
+                                    await r.evaluate('el => el.click()')
+                                await asyncio.sleep(0.3)
                     except Exception as e:
                         log.debug(f"ARIA radio group error: {e}")
             except Exception as e:
@@ -1485,7 +1609,7 @@ async def main(
             log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
         pw = await async_playwright().start()
         launch_kwargs = {
-            "headless": True,
+            "headless": False,
             
             "args": [
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
@@ -1664,7 +1788,7 @@ async def setup_and_login(progress_user, user_id, password, log_callback=None):
         log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
     pw = await async_playwright().start()
     launch_kwargs = {
-        "headless": True,
+        "headless": False,
         "args": [
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]
@@ -1896,6 +2020,11 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
 
         # Phase 2: Launch Producer (tailoring task) in background
         producer_task = asyncio.create_task(tailor_producer())
+
+        # Wait until the producer pushes the first batch before launching the browser
+        # This eliminates the idle time where the browser sits open waiting for Gemini
+        while jobs_queue.empty() and not producer_task.done():
+            await asyncio.sleep(1)
 
         # Once tailoring completes/starts producing batches, we relaunch Playwright for application
         pw_instance, browser_instance, context_instance, page_instance = await setup_and_login(email, l_email, l_pass, log_callback)
