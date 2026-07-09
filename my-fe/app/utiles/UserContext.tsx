@@ -72,12 +72,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
       sessionStorage.setItem("name", metadata.username || metadata.full_name || metadata.name || "");
 
       // Immediately set basic user state so isLoggedIn becomes true instantly
+      const cachedTier = sessionStorage.getItem("tier") || "";
       setUser((prev) => ({
         ...prev,
         id: userId,
         email: metadata.email || authUser.email || null,
         name: metadata.username || metadata.full_name || metadata.name || null,
         profile_image: metadata.avatar_url || metadata.picture || null,
+        tier: cachedTier,
       }));
 
       // Fetch additional data from public.User table
@@ -114,6 +116,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
           if (userData.user.tier) {
             tier = userData.user.tier;
+            sessionStorage.setItem("tier", tier);
           }
           if (typeof userData.user.shared_generation_credits === "number") {
             sharedGenerationCredits = userData.user.shared_generation_credits;
