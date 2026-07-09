@@ -102,7 +102,7 @@ const LogItem = ({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) =>
 
 const Apply: React.FC = () => {
   const router     = useRouter();
-  const { user: globalUser, refreshUser } = useUser();
+  const { user: globalUser, loading: userLoading, refreshUser } = useUser();
   const hasStarted = useRef(false);
   const abortRef   = useRef<AbortController | null>(null);
 
@@ -173,14 +173,19 @@ const Apply: React.FC = () => {
     let cancelled = false;
 
     async function bootstrap() {
+      // Wait for UserContext to finish loading before making tier decisions
+      if (userLoading) return;
+
       if (globalUser?.tier === "FREE") {
         setShowPopup(true);
         return;
       }
-      const pdf     = sessionStorage.getItem("resume");
-      const context = sessionStorage.getItem("Lcontext");
+
+      // Read from user context instead of sessionStorage to avoid race conditions
+      const pdf     = globalUser.resume_url;
+      const context = globalUser.linkedin_context;
       const jobData = sessionStorage.getItem("jobs");
-      const id      = sessionStorage.getItem("id");
+      const id      = globalUser.id;
 
       if (!pdf) {
         toast.error("Resume not found");
@@ -306,6 +311,9 @@ const Apply: React.FC = () => {
       }
       setUser(id);
 
+      // Mark apply session as active for the floating banner
+      sessionStorage.setItem("apply_active", "true");
+
       async function fetchCredentials() {
         try {
           const res  = await fetch("/api/get-data", { method: "GET", credentials: "include" });
@@ -316,14 +324,16 @@ const Apply: React.FC = () => {
             setPassword(creds.password);
             setCredentialsReady(true);
           } else {
-            toast.error("LinkedIn credentials not provided");
+            // LinkedIn not connected — proceed without credentials, backend handles this
+            toast("LinkedIn is not connected. Proceeding without it.", { icon: "ℹ️" });
+            setCredentialsReady(true);
           }
         } catch (e: any) {
           toast.error("Error fetching credentials: " + e.message);
         }
       }
 
-      if (context !== "true") await fetchCredentials();
+      if (!context) await fetchCredentials();
       else setCredentialsReady(true);
     }
 
@@ -332,7 +342,7 @@ const Apply: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, userLoading, globalUser]);
 
   // Effect 2 — progress user id
   useEffect(() => {
@@ -421,6 +431,7 @@ const Apply: React.FC = () => {
 
         manager.onTerminalError = async (message) => {
           await finalizeApplyProgress();
+          sessionStorage.removeItem("apply_active");
           setError(message);
           pushLog(message, "error");
           toast.error(message);
@@ -431,6 +442,7 @@ const Apply: React.FC = () => {
           if (evData?.error || evData?.progress === -1 || evData?.status === "error") {
             manager.destroy();
             await finalizeApplyProgress();
+            sessionStorage.removeItem("apply_active");
             setError(evData.error || evData.message || "Application process failed");
             pushLog(evData.message || evData.error || "Process interrupted", "error");
             toast.error(evData.error || evData.message || "Something went wrong");
@@ -466,8 +478,9 @@ const Apply: React.FC = () => {
 
           if (evData?.progress === 100 && evData?.status === "done") {
             manager.destroy();
-            // Clear selected jobs from sessionStorage to prevent re-triggering
+            // Clear selected jobs and active flag from sessionStorage
             sessionStorage.removeItem("jobs");
+            sessionStorage.removeItem("apply_active");
 
             let finalResult: any = null;
             try {
@@ -518,6 +531,7 @@ const Apply: React.FC = () => {
           }
         }
       } catch (err: any) {
+        sessionStorage.removeItem("apply_active");
         setError(err.message || "Failed to initialize pipeline");
         pushLog(err.message || "Initialization failed", "error");
         setIsDone(true);

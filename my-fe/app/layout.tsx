@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ToastProvider from "./Components/ToastProvider";
 import { UserProvider } from "./utiles/UserContext";
+import ActiveApplyBanner from "./Components/ActiveApplyBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
       >
         <UserProvider>
           {children}
+          <ActiveApplyBanner />
         </UserProvider>
         <ToastProvider />
       </body>

@@ -53,7 +53,7 @@ function parseScore(raw: string): number | null {
 
 const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const [selectedIds, setSelectedIds] = useState<{ job_id: string; job_url: string; job_description: string; company_name?: string }[]>([]);
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [showPopup, setShowPopup] = useState(false);
@@ -69,6 +69,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
   };
 
   const ApplierHandler = () => {
+    if (userLoading) return; // User data not ready yet
     if (user?.tier === "FREE") {
       setShowPopup(true);
       return;

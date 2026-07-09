@@ -122,7 +122,7 @@ const LogItem = ({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) =>
 
 const Jobs = () => {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const hasStarted = useRef(false);
 
   const [activityLog, setActivityLog] = useState<LogEntry[]>([]);
@@ -214,8 +214,12 @@ const Jobs = () => {
 
   // Effect 2 — resume url + credentials
   useEffect(() => {
-    const pdf = sessionStorage.getItem("resume");
-    const context = sessionStorage.getItem("Lcontext");
+    // Wait for UserContext to finish loading before reading user data
+    if (userLoading) return;
+
+    // Read from user context instead of sessionStorage to avoid race conditions
+    const pdf = user.resume_url;
+    const context = user.linkedin_context;
 
     if (!pdf) {
       toast.error("Resume not found. Please upload your resume");
@@ -233,16 +237,18 @@ const Jobs = () => {
           setPassword(creds.password);
           setCredentialsReady(true);
         } else {
-          toast.error("LinkedIn credentials not provided");
+          // LinkedIn not connected — proceed without credentials, backend handles this
+          toast("LinkedIn is not connected. Proceeding without it.", { icon: "ℹ️" });
+          setCredentialsReady(true);
         }
       } catch (e: any) {
         toast.error("Error fetching credentials: " + e.message);
       }
     }
 
-    if (context !== "true") fetchCredentials();
+    if (!context) fetchCredentials();
     else setCredentialsReady(true);
-  }, [router]);
+  }, [userLoading, user]);
 
   // Effect 3 — restore cached jobs OR reconnect to active job
   useEffect(() => {
@@ -572,7 +578,7 @@ const Jobs = () => {
 
       <UpgradePopup isOpen={showPopup} onClose={() => setShowPopup(false)} message={popupMessage} />
 
-      {user?.tier === "FREE" && (
+      {!userLoading && user?.tier === "FREE" && (
         <div className="fixed bottom-6 right-6 bg-[#1A1A1A] border border-white/[0.08] text-gray-400 text-xs px-4 py-2 rounded-full font-medium z-50 shadow-2xl flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
           Credits: {user?.fetch_jobs_credits || 0}/2
