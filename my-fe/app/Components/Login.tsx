@@ -19,9 +19,9 @@ const Login = () => {
 
   useEffect(() => {
     if (isLoggedIn) {
-      router.push("/");
+      window.location.href = "/";
     }
-  }, [isLoggedIn, router]);
+  }, [isLoggedIn]);
 
   const LoginHandle = async () => {
     setError(null);

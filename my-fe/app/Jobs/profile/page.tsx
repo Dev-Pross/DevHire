@@ -135,9 +135,15 @@ const ProfilePage = () => {
               </div>
               
               <div className="absolute -bottom-3 z-10 flex justify-center w-full">
-                <span className={`text-[11px] font-bold px-3 py-0.5 rounded-full ${data?.tier === 'PRO' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.6)]' : 'bg-[#1A1A1A] text-gray-400 border border-white/[0.08] shadow-lg'}`}>
-                  {data?.tier || 'FREE'}
-                </span>
+                {data === null ? (
+                  <span className="text-[11px] font-bold px-3 py-0.5 rounded-full bg-white/[0.05] text-transparent filter blur-sm">
+                    LOADING
+                  </span>
+                ) : (
+                  <span className={`text-[11px] font-bold px-3 py-0.5 rounded-full ${data?.tier === 'PRO' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.6)]' : 'bg-[#1A1A1A] text-gray-400 border border-white/[0.08] shadow-lg'}`}>
+                    {data?.tier || 'FREE'}
+                  </span>
+                )}
               </div>
             </div>
 

@@ -71,6 +71,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
       sessionStorage.setItem("email", metadata.email || authUser.email || "");
       sessionStorage.setItem("name", metadata.username || metadata.full_name || metadata.name || "");
 
+      // Immediately set basic user state so isLoggedIn becomes true instantly
+      setUser((prev) => ({
+        ...prev,
+        id: userId,
+        email: metadata.email || authUser.email || null,
+        name: metadata.username || metadata.full_name || metadata.name || null,
+        profile_image: metadata.avatar_url || metadata.picture || null,
+      }));
+
       // Fetch additional data from public.User table
       let resumeUrl: string | null = null;
       let profileImage: string | null = metadata.avatar_url || metadata.picture || null;
