@@ -12,7 +12,6 @@ async function sendUrl(url: string, user_id: string, password: string) {
     const { data, error } = await getLoginUser();
     if(data?.user.email){
         progress_user = data?.user.user_metadata.email
-        console.log('email from data progress ', data.user.email)
     }
     else progress_user = null
 try {
@@ -22,8 +21,6 @@ try {
             password: password ? password : "",
             progress_user: progress_user ? progress_user : user_id
         });
-        console.log(url)
-        console.log("Server response:", res.data);
         return { data: res.data, error: null };
         
     } catch (err: any) {
@@ -48,8 +45,6 @@ async function Apply_Jobs(jobs: JobsData[], url: string, user_id: string, passwo
             progress_user: progress_user ? progress_user : user_id
 
         });
-        console.log(res)
-        console.log("apply server response:", res.data);
         return { data: res.data, error: null };
         
     } catch (err : any) {

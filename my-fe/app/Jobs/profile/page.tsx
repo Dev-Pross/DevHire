@@ -237,11 +237,13 @@ const ProfilePage = () => {
                 <div className="flex items-start sm:items-center justify-between gap-3">
                   <div className="flex-1">
                     <h3 className="text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Resume</h3>
-                    {data?.resume_url ? (
+                    {data === null ? (
+                      <p className="w-32 md:w-40 h-8 md:h-10 bg-white/[0.05] rounded-lg animate-pulse" />
+                    ) : data?.resume_url ? (
                       <div className="space-y-2">
-                        <a href={data?.resume_url ? data?.resume_url : ""} target="_blank" rel="noreferrer">
+                        <a href={data.resume_url} target="_blank" rel="noreferrer">
                           <span className="text-white font-semibold text-sm md:text-base truncate hover:text-emerald-400 transition-colors">
-                            {data?.resume_url ? "resume.pdf" : "No resume selected"}
+                            resume.pdf
                           </span>
                         </a>
                         <div>
@@ -249,7 +251,7 @@ const ProfilePage = () => {
                         </div>
                       </div>
                     ) : (
-                      <p className="w-32 md:w-40 h-8 md:h-10 bg-white/[0.05] rounded-lg animate-pulse" />
+                      <span className="text-gray-500 text-sm md:text-base">No resume uploaded</span>
                     )}
                   </div>
                   <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-500/10 rounded-lg flex items-center justify-center flex-shrink-0">

@@ -130,7 +130,7 @@ export const HeroTalent = () => {
                 <>
                   <div className="flex flex-col gap-2">
                     <button
-                      className="btn-primary text-base px-8 py-4 disabled:opacity-50"
+                      className={`${user.resume_url ? 'btn-secondary' : 'btn-primary'} text-base px-8 py-4 disabled:opacity-50 flex items-center justify-center gap-2`}
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                     >
@@ -147,7 +147,7 @@ export const HeroTalent = () => {
                           <svg className="w-5 h-5 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                           </svg>
-                          Upload Resume
+                          {user.resume_url ? 'Update Resume' : 'Upload Resume'}
                         </>
                       )}
                     </button>
@@ -157,11 +157,11 @@ export const HeroTalent = () => {
                   </div>
                   {user.resume_url && (
                     <Link href="/Jobs">
-                      <button className="btn-secondary text-base px-8 py-4">
+                      <button className="btn-primary text-base px-8 py-4 flex items-center justify-center gap-2">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        Find Your Perfect Job
+                        <span>Find Your Perfect Job</span>
                       </button>
                     </Link>
                   )}

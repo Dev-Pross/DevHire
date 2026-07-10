@@ -65,7 +65,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const userId = authUser.id;
       const metadata = authUser.user_metadata || {};
 
-      console.log(authUser)
       // Store basic info from auth
       sessionStorage.setItem("id", userId);
       sessionStorage.setItem("email", metadata.email || authUser.email || "");

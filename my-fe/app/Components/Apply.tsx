@@ -188,7 +188,8 @@ const Apply: React.FC = () => {
       const id      = globalUser.id;
 
       if (!pdf) {
-        toast.error("Resume not found");
+        toast.error("Resume not found. Please upload your resume", { id: "resume-missing" });
+        router.push("/");
         return;
       }
       setUrl(pdf);
@@ -324,12 +325,14 @@ const Apply: React.FC = () => {
             setPassword(creds.password);
             setCredentialsReady(true);
           } else {
-            // LinkedIn not connected — proceed without credentials, backend handles this
-            toast("LinkedIn is not connected. Proceeding without it.", { icon: "ℹ️" });
-            setCredentialsReady(true);
+            toast.error("LinkedIn connection is required. Please connect your account in your profile.", { id: "linkedin-missing" });
+            setIsDone(true);
+            setError("LinkedIn connection required");
           }
         } catch (e: any) {
           toast.error("Error fetching credentials: " + e.message);
+          setIsDone(true);
+          setError("Error fetching credentials: " + e.message);
         }
       }
 
@@ -540,6 +543,10 @@ const Apply: React.FC = () => {
 
     startStream();
   }, [user, jobs, dbData, Progress_userId, url, credentialsReady, retryCount]);
+
+  if (!userLoading && !globalUser?.resume_url) {
+    return null;
+  }
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden flex flex-col">
