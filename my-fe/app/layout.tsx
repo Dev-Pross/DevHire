@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "HireHawk",
   description: "Job process automation",
-  icons:{
+  icons: {
     icon: "/logo.jpg"
   }
 };
@@ -30,6 +30,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <meta name="google-site-verification" content="QG8Dwf5NXymaJuDNYMzDY1CjQmmtoWoW7frzxOD2WJE" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0A0A0A] text-white overflow-x-hidden`}
       >
