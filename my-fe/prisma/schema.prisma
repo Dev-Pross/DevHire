@@ -21,6 +21,7 @@ model User {
   fetch_jobs_credits        Int                @default(2)
   shared_generation_credits Int                @default(5)
   tier                      TIER               @default(FREE)
+  isConnected               Boolean            @default(false)
   workflow_sessions         workflow_sessions?
 
   @@map("User")

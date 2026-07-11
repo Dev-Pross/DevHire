@@ -12,6 +12,7 @@ export default function StreamViewer() {
     const [streamToken, setStreamToken] = useState<string>('')
 
     const [status, setStatus] = useState<"connecting" | "connected" | "reconnecting" | "success" | "error" | "disconnected">("connecting");
+    const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
     const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
@@ -117,7 +118,7 @@ export default function StreamViewer() {
                 else if (msg.type === 'success') {
                     isIntentionalCloseRef.current = true;
                     setStatus("success")
-                    toast.success("LinkedIn Connected successfully!")
+                    toast.success("Connection successful!")
                     router.push('/')
                 }
             }
@@ -128,7 +129,7 @@ export default function StreamViewer() {
     }
 
     useEffect(() => {
-        if (!dimensions || !wsServerUrl || !streamToken) return;
+        if (!dimensions || !wsServerUrl || !streamToken || !termsAccepted) return;
 
         connectWebSocket();
 
@@ -140,7 +141,7 @@ export default function StreamViewer() {
             }
             wsRef.current?.close();
         }
-    }, [streamToken, wsServerUrl, dimensions])
+    }, [streamToken, wsServerUrl, dimensions, termsAccepted])
 
     function scaleCalculationCoords(clientX: number, clientY: number) {
         const canvas = canvasRef.current;
@@ -314,6 +315,39 @@ export default function StreamViewer() {
         touchStartRef.current = null;
         lastTouchRef.current = null;
     };
+
+    if (!termsAccepted) {
+        return (
+            <div className="w-screen h-screen bg-[#141414] flex items-center justify-center p-4">
+                <div className="surface-card p-6 md:p-8 max-w-lg w-full shadow-2xl border border-white/[0.08] rounded-2xl bg-[#1A1A1A]">
+                    <h2 className="text-2xl font-bold text-white mb-4">Terms and Conditions</h2>
+                    <div className="text-gray-400 text-sm mb-6 space-y-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                        <p>By connecting your professional network account, you agree to the following:</p>
+                        <ul className="list-disc pl-5 space-y-2">
+                            <li>You are authorizing our AI Assistant to act on your behalf to fetch job listings and perform related tasks.</li>
+                            <li>We temporarily process your session context securely. We do not store your raw password.</li>
+                            <li>You can revoke access at any time from your profile settings.</li>
+                            <li>You agree to our standard terms of service and privacy policy regarding third-party integrations.</li>
+                        </ul>
+                    </div>
+                    <div className="flex gap-4 pt-2">
+                        <button
+                            onClick={() => router.push("/Jobs/profile")}
+                            className="flex-1 py-3 px-4 rounded-xl border border-white/[0.08] text-white hover:bg-white/[0.05] transition-all cursor-pointer"
+                        >
+                            Disagree
+                        </button>
+                        <button
+                            onClick={() => setTermsAccepted(true)}
+                            className="flex-1 py-3 px-4 rounded-xl bg-emerald-500 text-black font-semibold hover:bg-emerald-400 transition-all cursor-pointer"
+                        >
+                            Agree & Connect
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // Show reconnecting overlay
     if (status === 'reconnecting') {

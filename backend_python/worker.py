@@ -61,6 +61,52 @@ def fail_job(job_id, error_message):
     log_to_redis(job_id, -1, "error", error_message)
     sys.exit(1)
 
+def cleanup_and_exit(job_id, error_message=None, exit_code=0):
+    if error_message:
+        print(f"❌ {error_message}")
+    if redis_client:
+        try:
+            lock = redis_client.get("dummy_account_lock")
+            if lock:
+                lock_str = lock if isinstance(lock, str) else lock.decode('utf-8')
+                if lock_str == job_id:
+                    redis_client.delete("dummy_account_lock")
+                    print(f"🔓 Released dummy lock for job {job_id} during cleanup exit")
+                    
+                    import requests, threading, os, random
+                    backend_url = os.getenv("BACKEND_PUBLIC_URL", "http://localhost:8000")
+                    trigger_url = f"{backend_url}/api/jobs/trigger-next-queue"
+                    
+                    qstash_token = os.getenv("QSTASH_TOKEN")
+                    qstash_base_url = os.getenv("QSTASH_URL", "https://qstash.upstash.io")
+                    qstash_url = qstash_base_url if "/v2/publish" in qstash_base_url else f"{qstash_base_url.rstrip('/')}/v2/publish"
+                    
+                    delay_s = random.randint(25, 45)
+                    
+                    if qstash_token and backend_url:
+                        headers = {
+                            "Authorization": f"Bearer {qstash_token}",
+                            "Upstash-Delay": f"{delay_s}s",
+                            "Content-Type": "application/json"
+                        }
+                        try:
+                            res = requests.post(f"{qstash_url}/{trigger_url}", headers=headers, json={}, timeout=5)
+                            print(f"✅ Scheduled next queue trigger via QStash ({delay_s}s).")
+                        except Exception as e:
+                            print(f"⚠️ QStash scheduling failed: {e}. Falling back to local timer.")
+                            def _trigger():
+                                try: requests.post(trigger_url, timeout=5)
+                                except: pass
+                            threading.Timer(float(delay_s), _trigger).start()
+                    else:
+                        def _trigger():
+                            try: requests.post(trigger_url, timeout=5)
+                            except: pass
+                        threading.Timer(float(delay_s), _trigger).start()
+        except Exception as e:
+            print(f"Failed to release queue lock during cleanup: {e}")
+    sys.exit(exit_code)
+
 def run_fetch_jobs_pipeline(job_id, job_data):
     """
     Orchestrate the parsing, scraping, and LLM batch pipeline
@@ -113,19 +159,16 @@ def main():
     try:
         res = supabase.table("workflow_sessions").select("*").eq("id", job_id).execute()
         if not res.data:
-            print(f"❌ Error: Job {job_id} not found in DB")
-            sys.exit(1)
+            cleanup_and_exit(job_id, f"Error: Job {job_id} not found in DB", exit_code=1)
             
         job_data = res.data[0]
         status = job_data["status"]
         
         # 2. Check for cancelled/failed jobs immediately
         if status == "failed":
-            print(f"⚠️ Job {job_id} is already marked as failed. Aborting.")
-            sys.exit(0)
+            cleanup_and_exit(job_id, f"Warning: Job {job_id} is already marked as failed. Aborting.", exit_code=0)
         elif status == "completed":
-            print(f"✅ Job {job_id} is already completed. Aborting.")
-            sys.exit(0)
+            cleanup_and_exit(job_id, f"Warning: Job {job_id} is already completed. Aborting.", exit_code=0)
             
         # 3. Release the API latch
         if status == "pending":
@@ -154,6 +197,8 @@ def main():
             run_apply_jobs_pipeline(job_id, job_data)
         else:
             fail_job(job_id, f"Unknown workflow type: {wf_type}")
+            
+        cleanup_and_exit(job_id, exit_code=0)
     finally:
         stop_heartbeat.set()
         if heartbeat_thread:

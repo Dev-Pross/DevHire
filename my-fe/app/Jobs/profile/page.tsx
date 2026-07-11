@@ -46,19 +46,19 @@ const ProfilePage = () => {
   const confirmDisconnect = async () => {
     setShowDisconnectModal(false);
     if (!data?.id) return;
-    const loadToast = toast.loading("Disconnecting LinkedIn...");
+    const loadToast = toast.loading("Disconnecting Professional Network...");
     try {
       const res = await fetch("/api/User?action=update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: data.id,
-          data: { column: "linkedin_context", value: null }
+          data: { column: "isConnected", value: false }
         })
       });
       if (res.ok) {
-        toast.success("LinkedIn disconnected successfully!", { id: loadToast });
-        setDbData((prev: any) => ({ ...prev, linkedin_context: null }));
+        toast.success("Network disconnected successfully!", { id: loadToast });
+        setDbData((prev: any) => ({ ...prev, isConnected: false }));
       } else {
         toast.error("Failed to disconnect", { id: loadToast });
       }
@@ -287,18 +287,18 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              {/* LinkedIn Connection */}
+              {/* Professional Network Connection */}
               <div className="group p-4 md:p-6 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] transition-all duration-300">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex-1">
-                    <h3 className="text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">LinkedIn Connection</h3>
+                    <h3 className="text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Professional Network</h3>
                     <div className="flex items-center gap-3">
                       <span className={`text-xs md:text-sm font-semibold px-2.5 py-1 rounded-full ${
-                        data?.linkedin_context 
+                        data?.isConnected 
                           ? "text-emerald-300 bg-emerald-950/40 border border-emerald-500/20" 
                           : "text-gray-400 bg-white/[0.03] border border-white/[0.08]"
                       }`}>
-                        {data?.linkedin_context ? "Connected" : "Disconnected"}
+                        {data?.isConnected ? "Connected" : "Disconnected"}
                       </span>
                     </div>
                   </div>
@@ -308,11 +308,13 @@ const ProfilePage = () => {
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
                         type="checkbox" 
-                        checked={!!data?.linkedin_context} 
+                        checked={!!data?.isConnected} 
                         onChange={handleLinkedInToggle}
+                        disabled={data?.tier === 'FREE'}
+                        title={data?.tier === 'FREE' ? "Upgrade to PRO to connect your own account." : ""}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-white/[0.08] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-gray-400 peer-checked:after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      <div className="w-11 h-6 bg-white/[0.08] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-gray-400 peer-checked:after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
                     </label>
                   </div>
                 </div>
@@ -332,11 +334,11 @@ const ProfilePage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-white">Disconnect LinkedIn?</h3>
+              <h3 className="text-xl font-bold text-white">Disconnect Network?</h3>
             </div>
             
             <p className="text-gray-400 text-sm md:text-base leading-relaxed">
-              Are you sure you want to disconnect your LinkedIn account? Your auto-applier bot won't be able to apply to new jobs until you reconnect.
+              Are you sure you want to disconnect your professional network account? Your auto-applier bot won't be able to apply to new jobs until you reconnect.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-3 pt-2">

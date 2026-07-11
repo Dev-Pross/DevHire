@@ -254,15 +254,17 @@ async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
     # In earlier implementations, user_id from frontend (Progress_user) was email.
     
     # We will search users by email OR id if it's already a UUID.
-    user_res = supabase.table("User").select("id").eq("email", req.user_id).execute()
+    user_res = supabase.table("User").select("id, tier, \"isConnected\"").eq("email", req.user_id).execute()
     if not user_res.data:
         # Check if it was passed by UUID directly
-        user_res = supabase.table("User").select("id").eq("id", req.user_id).execute()
+        user_res = supabase.table("User").select("id, tier, \"isConnected\"").eq("id", req.user_id).execute()
         if not user_res.data:
             raise HTTPException(status_code=404, detail=f"User {req.user_id} not found in DB")
     
     user_row = cast(Dict[str, Any], user_res.data[0])
     internal_user_id = str(user_row["id"])
+    tier = str(user_row.get("tier", "FREE"))
+    is_connected = bool(user_row.get("isConnected", False))
 
     job_id = str(uuid.uuid4())
 
@@ -310,24 +312,98 @@ async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
         # Clean up any old data randomly, though UUIDs are unique
         redis_client.delete(stream_key)
 
-    # Trigger Worker
-    try:
-        _trigger_worker(job_id)
-    except Exception as e:
-        # Mark failed
-        supabase.table("workflow_sessions").update({"status": "failed"}).eq("id", job_id).execute()
-        raise HTTPException(status_code=500, detail=f"Failed to trigger worker: {str(e)}")
-
-    # Redis Latch - Wait up to 30 seconds for worker to start
-    # The worker pushes 'started' into the stream upon initialization.
-    worker_started = await _wait_for_worker_started(job_id, timeout_seconds=30)
-    if not worker_started:
-        if redis_client:
-            # If we timeout, we mark it failed so that worker will abort on boot.
+    # Trigger Worker or Queue
+    if is_connected:
+        try:
+            _trigger_worker(job_id)
+        except Exception as e:
+            # Mark failed
             supabase.table("workflow_sessions").update({"status": "failed"}).eq("id", job_id).execute()
-        raise HTTPException(status_code=504, detail="Worker initialization timeout")
+            raise HTTPException(status_code=500, detail=f"Failed to trigger worker: {str(e)}")
+
+        # Redis Latch - Wait up to 30 seconds for worker to start
+        worker_started = await _wait_for_worker_started(job_id, timeout_seconds=30)
+        if not worker_started:
+            if redis_client:
+                supabase.table("workflow_sessions").update({"status": "failed"}).eq("id", job_id).execute()
+            raise HTTPException(status_code=504, detail="Worker initialization timeout")
+    else:
+        # FREE / Unconnected queue logic
+        if redis_client:
+            redis_client.rpush("free_users_queue", job_id)
+            pos = _redis_llen_sync("free_users_queue")
+            
+            # Check if a job is currently running to calculate exact time remaining
+            lock = _redis_get_sync("dummy_account_lock")
+            if lock and redis_client:
+                ttl = redis_client.ttl("dummy_account_lock")
+                elapsed = 1800 - ttl if ttl > 0 else 0
+                time_remaining = max(0, 215 - elapsed)
+                total_sec = time_remaining + max(0, pos - 1) * 215
+            else:
+                total_sec = max(0, pos - 1) * 215
+                
+            mins, secs = divmod(int(total_sec), 60)
+            est_str = f"{mins} min {secs} sec" if mins > 0 else f"{secs} sec"
+            if total_sec == 0: est_str = "Starting soon..."
+            
+            redis_client.rpush(_stream_key(job_id), json.dumps({"status": "queued", "queue_position": pos, "estimated_wait": est_str}))
+            
+            # Kickstart if necessary
+            status = _redis_get_sync("free_queue_status")
+            lock = _redis_get_sync("dummy_account_lock")
+            if status != "paused" and not lock:
+                _kickstart_queue()
     
     return {"message": "Job started successfully", "job_id": job_id}
+
+def _kickstart_queue():
+    if not redis_client: return
+    status = _redis_get_sync("free_queue_status")
+    if status == "paused": return
+    lock = _redis_get_sync("dummy_account_lock")
+    if lock: return
+    
+    job_id_bytes = redis_client.lpop("free_users_queue")
+    if job_id_bytes:
+        job_id = job_id_bytes if isinstance(job_id_bytes, str) else job_id_bytes.decode('utf-8')
+        redis_client.setex("dummy_account_lock", 1800, job_id)
+        try:
+            _trigger_worker(job_id)
+        except Exception as e:
+            supabase.table("workflow_sessions").update({"status": "failed"}).eq("id", job_id).execute()
+            redis_client.delete("dummy_account_lock")
+
+@router.post("/trigger-next-queue")
+def trigger_next_queue():
+    """Endpoint hit by QStash to process the next job in the queue."""
+    if not redis_client: return {"status": "error", "message": "Redis not configured"}
+    status = _redis_get_sync("free_queue_status")
+    if status == "paused":
+        # Return 200 OK without processing to drop the trigger and not stall QStash
+        return {"status": "paused", "message": "Queue is currently paused"}
+        
+    job_id_bytes = redis_client.lpop("free_users_queue")
+    if not job_id_bytes:
+        return {"status": "empty", "message": "Queue is empty"}
+        
+    job_id = job_id_bytes if isinstance(job_id_bytes, str) else job_id_bytes.decode('utf-8')
+    redis_client.setex("dummy_account_lock", 1800, job_id)
+    
+    try:
+        _trigger_worker(job_id)
+        return {"status": "triggered", "job_id": job_id}
+    except Exception as e:
+        supabase.table("workflow_sessions").update({"status": "failed"}).eq("id", job_id).execute()
+        redis_client.delete("dummy_account_lock")
+        return {"status": "error", "message": str(e)}
+
+@router.post("/admin/unpause-queue")
+def unpause_queue():
+    if not redis_client: return {"error": "Redis not configured"}
+    redis_client.set("free_queue_status", "active")
+    _kickstart_queue()
+    return {"message": "Queue unpaused and kickstarted"}
 
 @router.get("/stream")
 async def stream_job(job_id: str):

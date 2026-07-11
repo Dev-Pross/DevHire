@@ -1,5 +1,6 @@
--- Add the single missing column to existing users table
+-- Add missing columns to existing users table
 ALTER TABLE users ADD COLUMN IF NOT EXISTS user_data JSONB;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "isConnected" BOOLEAN DEFAULT false;
 
 -- Note: resume_url already exists in the production schema.
 -- applied_jobs (ARRAY), linkedin_context (json), and context_updated_at also exist.

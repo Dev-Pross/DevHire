@@ -1,0 +1,42 @@
+steps:
+  # 1. Build the Python Backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/backend:$COMMIT_SHA'
+      - './backend_python'
+
+  # 2. Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'push'
+      - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/backend:$COMMIT_SHA'
+
+  # 3. Deploy the API Server (Service)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'devhire-api'
+      - '--image'
+      - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/backend:$COMMIT_SHA'
+      - '--region'
+      - 'asia-south1'
+
+  # 4. Update the Worker (Job)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'jobs'
+      - 'update'
+      - 'devhire-worker'
+      - '--image'
+      - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/backend:$COMMIT_SHA'
+      - '--region'
+      - 'asia-south1'
+
+images:
+  - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/backend:$COMMIT_SHA'

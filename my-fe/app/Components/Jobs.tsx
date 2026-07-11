@@ -22,16 +22,13 @@ interface LogEntry {
 }
 
 /* ── Phase label from status ─────────────────────────────── */
-function getPhaseLabel(type: string): string {
-  switch (type) {
-    case "processing": return "Processing";
-    case "searching": return "Searching";
-    case "analyzing": return "Analyzing";
-    case "batch_ready": return "Extracting";
-    case "done": return "Complete";
-    case "error": return "Error";
-    default: return "Working";
-  }
+function getPhaseLabel(type: string, message: string = ""): string {
+  const msg = message.toLowerCase();
+  if (msg.includes("analyzing") || msg.includes("extracting") || type === "batch_ready") return "Analyzing";
+  if (msg.includes("scraping") || msg.includes("searching") || type === "in_progress") return "Scraping";
+  if (type === "done") return "Completed";
+  if (type === "error") return "Error";
+  return "Initialized";
 }
 
 /* ── Elapsed timer ──────────────────────────────────────── */
@@ -127,7 +124,7 @@ const Jobs = () => {
 
   const [activityLog, setActivityLog] = useState<LogEntry[]>([]);
   const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState("Initializing");
+  const [phase, setPhase] = useState("Preparing");
   const [jobs, setJobs] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [url, setUrl] = useState("");
@@ -146,6 +143,8 @@ const Jobs = () => {
   const [recentCacheAgeLabel, setRecentCacheAgeLabel] = useState("some time ago");
   const [showPopup, setShowPopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState("");
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
+  const [estimatedWait, setEstimatedWait] = useState<string | null>(null);
 
   // ── Job filters (Keyword / Job type / Experience) ──
   const [keyword, setKeyword] = useState("");
@@ -181,7 +180,7 @@ const Jobs = () => {
       const nextId = prev.length > 0 ? prev[prev.length - 1].id + 1 : 1;
       return [...prev, { id: nextId, message, type, timestamp: Date.now() }];
     });
-    setPhase(getPhaseLabel(type));
+    setPhase(getPhaseLabel(type, message));
   }
 
   /* Elapsed timer */
@@ -229,6 +228,10 @@ const Jobs = () => {
     setUrl(pdf);
 
     async function fetchCredentials() {
+      if (user.tier !== "PRO") {
+        setCredentialsReady(true);
+        return;
+      }
       try {
         const res = await fetch("/api/get-data", { method: "GET", credentials: "include" });
         const json = await res.json();
@@ -351,8 +354,8 @@ const Jobs = () => {
     startTime.current = Date.now();
 
     async function triggerJob() {
-      // Tier Check
-      if (user?.tier === "FREE") {
+      // Tier Check - only deduct credits for fresh searches, not reconnected/restored ones
+      if (user?.tier === "FREE" && !recoveredJobId) {
         if ((user?.fetch_jobs_credits || 0) <= 0) {
           setPopupMessage("You have exhausted your daily limit of 2 job fetches. Upgrade to Pro for unlimited job searches!");
           setShowPopup(true);
@@ -403,14 +406,11 @@ const Jobs = () => {
           activeJobId = data.job_id;
         }
 
-        if (!activeJobId) throw new Error("Did not receive a valid job ID from server");
+        setRecoveredJobId(activeJobId);
 
-        pushLog("Job container started. Connecting to stream...", "processing");
-
-        sseRef.current?.destroy();
+        // 2. Open SSE progress stream
         const manager = new SSEManager({
           url: `${API_URL}/api/jobs/stream?job_id=${activeJobId}`,
-          staleThresholdMs: 90_000,
           reconnectBaseDelayMs: 1_500,
           reconnectMaxDelayMs: 12_000,
           withCredentials: true,
@@ -432,6 +432,17 @@ const Jobs = () => {
             toast.error(evData.error || evData.message || "Something went wrong");
             setIsDone(true);
             return;
+          }
+
+          if (evData?.status === "queued") {
+            setQueuePosition(evData.queue_position);
+            setEstimatedWait(evData.estimated_wait);
+            setPhase("Queued");
+            return;
+          } else {
+            // Unconditionally clear queue state for any non-queued progress updates (avoids stale closures)
+            setQueuePosition(null);
+            setEstimatedWait(null);
           }
 
           if (typeof evData?.progress === "number") {
@@ -671,6 +682,24 @@ const Jobs = () => {
         }`}>
         {USE_SAMPLE_DATA ? (
           <JobCards jobs={sampleJobs as any} />
+        ) : queuePosition !== null ? (
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="surface-card p-8 border border-blue-500/30 bg-blue-500/[0.03] text-center max-w-md w-full shadow-2xl rounded-2xl">
+              <div className="w-16 h-16 rounded-full border-4 border-blue-500/30 border-t-blue-500 animate-spin mx-auto mb-6"></div>
+              <h2 className="text-xl font-bold text-white mb-2">Priority Desk</h2>
+              <p className="text-blue-300 font-medium mb-4">
+                Estimated Wait: <span className="text-white">{estimatedWait}</span>
+              </p>
+              <div className="bg-[#1A1A1A] p-5 rounded-xl border border-white/[0.08] mt-6 shadow-inner">
+                <button
+                  onClick={() => router.push("/#pricing")}
+                  className="w-full px-4 py-3.5 bg-white/[0.04] border border-white/[0.1] text-gray-200 font-bold rounded-xl shadow-lg hover:bg-white/[0.08] backdrop-blur-md transition-all cursor-pointer hover:shadow-white/[0.05]"
+                >
+                  Skip the wait with Pro
+                </button>
+              </div>
+            </div>
+          </div>
         ) : error ? (
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="surface-card p-8 border border-red-500/30 text-center max-w-md">

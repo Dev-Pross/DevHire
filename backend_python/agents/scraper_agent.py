@@ -154,7 +154,7 @@ async def linkedin_login(browser, email_val, password_val):
     """Login to LinkedIn with FORCED 50% zoom"""
     global LOGGED_IN_CONTEXT
     
-    print("🔐 Starting LinkedIn login...")
+    print("🔐 Starting Professional Network login...")
     
     context = await browser.new_context(**LINKEDIN_CONTEXT_OPTIONS)
     
@@ -170,7 +170,7 @@ async def linkedin_login(browser, email_val, password_val):
         # await apply_forced_zoom(page)
         # await asyncio.sleep(3)  # Wait for zoom to apply
         
-        print("✅ FORCED 50% zoom applied - LinkedIn should now be zoomed out")
+        print("✅ FORCED 50% zoom applied - Professional Network should now be zoomed out")
         
         print("📧 Entering email...")
         email_input = await page.wait_for_selector('input[type="email"]:visible', timeout=10000)
@@ -217,9 +217,62 @@ async def linkedin_login(browser, email_val, password_val):
         await context.close()
         return None
 
-async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_password=None):
+async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_password=None, is_connected=True):
     """Ensure we have a valid logged-in context"""
+    from config import redis_client
+    import json
+    
     global LOGGED_IN_CONTEXT
+    
+    if not is_connected:
+        print("🆓 FREE User detected. Using dummy global context pool.")
+        from config import LINKEDIN_ID
+        if not LINKEDIN_ID:
+            raise Exception("LINKEDIN_ID not set in .env for dummy context.")
+            
+        db_context = get_linkedin_context(LINKEDIN_ID)
+        if db_context:
+            try:
+                context = await browser.new_context(
+                    storage_state=db_context,
+                    **LINKEDIN_CONTEXT_OPTIONS
+                )
+                LOGGED_IN_CONTEXT = context
+                print("✅ Dummy context loaded successfully from DB")
+                return context
+            except Exception as e:
+                print(f"⚠️ Failed to load dummy context: {e}")
+                raise Exception(f"Failed to load dummy context: {e}")
+        else:
+            print(f"⚠️ Dummy context for {LINKEDIN_ID} not found. Auto-initializing...")
+            from config import LINKEDIN_PASSWORD, supabase
+            import uuid
+            
+            # Ensure the user exists in the database
+            user_check = supabase.table("User").select("id").eq("email", LINKEDIN_ID).execute()
+            if not user_check.data:
+                supabase.table("User").insert({
+                    "id": str(uuid.uuid4()),
+                    "email": LINKEDIN_ID,
+                    "name": "Shared Pool Dummy",
+                    "tier": "FREE",
+                    "isConnected": True
+                }).execute()
+                print(f"✅ Created missing dummy user record for {LINKEDIN_ID}")
+            
+            if not LINKEDIN_PASSWORD:
+                raise Exception("LINKEDIN_PASSWORD not set in .env! Cannot auto-initialize.")
+                
+            context = await linkedin_login(browser, LINKEDIN_ID, LINKEDIN_PASSWORD)
+            if context:
+                storage_state = await context.storage_state()
+                from database.linkedin_context import save_linkedin_context
+                save_linkedin_context(LINKEDIN_ID, storage_state)
+                print("✅ Successfully auto-initialized and saved dummy context!")
+                LOGGED_IN_CONTEXT = context
+                return context
+            else:
+                raise Exception(f"Failed to auto-initialize dummy context. Login failed.")
     
     db_context = get_linkedin_context(user_id)
     # print("context from db", db_context)
@@ -243,7 +296,7 @@ async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_passw
     
     # No saved state, perform login
     if not linkedin_email or not linkedin_password:
-        raise Exception("MISSING CREDENTIALS: No saved session found and no LinkedIn credentials provided in the payload.")
+        raise Exception("MISSING CREDENTIALS: No saved session found and no Professional Network credentials provided in the payload.")
 
     print(f"🔐 No storage state in DB, logging in using provided credentials...")
 
@@ -795,7 +848,7 @@ async def extract_job_description_fixed(session: aiohttp.ClientSession, url, fal
 # ---------------------------------------------------------------------------
 
 
-async def scrape_platform_speed_optimized(context, platform_name, config, job_title, user_id):
+async def scrape_platform_speed_optimized(context, platform_name, config, job_title, user_id, is_connected=True):
     """SPEED OPTIMIZED: URL-deduped collection with raw metadata capture."""
     global PROCESSED_JOB_URLS
     
@@ -814,6 +867,25 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
         
         await page.goto(url, wait_until="domcontentloaded", timeout=30000)
         print("✅ Navigation complete")
+
+        current_url = page.url
+        if "login" in current_url or "signup" in current_url or "authwall" in current_url:
+            print("🚨 AUTHENTICATION WALL DETECTED!")
+            if not is_connected:
+                from config import redis_client
+                import requests
+                if redis_client:
+                    redis_client.set("free_queue_status", "paused")
+                
+                # Admin webhook notification (example)
+                admin_webhook = os.getenv("ADMIN_WEBHOOK_URL")
+                if admin_webhook:
+                    try:
+                        requests.post(admin_webhook, json={"alert": "Professional Network Dummy Account Logged Out!"})
+                    except:
+                        pass
+                print("⚠️ Queue paused. Admin intervention required to update dummy context.")
+            raise Exception("Auth wall detected - scraping aborted")
         
         # await apply_forced_zoom(page)
         # await asyncio.sleep(1)
@@ -1275,7 +1347,7 @@ async def extract_single_batch(batch_dict: dict) -> list:
 
     for attempt, delay in zip(range(1, 6), (0, 5, 10, 5, 10)):
         try:
-            print(f"Gemini - ({choose_model}) attempt {attempt}/5")
+            print(f"AI - ({choose_model}) attempt {attempt}/5")
             res = client.models.generate_content(
                 model=choose_model,
                 contents=prompt,
@@ -1363,7 +1435,7 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25, log_cal
 # 6. MAIN EXECUTION FUNCTIONS (SPEED OPTIMIZED)
 # ---------------------------------------------------------------------------
 
-async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_callback=None, user_id=None, linkedin_email=None, linkedin_password=None):
+async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_callback=None, user_id=None, linkedin_email=None, linkedin_password=None, is_connected=True):
     """SPEED OPTIMIZED: All fixes applied - faster execution"""
     global PROCESSED_JOB_URLS, LOGGED_IN_CONTEXT
     
@@ -1406,19 +1478,19 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
         
         try:
             if log_callback:
-                log_callback({"progress": 12, "status": "searching", "message": "Connecting to LinkedIn..."})
-            print("Performing LinkedIn login...")
-            login_context = await ensure_logged_in(browser, user_id, linkedin_email, linkedin_password)
+                log_callback({"progress": 12, "status": "searching", "message": "Connecting to job servers..."})
+            print("Performing server login...")
+            login_context = await ensure_logged_in(browser, user_id, linkedin_email, linkedin_password, is_connected)
             
             if login_context is None:
-                print("Failed to login to LinkedIn. Exiting...")
+                print("Failed to login to server. Exiting...")
                 if log_callback:
-                    log_callback({"progress": -1, "status": "error", "message": "LinkedIn login failed. Please review credentials."})
+                    log_callback({"progress": -1, "status": "error", "message": "Server login failed. Please review credentials."})
                 return {}
             
-            print("Successfully logged in to LinkedIn!")
+            print("Successfully logged in to server!")
             if log_callback:
-                log_callback({"progress": 15, "status": "searching", "message": "LinkedIn session ready"})
+                log_callback({"progress": 15, "status": "searching", "message": "Server session ready"})
             
             for i, job_title in enumerate(sanitized_titles, 1):
                 print(f"\n{'='*70}")
@@ -1430,7 +1502,7 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
                 for platform_name in platforms:
                     try:
                         result = await scrape_platform_speed_optimized(
-                            login_context, platform_name, PLATFORMS[platform_name], job_title, user_id
+                            login_context, platform_name, PLATFORMS[platform_name], job_title, user_id, is_connected
                         )
                         title_result.update(result)
                         all_jobs.update(result)
@@ -1480,16 +1552,65 @@ def run_scraper_pipeline(job_id: str, job_data: dict, log_callback):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
+        state = {"lock_released": False}
         try:
-            loop.run_until_complete(_async_scraper_pipeline(job_id, job_data, log_callback))
+            loop.run_until_complete(_async_scraper_pipeline(job_id, job_data, log_callback, state))
         finally:
             loop.close()
+            
+            # Queue webhook trigger in the finally block only if not already released early
+            if not state.get("lock_released"):
+                user_id = job_data.get("user_id")
+                if user_id:
+                    from config import supabase, redis_client
+                    import requests, threading
+                    try:
+                        user_res = supabase.table("User").select("\"isConnected\"").eq("id", user_id).execute()
+                        if user_res.data and not user_res.data[0].get("isConnected"):
+                            if redis_client:
+                                redis_client.delete("dummy_account_lock")
+                                
+                                qstash_token = os.getenv("QSTASH_TOKEN")
+                                qstash_base_url = os.getenv("QSTASH_URL", "https://qstash.upstash.io")
+                                qstash_url = qstash_base_url if "/v2/publish" in qstash_base_url else f"{qstash_base_url.rstrip('/')}/v2/publish"
+                                backend_url = os.getenv("BACKEND_PUBLIC_URL", "http://localhost:8000")
+                                trigger_url = f"{backend_url}/api/jobs/trigger-next-queue"
+                                
+                                if qstash_token and backend_url:
+                                    import random
+                                    delay_s = random.randint(25, 45)
+                                    headers = {
+                                        "Authorization": f"Bearer {qstash_token}",
+                                        "Upstash-Delay": f"{delay_s}s",
+                                        "Content-Type": "application/json"
+                                    }
+                                    try:
+                                        res = requests.post(f"{qstash_url}/{trigger_url}", headers=headers, json={}, timeout=5)
+                                        res.raise_for_status()
+                                        print(f"✅ Scheduled next queue trigger via QStash in finally block ({delay_s}s). MessageId: {res.json().get('messageId')}")
+                                    except Exception as e:
+                                        print(f"⚠️ QStash scheduling failed in finally block: {e}. Falling back to local timer.")
+                                        def _trigger():
+                                            try: requests.post(trigger_url, timeout=5)
+                                            except: pass
+                                        threading.Timer(float(delay_s), _trigger).start()
+                                else:
+                                    import random
+                                    delay_s = random.randint(25, 45)
+                                    print(f"No QStash token; using local {delay_s}s timer for queue.")
+                                    def _trigger():
+                                        try: requests.post(trigger_url, timeout=5)
+                                        except: pass
+                                    threading.Timer(float(delay_s), _trigger).start()
+                    except Exception as e:
+                        print(f"Error in finally block queue trigger: {e}")
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise e
 
-async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback):
+async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback, state: dict):
     from config import supabase
     from agents.parse_agent import main as parse_main
 
@@ -1512,15 +1633,16 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback):
 
     if raw_jobs is None:
         # Phase 2: User Data / Parsing
-        user_res = supabase.table("User").select("user_data, resume_url").eq("id", user_id).execute()
+        user_res = supabase.table("User").select("user_data, resume_url, \"isConnected\"").eq("id", user_id).execute()
         if not user_res.data:
             raise Exception("User not found in DB")
             
         user_record = user_res.data[0]
         user_data_parsed = user_record.get("user_data")
+        is_connected = bool(user_record.get("isConnected", False))
         
         if not user_data_parsed:
-            log_callback({"progress": 15, "status": "in_progress", "message": "Parsing resume using Gemini..."})
+            log_callback({"progress": 15, "status": "in_progress", "message": "Parsing resume using AI..."})
             
             # The active resume URL is passed from the frontend payload or DB fallback
             resume_url = input_data.get("resume_url") or user_record.get("resume_url")
@@ -1538,13 +1660,58 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback):
         titles = user_data_parsed.get("titles", [])
         
         # Phase 3: Playwright Scraping
-        log_callback({"progress": 20, "status": "in_progress", "message": "Searching LinkedIn for jobs..."})
+        log_callback({"progress": 20, "status": "in_progress", "message": "Connecting to server and searching for jobs..."})
         
         # Extract credentials from payload
         l_email = input_data.get("linkedin_id")
         l_pass = input_data.get("linkedin_password")
         
-        raw_jobs = await search_by_job_titles_speed_optimized(titles, log_callback=log_callback, user_id=email, linkedin_email=l_email, linkedin_password=l_pass)
+        raw_jobs = await search_by_job_titles_speed_optimized(titles, log_callback=log_callback, user_id=email, linkedin_email=l_email, linkedin_password=l_pass, is_connected=is_connected)
+        
+        # Playwright phase complete. Release the lock and trigger the next job early so they can scrape in parallel.
+        if not is_connected:
+            from config import redis_client
+            import requests, threading
+            try:
+                if redis_client:
+                    redis_client.delete("dummy_account_lock")
+                    state["lock_released"] = True
+                    print("🔓 Released dummy lock early after Playwright phase")
+                    
+                    qstash_token = os.getenv("QSTASH_TOKEN")
+                    qstash_base_url = os.getenv("QSTASH_URL", "https://qstash.upstash.io")
+                    qstash_url = qstash_base_url if "/v2/publish" in qstash_base_url else f"{qstash_base_url.rstrip('/')}/v2/publish"
+                    backend_url = os.getenv("BACKEND_PUBLIC_URL", "http://localhost:8000")
+                    trigger_url = f"{backend_url}/api/jobs/trigger-next-queue"
+                    
+                    if qstash_token and backend_url:
+                        import random
+                        delay_s = random.randint(25, 45)
+                        headers = {
+                            "Authorization": f"Bearer {qstash_token}",
+                            "Upstash-Delay": f"{delay_s}s",
+                            "Content-Type": "application/json"
+                        }
+                        try:
+                            res = requests.post(f"{qstash_url}/{trigger_url}", headers=headers, json={}, timeout=5)
+                            res.raise_for_status()
+                            print(f"✅ Scheduled next queue trigger via QStash ({delay_s}s). MessageId: {res.json().get('messageId')}")
+                        except Exception as e:
+                            print(f"⚠️ QStash scheduling failed: {e}. Falling back to local {delay_s}s timer.")
+                            def _trigger():
+                                try: requests.post(trigger_url, timeout=5)
+                                except: pass
+                            threading.Timer(float(delay_s), _trigger).start()
+                    else:
+                        import random
+                        delay_s = random.randint(25, 45)
+                        print(f"No QStash token; using local {delay_s}s timer for queue.")
+                        def _trigger():
+                            try: requests.post(trigger_url, timeout=5)
+                            except: pass
+                        threading.Timer(float(delay_s), _trigger).start()
+            except Exception as e:
+                print(f"Error releasing lock early: {e}")
         
         if not raw_jobs:
             log_callback({"progress": -1, "status": "error", "message": "No jobs found or login failed. Need new session."})
@@ -1558,7 +1725,7 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback):
             raise Exception("No jobs scraped - clearing context")
             
         # Success pulling raw jobs. Save raw state for idempotency.
-        log_callback({"progress": 50, "status": "in_progress", "message": f"Saved {len(raw_jobs)} raw descriptions. Triggering Gemini categorization."})
+        log_callback({"progress": 50, "status": "in_progress", "message": f"Saved {len(raw_jobs)} raw descriptions. Triggering AI categorization."})
         
         supabase.table("workflow_sessions").update({
             "status": "scraper_raw",

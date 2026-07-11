@@ -37,17 +37,13 @@ interface LogEntry {
 }
 
 /* ── Phase badge helper ─────────────────────────────────── */
-function getPhaseFromType(type: string): string {
-  switch (type) {
-    case "starting": return "Initializing";
-    case "processing": return "Processing";
-    case "tailoring": return "Tailoring";
-    case "applied":
-    case "skipped": return "Applying";
-    case "done": return "Complete";
-    case "error": return "Error";
-    default: return "Working";
-  }
+function getPhaseFromType(type: string, message: string = ""): string {
+  const msg = message.toLowerCase();
+  if (msg.includes("analyzing") || msg.includes("tailor")) return "Analyzing";
+  if (msg.includes("scraping") || msg.includes("apply") || msg.includes("search")) return "Scraping";
+  if (type === "done") return "Completed";
+  if (type === "error") return "Error";
+  return "Initialized";
 }
 
 /* ── Elapsed timer ──────────────────────────────────────── */
@@ -108,7 +104,7 @@ const Apply: React.FC = () => {
 
   const [activityLog, setActivityLog]       = useState<LogEntry[]>([]);
   const [progress, setProgress]             = useState(0);
-  const [phase, setPhase]                   = useState("Initializing");
+  const [phase, setPhase]                   = useState("Preparing");
   const [results, setResults]               = useState<any>(null);
   const [error, setError]                   = useState<string | null>(null);
   const [url, setUrl]                       = useState("");
@@ -150,7 +146,7 @@ const Apply: React.FC = () => {
       const nextId = prev.length > 0 ? prev[prev.length - 1].id + 1 : 1;
       return [...prev, { id: nextId, message, type, timestamp: Date.now(), success }];
     });
-    setPhase(getPhaseFromType(type));
+    setPhase(getPhaseFromType(type, message));
   }
 
   /* Elapsed timer */
@@ -316,6 +312,10 @@ const Apply: React.FC = () => {
       sessionStorage.setItem("apply_active", "true");
 
       async function fetchCredentials() {
+        if (globalUser.tier !== "PRO") {
+          setCredentialsReady(true);
+          return;
+        }
         try {
           const res  = await fetch("/api/get-data", { method: "GET", credentials: "include" });
           const json = await res.json();
