@@ -40,3 +40,6 @@ steps:
 
 images:
   - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/backend:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
