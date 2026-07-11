@@ -313,7 +313,7 @@ async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
         redis_client.delete(stream_key)
 
     # Trigger Worker or Queue
-    if is_connected:
+    if tier.upper() == "PRO" and is_connected:
         try:
             _trigger_worker(job_id)
         except Exception as e:
