@@ -38,8 +38,35 @@ steps:
       - '--region'
       - 'asia-south1'
 
+  # 5. Build the Auth Server image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/devhire-auth-server:$COMMIT_SHA'
+      - './auth-server'
+
+  # 6. Push the Auth Server image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'push'
+      - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/devhire-auth-server:$COMMIT_SHA'
+
+  # 7. Deploy the Auth Server (Service)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'devhire-auth-server'
+      - '--image'
+      - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/devhire-auth-server:$COMMIT_SHA'
+      - '--region'
+      - 'asia-south1'
+
 images:
   - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/backend:$COMMIT_SHA'
+  - 'asia-south1-docker.pkg.dev/gen-lang-client-0744803501/cloud-run-source-deploy/devhire/devhire-auth-server:$COMMIT_SHA'
 
 options:
   logging: CLOUD_LOGGING_ONLY
