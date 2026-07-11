@@ -18,18 +18,18 @@ async def lifespan(app: FastAPI):
     if redis_client:
         try:
             redis_client.ping()
-            print("🚀 Successfully connected to Redis.")
+            print("Successfully connected to Redis.")
         except Exception as e:
-            print(f"⚠️ Redis connection failed: {e}")
+            print(f"Redis connection failed: {e}")
     else:
-        print("⚠️ No Redis URL provided, running without Redis (SSE won't work).")
+        print("No Redis URL provided, running without Redis (SSE won't work).")
     
     yield
     
     # Shutdown
     if redis_client:
         redis_client.close()
-        print("🛑 Redis connection closed.")
+        print("Redis connection closed.")
 
 app = FastAPI(lifespan=lifespan)
 
