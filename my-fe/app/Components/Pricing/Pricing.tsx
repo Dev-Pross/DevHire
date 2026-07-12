@@ -1,8 +1,11 @@
+"use client";
 import React from "react";
+import { useUser } from "../../utiles/UserContext";
 
 const plans = [
   {
     name: "Starter",
+    tierKey: "FREE",
     price: "FREE",
     period: "",
     description: "Perfect for exploring HireHawk's capabilities",
@@ -18,6 +21,7 @@ const plans = [
   },
   {
     name: "Pro",
+    tierKey: "PRO",
     price: "₹199",
     period: "/month",
     description: "For serious job seekers who want maximum results",
@@ -31,11 +35,14 @@ const plans = [
     ],
     cta: "Upgrade to Pro",
     popular: true,
-    link: "mailto:tejabudumuru3@gmail.com"
+    link: "mailto:tejabudumuru3@gmail.com?subject=Interested%20in%20HireHawk%20Pro%20Plan&body=Hi%2C%0A%0AI%20am%20interested%20in%20upgrading%20to%20the%20HireHawk%20Pro%20Plan.%20Please%20let%20me%20know%20the%20next%20steps.%0A%0AThanks!"
   },
 ];
 
 export const Pricing = () => {
+  const { user, isLoggedIn } = useUser();
+  const currentTier = user?.tier || "";
+
   return (
     <section className="py-24 px-5 lg:px-10 relative overflow-hidden" id="pricing-section">
       {/* Background glow */}
@@ -57,7 +64,10 @@ export const Pricing = () => {
 
         {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto" id="pricing-card">
-          {plans.map((plan) => (
+          {plans.map((plan) => {
+            const isCurrentPlan = isLoggedIn && currentTier === plan.tierKey;
+            
+            return (
             <div
               key={plan.name}
               className={`relative rounded-2xl p-8 transition-all duration-300 ${
@@ -112,18 +122,31 @@ export const Pricing = () => {
                 ))}
               </ul>
 
-              <a
-                href={plan.link}
-                className={`w-full block text-center py-3.5 px-6 rounded-xl font-semibold text-sm transition-all duration-300 cursor-pointer ${
-                  plan.popular
-                    ? "bg-black text-white hover:bg-gray-900 hover:shadow-lg"
-                    : "bg-white/[0.05] border border-white/[0.1] text-white hover:bg-emerald-500 hover:text-black hover:border-emerald-500"
-                }`}
-              >
-                {plan.cta}
-              </a>
+              {isCurrentPlan ? (
+                <button
+                  type="button"
+                  className={`w-full block text-center py-3.5 px-6 rounded-xl font-semibold text-sm transition-all duration-300 ${
+                    plan.popular
+                      ? "bg-black text-white hover:bg-gray-900 hover:shadow-lg"
+                      : "bg-white/[0.05] border border-white/[0.1] text-white hover:bg-emerald-500 hover:text-black hover:border-emerald-500"
+                  }`}
+                >
+                  Current Plan
+                </button>
+              ) : (
+                <a
+                  href={plan.link}
+                  className={`w-full block text-center py-3.5 px-6 rounded-xl font-semibold text-sm transition-all duration-300 cursor-pointer ${
+                    plan.popular
+                      ? "bg-black text-white hover:bg-gray-900 hover:shadow-lg"
+                      : "bg-white/[0.05] border border-white/[0.1] text-white hover:bg-emerald-500 hover:text-black hover:border-emerald-500"
+                  }`}
+                >
+                  {plan.cta}
+                </a>
+              )}
             </div>
-          ))}
+          )})}
         </div>
       </div>
     </section>

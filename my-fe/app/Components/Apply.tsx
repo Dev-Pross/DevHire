@@ -39,11 +39,12 @@ interface LogEntry {
 /* ── Phase badge helper ─────────────────────────────────── */
 function getPhaseFromType(type: string, message: string = ""): string {
   const msg = message.toLowerCase();
-  if (msg.includes("analyzing") || msg.includes("tailor")) return "Analyzing";
-  if (msg.includes("scraping") || msg.includes("apply") || msg.includes("search")) return "Scraping";
+  if (msg.includes("analyzing") || msg.includes("tailor")) return "Tailoring";
+  if (msg.includes("apply") || msg.includes("submitting")) return "Applying";
+  if (msg.includes("connect") || msg.includes("server") || msg.includes("ready")) return "Connecting";
   if (type === "done") return "Completed";
-  if (type === "error") return "Error";
-  return "Initialized";
+  if (type === "error" || type === "failed") return "Failed";
+  return "Initializing";
 }
 
 /* ── Elapsed timer ──────────────────────────────────────── */
@@ -612,7 +613,7 @@ const Apply: React.FC = () => {
         <div className="max-h-44 sm:max-h-52 md:max-h-60 overflow-y-auto px-4 pb-4 sm:px-6 md:px-8 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
           {activityLog.length === 0 && !error && (
             <div className="flex items-center gap-2 py-2 text-xs text-gray-600">
-              <div className="w-3 h-3 rounded-full border border-gray-700 border-t-gray-500 animate-spin" />
+              <div className="w-3 h-3 rounded-full border border-emerald-500/30 border-t-emerald-500 animate-spin" />
               <span>Preparing to start...</span>
             </div>
           )}

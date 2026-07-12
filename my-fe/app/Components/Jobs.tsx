@@ -684,20 +684,22 @@ const Jobs = () => {
           <JobCards jobs={sampleJobs as any} />
         ) : queuePosition !== null ? (
           <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="surface-card p-8 border border-blue-500/30 bg-blue-500/[0.03] text-center max-w-md w-full shadow-2xl rounded-2xl">
-              <div className="w-16 h-16 rounded-full border-4 border-blue-500/30 border-t-blue-500 animate-spin mx-auto mb-6"></div>
+            <div className="surface-card p-8 border border-emerald-500/30 bg-emerald-500/[0.03] text-center max-w-md w-full shadow-2xl rounded-2xl">
+              <div className="w-16 h-16 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 animate-spin mx-auto mb-6"></div>
               <h2 className="text-xl font-bold text-white mb-2">Priority Desk</h2>
-              <p className="text-blue-300 font-medium mb-4">
+              <p className="text-emerald-300 font-medium mb-4">
                 Estimated Wait: <span className="text-white">{estimatedWait}</span>
               </p>
-              <div className="bg-[#1A1A1A] p-5 rounded-xl border border-white/[0.08] mt-6 shadow-inner">
-                <button
-                  onClick={() => router.push("/#pricing")}
-                  className="w-full px-4 py-3.5 bg-white/[0.04] border border-white/[0.1] text-gray-200 font-bold rounded-xl shadow-lg hover:bg-white/[0.08] backdrop-blur-md transition-all cursor-pointer hover:shadow-white/[0.05]"
-                >
-                  Skip the wait with Pro
-                </button>
-              </div>
+              {user?.tier !== "PRO" && (
+                <div className="bg-[#1A1A1A] p-5 rounded-xl border border-white/[0.08] mt-6 shadow-inner">
+                  <button
+                    onClick={() => { window.location.href = "mailto:tejabudumuru3@gmail.com?subject=Interested%20in%20HireHawk%20Pro%20Plan&body=Hi%2C%0A%0AI%20am%20interested%20in%20upgrading%20to%20the%20HireHawk%20Pro%20Plan.%20Please%20let%20me%20know%20the%20next%20steps.%0A%0AThanks!"; }}
+                    className="w-full px-4 py-3.5 bg-white/[0.04] border border-white/[0.1] text-gray-200 font-bold rounded-xl shadow-lg hover:bg-white/[0.08] backdrop-blur-md transition-all cursor-pointer hover:shadow-white/[0.05]"
+                  >
+                    Skip the wait with Pro
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ) : error ? (

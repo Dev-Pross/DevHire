@@ -1606,7 +1606,7 @@ async def main(
 
     if not browser:
         if log_callback:
-            log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
+            log_callback({"progress": 6, "status": "processing", "message": "Connecting to server..."})
         pw = await async_playwright().start()
         launch_kwargs = {
             "headless": True,
@@ -1641,7 +1641,7 @@ async def main(
 
     try:
         if log_callback:
-            log_callback({"progress": 8, "status": "processing", "message": "LinkedIn session ready"})
+            log_callback({"progress": 8, "status": "processing", "message": "Server connected"})
 
         # ── Diagnostic: baseline cookie check after login ──
         try:
@@ -1785,7 +1785,7 @@ if __name__ == "__main__":
 
 async def setup_and_login(progress_user, user_id, password, log_callback=None):
     if log_callback:
-        log_callback({"progress": 6, "status": "processing", "message": "Connecting to LinkedIn..."})
+        log_callback({"progress": 6, "status": "processing", "message": "Connecting to server..."})
     pw = await async_playwright().start()
     launch_kwargs = {
         "headless": True,
