@@ -326,9 +326,9 @@ const Apply: React.FC = () => {
             setPassword(creds.password);
             setCredentialsReady(true);
           } else {
-            toast.error("LinkedIn connection is required. Please connect your account in your profile.", { id: "linkedin-missing" });
+            toast.error("Please connect to Connector");
             setIsDone(true);
-            setError("LinkedIn connection required");
+            setError("Please connect to Connector");
           }
         } catch (e: any) {
           toast.error("Error fetching credentials: " + e.message);
@@ -680,11 +680,7 @@ const Apply: React.FC = () => {
               </div>
             ))}
           </div>
-          <a href="https://www.linkedin.com/my-items/saved-jobs/?cardType=APPLIED" target="_blank" className="block text-center">
-            <div className="surface-card p-5 sm:p-6 hover:border-emerald-500/30 transition-all">
-              <p className="text-emerald-400 text-base sm:text-lg font-semibold">Track your applications →</p>
-            </div>
-          </a>
+
         </div>
       )}
 

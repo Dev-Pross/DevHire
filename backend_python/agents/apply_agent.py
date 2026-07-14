@@ -1354,7 +1354,7 @@ def normalize_company_name(company_name: str | None) -> str:
 
 async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     try:
-        log.info("🌐 Checking LinkedIn login status...")
+        log.info("🌐 Checking session login status...")
         await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=20000)
         await asyncio.sleep(10)
     except Exception as e:
@@ -1366,7 +1366,7 @@ async def login(page: Page, user_id: str|None, password: str| None) -> bool:
 
     log.info("🔐 Logging in using provided payload credentials...")
     if not user_id or not password:
-        log.error("❌ MISSING CREDENTIALS: No saved session found and no LinkedIn credentials provided in payload.")
+        log.error("❌ MISSING CREDENTIALS: No saved session found and no credentials provided in payload.")
         return False
         
     if "login" not in page.url:
@@ -1400,7 +1400,7 @@ async def safe_goto(page: Page, url: str, retries: int = 3) -> bool:
         log.info(f"🍪 PRE-NAV cookie check: li_at={'YES' if li_at else '⚠️ MISSING'}, JSESSIONID={'YES' if jsession else '⚠️ MISSING'}, total={len(cookies)}")
         if not li_at:
             log.error("❌ li_at cookie is MISSING before navigation - session was lost!")
-            raise Exception("LinkedIn session connection lost (cookie missing).")
+            raise Exception("Session connection lost (cookie missing).")
     except Exception as diag_e:
         if "session connection lost" in str(diag_e):
             raise diag_e
@@ -1416,7 +1416,7 @@ async def safe_goto(page: Page, url: str, retries: int = 3) -> bool:
             current_url = page.url
             if "/login" in current_url or "signup" in current_url:
                 log.error(f"❌ POST-NAV: redirected to login page! URL={current_url}")
-                raise Exception("LinkedIn session connection lost (redirected to login).")
+                raise Exception("Session connection lost (redirected to login).")
             
             return True
         except Exception as e:
@@ -1637,7 +1637,7 @@ async def main(
         await Stealth().apply_stealth_async(page)
 
         if not await login(page, user_id, password):
-            raise Exception("LinkedIn login failed or credentials missing.")
+            raise Exception("Session login failed or credentials missing.")
 
     try:
         if log_callback:
@@ -1655,7 +1655,7 @@ async def main(
             state = await context.storage_state()
             save_linkedin_context(progress_user, dict(state))
         except Exception as e:
-            log.warning(f"Could not persist LinkedIn storage state: {e}")
+            log.warning(f"Could not persist session storage state: {e}")
 
         agent = EasyApplyAgent(page)
         applied = []
@@ -1810,7 +1810,7 @@ async def setup_and_login(progress_user, user_id, password, log_callback=None):
         await Stealth().apply_stealth_async(page)
         
         if not await login(page, user_id, password):
-            raise Exception("LinkedIn login failed or credentials missing.")
+            raise Exception("Session login failed or credentials missing.")
             
         return pw, browser, context, page
     except Exception as e:
@@ -1857,7 +1857,7 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     # Pre-check credentials early to fail fast and save Gemini calls
     db_context = get_linkedin_context(email)
     if not db_context and (not l_email or not l_pass):
-        raise Exception("MISSING CREDENTIALS: No saved session found and no LinkedIn credentials provided in payload.")
+        raise Exception("MISSING CREDENTIALS: No saved session found and no credentials provided in payload.")
 
     if not jobs_to_apply:
         raise Exception("No jobs provided to apply to")
@@ -2091,10 +2091,10 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
         except:
             pass
 
-        # Clear the LinkedIn session from PostgreSQL since it is invalid/expired
+        # Clear the session from PostgreSQL since it is invalid/expired
         try:
             clear_linkedin_context(email)
-            log.info(f"🧹 Successfully cleared invalid LinkedIn session for {email}")
+            log.info(f"🧹 Successfully cleared invalid session for {email}")
         except Exception as clear_err:
             print(f"Failed to clear linkedin context: {clear_err}")
 

@@ -71,27 +71,27 @@ export default function LinkedinUserDetailsPage() {
         <form className="space-y-4">
           <div>
             <label className="block mb-2 text-sm font-medium text-gray-400">
-              LinkedIn Username:
+              Account Username:
             </label>
             <input
               className="input-dark"
               id="username"
               type="text"
-              placeholder="Enter your LinkedIn username"
+              placeholder="Enter your account username"
               value={data.username}
               onChange={(e) => setData({ ...data, username: e.target.value })}
             />
           </div>
           <div>
             <label className="block mb-2 text-sm font-medium text-gray-400">
-              LinkedIn Password:
+              Account Password:
             </label>
             <div className="relative">
               <input
                 className="input-dark pr-12"
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Enter your LinkedIn password"
+                placeholder="Enter your account password"
                 value={data.password}
                 onChange={(e) => setData({ ...data, password: e.target.value })}
               />

@@ -241,9 +241,9 @@ const Jobs = () => {
           setPassword(creds.password);
           setCredentialsReady(true);
         } else {
-          toast.error("LinkedIn connection is required. Please connect your account in your profile.", { id: "linkedin-missing" });
+          toast.error("Please connect to Connector");
           setIsDone(true);
-          setError("LinkedIn connection required");
+          setError("Please connect");
         }
       } catch (e: any) {
         toast.error("Error fetching credentials: " + e.message);
@@ -797,8 +797,8 @@ const Jobs = () => {
                         key={t}
                         onClick={() => toggleJobType(t)}
                         className={`text-xs px-3 py-1.5 rounded-full border transition ${jobTypeFilter.includes(t)
-                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                            : "border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/[0.04]"
+                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                          : "border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/[0.04]"
                           }`}
                       >
                         {t}

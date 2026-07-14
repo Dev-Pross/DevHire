@@ -1026,7 +1026,7 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
                         "location": raw_payload.get("location", ""),
                         "posted_at": raw_payload.get("posted_at", ""),
                         "job_type": raw_payload.get("job_type", ""),
-                        "source": "linkedin",
+                        "source": "web",
                     }
                     processed_count += 1
                 else:
@@ -1158,7 +1158,7 @@ def normalize_raw_job_payload(url: str, raw_payload) -> dict:
         "posted_at": "",
         "job_type": "",
         "job_description": "",
-        "source": "linkedin",
+        "source": "web",
     }
 
     if isinstance(raw_payload, str):
@@ -1195,7 +1195,7 @@ def merge_gemini_with_raw(raw_job: dict, llm_job) -> dict:
         "job_url": raw_job.get("job_url"),
         "posted_at": raw_job.get("posted_at") if has_meaningful_value(raw_job.get("posted_at")) else normalize_text(llm_job.get("posted_at")) or "Not specified",
         "job_description": raw_job.get("job_description") or "Description not available",
-        "source": "linkedin",
+        "source": "web",
         "relevance_score": normalize_text(llm_job.get("relevance_score")) or "unknown",
         "job_type": raw_job.get("job_type") if has_meaningful_value(raw_job.get("job_type")) else normalize_text(llm_job.get("job_type")) or "",
     }
@@ -1230,7 +1230,7 @@ Example:
     "job_url": "https://linkedin.com/jobs/view/123456",
     "posted_at": "2 days ago",
     "job_description": "...",
-    "source": "linkedin",
+    "source": "web",
     "relevance_score": "98%" | null
   },
   ...
