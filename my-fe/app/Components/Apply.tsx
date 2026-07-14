@@ -79,9 +79,9 @@ const DotIcon = () => (
 const LogItem = ({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) => {
   const icon = entry.type === "applied" ? <CheckIcon />
     : entry.type === "skipped" ? <SkipIcon />
-    : entry.type === "error" ? <SkipIcon />
-    : isLatest ? <SpinnerIcon />
-    : <DotIcon />;
+      : entry.type === "error" ? <SkipIcon />
+        : isLatest ? <SpinnerIcon />
+          : <DotIcon />;
 
   return (
     <div
@@ -98,44 +98,44 @@ const LogItem = ({ entry, isLatest }: { entry: LogEntry; isLatest: boolean }) =>
 
 
 const Apply: React.FC = () => {
-  const router     = useRouter();
+  const router = useRouter();
   const { user: globalUser, loading: userLoading, refreshUser } = useUser();
   const hasStarted = useRef(false);
-  const abortRef   = useRef<AbortController | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const [activityLog, setActivityLog]       = useState<LogEntry[]>([]);
-  const [progress, setProgress]             = useState(0);
-  const [phase, setPhase]                   = useState("Preparing");
-  const [results, setResults]               = useState<any>(null);
-  const [error, setError]                   = useState<string | null>(null);
-  const [url, setUrl]                       = useState("");
-  const [userId, setUserId]                 = useState("");
-  const [password, setPassword]             = useState("");
-  const [user, setUser]                     = useState<string | null>(null);
+  const [activityLog, setActivityLog] = useState<LogEntry[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [phase, setPhase] = useState("Preparing");
+  const [results, setResults] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [url, setUrl] = useState("");
+  const [userId, setUserId] = useState("");
+  const [password, setPassword] = useState("");
+  const [user, setUser] = useState<string | null>(null);
   const [Progress_userId, setProgress_UserId] = useState("");
-  const [jobs, setJobs]                     = useState<JobsData[]>([]);
-  const [dbData, setDbData]                 = useState<any>(null);
+  const [jobs, setJobs] = useState<JobsData[]>([]);
+  const [dbData, setDbData] = useState<any>(null);
   const [credentialsReady, setCredentialsReady] = useState(false);
-  const [elapsed, setElapsed]               = useState(0);
-  const [isDone, setIsDone]                 = useState(false);
-  const [retryCount, setRetryCount]         = useState(0);
-  const [appliedCount, setAppliedCount]     = useState(0);
-  const [skippedCount, setSkippedCount]     = useState(0);
-  const [totalJobs, setTotalJobs]           = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [isDone, setIsDone] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [appliedCount, setAppliedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
+  const [totalJobs, setTotalJobs] = useState(0);
   const [recoveredJobId, setRecoveredJobId] = useState<string | null>(null);
-  const [showPopup, setShowPopup]           = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
 
-  const logEndRef   = useRef<HTMLDivElement>(null);
-  const startTime   = useRef(Date.now());
-  const sseRef      = useRef<SSEManager | null>(null);
+  const logEndRef = useRef<HTMLDivElement>(null);
+  const startTime = useRef(Date.now());
+  const sseRef = useRef<SSEManager | null>(null);
 
 
   const ENC_KEY = "qwertyuioplkjhgfdsazxcvbnm987456";
-  const IV      = "741852963qwerty0";
+  const IV = "741852963qwerty0";
 
   function decryptData(ciphertext: string, keyStr: string, ivStr: string) {
     const key = CryptoJS.enc.Utf8.parse(keyStr);
-    const iv  = CryptoJS.enc.Utf8.parse(ivStr);
+    const iv = CryptoJS.enc.Utf8.parse(ivStr);
     return CryptoJS.AES.decrypt(ciphertext, key, {
       iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7,
     }).toString(CryptoJS.enc.Utf8);
@@ -179,10 +179,10 @@ const Apply: React.FC = () => {
       }
 
       // Read from user context instead of sessionStorage to avoid race conditions
-      const pdf     = globalUser.resume_url;
+      const pdf = globalUser.resume_url;
       const context = globalUser.linkedin_context;
       const jobData = sessionStorage.getItem("jobs");
-      const id      = globalUser.id;
+      const id = globalUser.id;
 
       if (!pdf) {
         toast.error("Resume not found. Please upload your resume", { id: "resume-missing" });
@@ -241,7 +241,7 @@ const Apply: React.FC = () => {
                     setAppliedCount(appliedUrls.length);
                     setSkippedCount(failedUrls.length);
                     setTotalJobs(authoritativeTotal);
-                    await seedApplyProgressFromServer(appliedUrls, failedUrls, authoritativeTotal).catch(() => {});
+                    await seedApplyProgressFromServer(appliedUrls, failedUrls, authoritativeTotal).catch(() => { });
 
                     pushLog("Reconnecting to active job...", "processing");
                   }
@@ -299,7 +299,7 @@ const Apply: React.FC = () => {
 
       // If we have new job selections (not reconnecting), clear any old cached results
       if (!isReconnecting) {
-        await clearApplyResults().catch(() => {});
+        await clearApplyResults().catch(() => { });
         setJobs(JSON.parse(jobData!));
       }
 
@@ -318,7 +318,7 @@ const Apply: React.FC = () => {
           return;
         }
         try {
-          const res  = await fetch("/api/get-data", { method: "GET", credentials: "include" });
+          const res = await fetch("/api/get-data", { method: "GET", credentials: "include" });
           const json = await res.json();
           if (json.encryptedData) {
             const creds = JSON.parse(decryptData(json.encryptedData, ENC_KEY, IV));
@@ -361,7 +361,7 @@ const Apply: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     async function getAppliedJobs() {
-      const res     = await fetch(`/api/User?id=${user}`, { method: "GET", credentials: "include" });
+      const res = await fetch(`/api/User?id=${user}`, { method: "GET", credentials: "include" });
       const my_data = await res.json();
       setDbData(my_data?.user?.applied_jobs ?? []);
     }
@@ -387,36 +387,36 @@ const Apply: React.FC = () => {
         // On a fresh start the selection IS the total; on reconnect the authoritative
         // server total was already set in Effect 1, so don't clobber it.
         setTotalJobs((t) => t || jobs.length);
-        
+
         let activeJobId = recoveredJobId;
         const isFreshStart = !activeJobId;
 
         if (!activeJobId) {
-            await initApplyProgress(jobs.length);
-            pushLog("Initiating job container...", "processing");
-            const res = await fetch(`${API_URL}/api/jobs/start`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_id: Progress_userId,
-                    workflow_type: 'apply_jobs',
-                    input_data: {
-                        user_id: Progress_userId,
-                        resume_url: url,
-                        jobs: jobs,
-                        ...(userId && { linkedin_id: userId }),
-                        ...(password && { linkedin_password: password })
-                    }
-                })
-            });
+          await initApplyProgress(jobs.length);
+          pushLog("Initiating job container...", "processing");
+          const res = await fetch(`${API_URL}/api/jobs/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: Progress_userId,
+              workflow_type: 'apply_jobs',
+              input_data: {
+                user_id: Progress_userId,
+                resume_url: url,
+                jobs: jobs,
+                ...(userId && { linkedin_id: userId }),
+                ...(password && { linkedin_password: password })
+              }
+            })
+          });
 
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.detail || "Failed to start application process");
-            }
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.detail || "Failed to start application process");
+          }
 
-            const data = await res.json();
-            activeJobId = data.job_id;
+          const data = await res.json();
+          activeJobId = data.job_id;
         }
 
         if (!activeJobId) throw new Error("Did not receive a valid job ID from server");
@@ -522,7 +522,7 @@ const Apply: React.FC = () => {
             await finalizeApplyProgress();
             // Refresh User.applied_jobs in context so the job list (and its
             // already-applied filter) reflects this run when the user returns to /Jobs.
-            refreshUser().catch(() => {});
+            refreshUser().catch(() => { });
             setProgress(100);
             setIsDone(true);
           }
@@ -551,13 +551,13 @@ const Apply: React.FC = () => {
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden flex flex-col">
-      <UpgradePopup 
-        isOpen={showPopup} 
+      <UpgradePopup
+        isOpen={showPopup}
         onClose={() => {
           setShowPopup(false);
           router.push("/Jobs");
-        }} 
-        message="Smart Apply is a Pro feature. Upgrade to automatically apply to jobs with AI!" 
+        }}
+        message="Smart Apply is a Pro feature. Upgrade to automatically apply to jobs with AI!"
       />
       {/* ─── Activity Feed Panel ──────────────────────────────── */}
       <div className="shrink-0 w-full bg-[#111] border-b border-white/[0.06] cursor-default">
@@ -592,9 +592,8 @@ const Apply: React.FC = () => {
           {/* Progress bar */}
           <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-700 ease-out ${
-                error ? "bg-red-500" : isDone ? "bg-emerald-500" : "bg-emerald-500/80"
-              }`}
+              className={`h-full rounded-full transition-all duration-700 ease-out ${error ? "bg-red-500" : isDone ? "bg-emerald-500" : "bg-emerald-500/80"
+                }`}
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
           </div>
@@ -671,9 +670,9 @@ const Apply: React.FC = () => {
         <div className="p-6 sm:p-8 lg:p-16">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {[
-              { label: "Total Jobs",  value: results.total_jobs || totalJobs || jobs.length,               color: "text-white"       },
-              { label: "Successful",  value: (results.applied  ?? []).flat(Infinity).length, color: "text-emerald-400" },
-              { label: "Skipped",     value: (results.failed   ?? []).flat(Infinity).length, color: "text-amber-400"  },
+              { label: "Total Jobs", value: results.total_jobs || totalJobs || jobs.length, color: "text-white" },
+              { label: "Successful", value: (results.applied ?? []).flat(Infinity).length, color: "text-emerald-400" },
+              { label: "Skipped", value: (results.failed ?? []).flat(Infinity).length, color: "text-amber-400" },
             ].map((stat) => (
               <div key={stat.label} className="surface-card p-5 sm:p-6 text-center">
                 <p className="text-sm text-gray-400 mb-1">{stat.label}</p>
@@ -683,7 +682,7 @@ const Apply: React.FC = () => {
           </div>
           <a href="https://www.linkedin.com/my-items/saved-jobs/?cardType=APPLIED" target="_blank" className="block text-center">
             <div className="surface-card p-5 sm:p-6 hover:border-emerald-500/30 transition-all">
-              <p className="text-emerald-400 text-base sm:text-lg font-semibold">Track your applications on LinkedIn →</p>
+              <p className="text-emerald-400 text-base sm:text-lg font-semibold">Track your applications →</p>
             </div>
           </a>
         </div>
