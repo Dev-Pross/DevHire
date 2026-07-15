@@ -11,7 +11,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/001",
     posted_at: "2 hours ago",
     job_description: "Build scalable frontend applications using React and TypeScript.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "95%",
   },
   {
@@ -39,7 +39,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/003",
     posted_at: "1 day ago",
     job_description: "Design and build distributed backend systems at scale.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "88%",
   },
   {
@@ -67,7 +67,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/005",
     posted_at: "6 hours ago",
     job_description: "Research and deploy state-of-the-art ML models.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "78%",
   },
   {
@@ -109,7 +109,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/008",
     posted_at: "2 days ago",
     job_description: "Build and maintain data pipelines for analytics.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "87%",
   },
   {
@@ -151,7 +151,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/011",
     posted_at: "8 hours ago",
     job_description: "Lead technical architecture for payment infrastructure.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "93%",
   },
   {
@@ -193,7 +193,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/014",
     posted_at: "1 hour ago",
     job_description: "Build the future of frontend development tools.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "96%",
   },
   {
@@ -221,7 +221,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/016",
     posted_at: "10 hours ago",
     job_description: "Build and scale the observability platform.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "81%",
   },
   {
@@ -249,7 +249,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/018",
     posted_at: "4 days ago",
     job_description: "Conduct cutting-edge AI research to solve hard problems.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "65%",
   },
   {
@@ -291,7 +291,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/021",
     posted_at: "9 hours ago",
     job_description: "Build high-performance edge computing systems in Rust.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "77%",
   },
   {
@@ -333,7 +333,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/024",
     posted_at: "6 hours ago",
     job_description: "Develop firmware and drivers for GPU hardware.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "71%",
   },
   {
@@ -361,7 +361,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/026",
     posted_at: "14 hours ago",
     job_description: "Lead a team of engineers building commerce solutions.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "86%",
   },
   {
@@ -375,7 +375,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/027",
     posted_at: "1 day ago",
     job_description: "Develop perception systems for autonomous vehicles.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "73%",
   },
   {
@@ -417,7 +417,7 @@ export const sampleJobs = [
     job_url: "https://example.com/job/030",
     posted_at: "3 hours ago",
     job_description: "Define technical vision and architecture for Creative Cloud.",
-    source: "LinkedIn",
+    source: "web",
     relevance_score: "91%",
   },
 ];

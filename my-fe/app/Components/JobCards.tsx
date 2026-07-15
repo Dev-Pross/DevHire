@@ -96,10 +96,10 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
 
   return (
     <>
-      <UpgradePopup 
-        isOpen={showPopup} 
-        onClose={() => setShowPopup(false)} 
-        message="Smart Apply is a Pro feature. Upgrade to automatically apply to jobs with AI!" 
+      <UpgradePopup
+        isOpen={showPopup}
+        onClose={() => setShowPopup(false)}
+        message="Smart Apply is a Pro feature. Upgrade to automatically apply to jobs with AI!"
       />
 
       {/* ─── Sticky Toolbar ─── */}
@@ -161,11 +161,10 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
 
       {/* ─── Job Cards Grid ─── */}
       <motion.div
-        className={`grid gap-5 ${
-          layout === "grid"
+        className={`grid gap-5 ${layout === "grid"
             ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
             : "grid-cols-1 md:grid-cols-2"
-        }`}
+          }`}
         variants={containerVariants}
         initial="hidden"
         animate="show"
@@ -182,23 +181,21 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
               key={job.job_id}
               variants={cardVariants}
               className={`group relative overflow-hidden rounded-2xl border cursor-pointer flex flex-col transition-all duration-300
-                ${
-                  selected
-                    ? "border-emerald-500/40 bg-emerald-500/[0.03] shadow-[0_0_30px_-8px_rgba(16,185,129,0.12)]"
-                    : "border-white/[0.06] bg-[#111]/80 hover:border-emerald-500/20 hover:shadow-[0_0_40px_-12px_rgba(16,185,129,0.06)]"
+                ${selected
+                  ? "border-emerald-500/40 bg-emerald-500/[0.03] shadow-[0_0_30px_-8px_rgba(16,185,129,0.12)]"
+                  : "border-white/[0.06] bg-[#111]/80 hover:border-emerald-500/20 hover:shadow-[0_0_40px_-12px_rgba(16,185,129,0.06)]"
                 }`}
               onClick={(e) => cardHandler(e, { job_id: job.job_id, job_url: job.job_url, job_description: job.job_description, company_name: job.company_name })}
             >
-              <input type="checkbox" name="job_selector" className="sr-only" checked={selected} onChange={() => {}} />
+              <input type="checkbox" name="job_selector" className="sr-only" checked={selected} onChange={() => { }} />
 
               {/* ── Selection Checkbox (top-right) ── */}
               <div className="absolute top-4 right-4 z-10">
                 <div
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-                    selected
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${selected
                       ? "bg-emerald-500 border-emerald-500 scale-110"
                       : "border-white/[0.15] bg-transparent group-hover:border-white/[0.3]"
-                  }`}
+                    }`}
                 >
                   {selected && (
                     <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -292,17 +289,15 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
                       <>
                         <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden max-w-[80px]">
                           <motion.div
-                            className={`h-full rounded-full ${
-                              score >= 80 ? "bg-emerald-400" : score >= 60 ? "bg-yellow-400" : "bg-orange-400"
-                            }`}
+                            className={`h-full rounded-full ${score >= 80 ? "bg-emerald-400" : score >= 60 ? "bg-yellow-400" : "bg-orange-400"
+                              }`}
                             initial={{ width: 0 }}
                             animate={{ width: `${score}%` }}
                             transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
                           />
                         </div>
-                        <span className={`text-xs font-semibold tabular-nums ${
-                          score >= 80 ? "text-emerald-400" : score >= 60 ? "text-yellow-400" : "text-orange-400"
-                        }`}>
+                        <span className={`text-xs font-semibold tabular-nums ${score >= 80 ? "text-emerald-400" : score >= 60 ? "text-yellow-400" : "text-orange-400"
+                          }`}>
                           {scoreLabel}
                         </span>
                       </>
@@ -312,13 +307,6 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
                       </span>
                     )}
                   </div>
-                )}
-
-                {/* Source badge */}
-                {job.source && (
-                  <span className="text-[10px] uppercase tracking-wider text-gray-600 font-medium px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.04] shrink-0">
-                    {job.source}
-                  </span>
                 )}
               </div>
             </motion.label>
