@@ -24,6 +24,8 @@ interface LogEntry {
 /* ── Phase label from status ─────────────────────────────── */
 function getPhaseLabel(type: string, message: string = ""): string {
   const msg = message.toLowerCase();
+  if (msg.includes("retrying") || type === "retrying") return "Retrying";
+  if (msg.includes("parsing")) return "Parsing";
   if (msg.includes("analyzing") || msg.includes("extracting") || type === "batch_ready") return "Analyzing";
   if (msg.includes("scraping") || msg.includes("searching") || type === "in_progress") return "Scraping";
   if (type === "done") return "Completed";

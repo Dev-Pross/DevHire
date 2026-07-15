@@ -264,9 +264,9 @@ SYNTHESIZE_INSTRUCTIONS = r"""
        - starts with a strong action verb; one line, ~10-15 words;
        - states only what the facts support — surface a metric only if the fact carries one.
        Tailor emphasis and ordering to each JD: the same facts should yield visibly different bullets for a backend JD vs a data JD.
-    6. ALL ENTRIES (sourcing, not rendering): Rank EVERY experience entry and EVERY project entry by relevance to this JD and include them in that order — never silently drop an entry. If `experience` facts is empty, output `experience: []`. Bullet counts follow the one-page budget in rule 8.
+    6. ALL ENTRIES (sourcing, not rendering): Rank EVERY experience entry and EVERY project entry by relevance to this JD. You MUST include ALL projects and ALL experience entries. NEVER drop an entire project or experience block. If `experience` facts is empty, output `experience: []`.
     7. SUMMARY: Write `professional_summary` for each JD from the facts to foreground the strengths that match that JD's core requirements. Max 430 characters, 2-3 sentences, metric-driven and punchy.
-    8. ONE-PAGE BUDGET: The resume MUST fit a single page. Use 2-3 bullets per entry, but across ALL experience + project entries combined do NOT exceed ~10 bullets total. Prioritize experience bullets, then fill projects in relevance order until the budget is reached. When space is tight, drop the least-relevant PROJECT bullets — never fabricate, and never drop experience.
+    8. ATS KEYWORD MAXIMIZATION & ONE-PAGE FITTING: The resume MUST fit a single page. Use 2-4 bullets per entry. To maximize ATS match rates, you must pack these bullets with as many relevant keywords from the JD as naturally possible. Prioritize experience bullets, then project bullets. Do NOT impose a hard total bullet cap. If space constraints are severe, reduce the NUMBER of bullets per project, but NEVER drop the last project entirely.
 
     --- SKILLS / ACHIEVEMENTS ---
 
@@ -540,6 +540,13 @@ def _trim_one(tj) -> bool:
     projects = getattr(tj, "projects", None) or []
     if not projects:
         return False
+        
+    # Guarantee the last project is never completely dropped
+    if len(projects) == 1:
+        points = getattr(projects[0], "points", None) or []
+        if len(points) <= 1:
+            return False
+
     last = projects[-1]
     points = getattr(last, "points", None) or []
     if len(points) > 1:
@@ -549,7 +556,7 @@ def _trim_one(tj) -> bool:
     return True
 
 
-def render_one_page(static_profile, tj, template: int = 0, max_trims: int = 6) -> bytes | None:
+def render_one_page(static_profile, tj, template: int = 0, max_trims: int = 4) -> bytes | None:
     """Render -> compile -> guarantee a SINGLE page.
 
     If the compiled PDF spans more than one page, trim the least-relevant project

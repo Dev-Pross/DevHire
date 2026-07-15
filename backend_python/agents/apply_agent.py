@@ -9,7 +9,7 @@ LinkedIn Easy-Apply AUTO-APPLIER - ENHANCED VERSION
 """
 
 import asyncio, json, logging, base64, mimetypes, re, os
-import asyncio, json, logging, base64, mimetypes, re, os, random
+import asyncio, json, logging, base64, mimetypes, re, os, random, math
 from pathlib import Path
 import fitz
 from playwright.async_api import (
@@ -66,10 +66,10 @@ MY_FULL_LOCATION = f"{MY_CURRENT_CITY}, {MY_CURRENT_COUNTRY}"
 # Known technologies database
 KNOWN_TECHNOLOGIES = [
     # Programming Languages
-    "java", "python", "javascript", "js", "typescript"
+    "java", "python", "javascript", "js", "typescript",
     # Web Technologies (MERN Stack)
     "mongodb", "mongo", "express", "expressjs", "react", "reactjs",
-    "node", "nodejs", "html", "css", "bootstrap", "json", "xml", "next.js", "next"
+    "node", "nodejs", "html", "css", "bootstrap", "json", "xml", "next.js", "next",
     # Frameworks & Libraries
     "spring", "spring boot", "ajax",
     "rest", "restful", "api",
@@ -104,14 +104,18 @@ class EasyApplyAgent:
         ".artdeco-modal.jobs-easy-apply-modal button.artdeco-button--primary:not([disabled])"
     )
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page, user_id: str = None, user_profile: dict = None):
         self.page = page
+        self.user_id = user_id
+        self.user_profile = user_profile or {}
         self.collected_questions: list[dict] = []
         self._resume_uploaded = False
         self._country_not_in_list = False
         self._country_picked = False
         self._phone_filled = False
         self._location_filled = False
+        self._field_attempts = {}
+        self._scouted_unknowns = []
         self.active_modal_sel = ".artdeco-modal"
 
     # ───────────────────────────────────────────────────────
@@ -131,6 +135,52 @@ class EasyApplyAgent:
                     break
         except Exception as esc_e:
             log.debug(f"Smart Escape key press failed: {esc_e}")
+
+        # Check if job is no longer accepting applications
+        try:
+            not_accepting = await self.page.locator('text="No longer accepting applications"').count()
+            if not_accepting > 0:
+                log.warning("⚠️ Job is no longer accepting applications.")
+                raise Exception("NO_LONGER_ACCEPTING")
+        except Exception as e:
+            if str(e) == "NO_LONGER_ACCEPTING":
+                raise e
+            log.debug(f"Error checking for not accepting status: {e}")
+
+        # Check if already applied (using class-free, regex-based text matching to prevent LinkedIn selector breakage)
+        try:
+            import re
+            # Regex patterns for already applied status texts (e.g. "Applied", "Applied 3 days ago", "Application submitted")
+            # This strictly excludes job titles like "Applied Scientist" or "Applied Mathematics"
+            applied_pattern = re.compile(
+                r'^(applied|application submitted)(\s+on\s+.*|\s+yesterday|\s+\d+\s+(day|week|month|year|hour|minute)s?\s+ago)?$',
+                re.IGNORECASE
+            )
+            
+            # Find all text elements on the page that start with "applied" or "application" (case-insensitive)
+            # using Playwright's text selectors which match any element
+            has_applied = False
+            for text_query in ["Applied status", "Application submitted"]:
+                loc = self.page.locator(f'text="{text_query}"')
+                count = await loc.count()
+                for i in range(count):
+                    el = loc.nth(i)
+                    if await el.is_visible():
+                        txt = (await el.text_content() or "").strip()
+                        # Verify the text matches our strict pattern and is short
+                        if len(txt) < 50 and applied_pattern.match(txt):
+                            log.info(f"✅ Already applied to this job in the past. Found text: '{txt}'")
+                            has_applied = True
+                            break
+                if has_applied:
+                    break
+            
+            if has_applied:
+                raise Exception("ALREADY_APPLIED")
+        except Exception as e:
+            if str(e) == "ALREADY_APPLIED":
+                raise e
+            log.debug(f"Error checking for already applied status: {e}")
 
         selectors = [
             'button[aria-label*="Easy Apply"]',
@@ -276,31 +326,11 @@ class EasyApplyAgent:
                                         continue # Go to next attempt
                                         
                                     # 3. Is it the actual Application Modal?
-                                    # Evidence: Header contains "apply to" or it has application steps/buttons
-                                    is_app_modal = False
-                                    if "apply to " in dlg_text or "apply for " in dlg_text:
-                                        is_app_modal = True
-                                    elif any(x in dlg_text for x in ["contact info", "additional questions", "home address", "work authorization", "voluntarily provide", "review your application"]):
-                                        is_app_modal = True
-                                    else:
-                                        # Check buttons for evidence
-                                        try:
-                                            btns = await current_modal.locator('button').all()
-                                            for b in btns:
-                                                if await b.is_visible():
-                                                    b_text = (await b.text_content() or "").strip().lower()
-                                                    if b_text in ["next", "review", "submit application"]:
-                                                        is_app_modal = True
-                                                        break
-                                        except:
-                                            pass
-                                                    
-                                    if is_app_modal:
-                                        log.info("✅ Verified Application Modal via text evidence!")
-                                        app_modal_found = True
-                                        break
-                                    else:
-                                        log.warning("⚠️ Unrecognized modal. Waiting to see if it changes...")
+                                    # We default to True as long as it's not a safety reminder or intermediate resume dialog,
+                                    # ensuring high resilience against dynamic copy updates on LinkedIn.
+                                    log.info("✅ Verified Application Modal (assumed valid as not a safety/resume intermediate dialog)")
+                                    app_modal_found = True
+                                    break
                                 
                                 await asyncio.sleep(2)
                                 
@@ -466,7 +496,7 @@ class EasyApplyAgent:
 # ───────────────────────────────────────────────────────
     async def _force_upload_resume(self, payload: FilePayload):
         """More aggressive resume upload - tries everything on every step"""
-        if self._resume_uploaded:
+        if getattr(self, '_resume_uploaded', False):
             return
 
         log.info("🔍 Searching for resume upload...")
@@ -478,7 +508,6 @@ class EasyApplyAgent:
 
             for fi in all_file_inputs:
                 try:
-                    # Check if it's visible or can be made visible
                     is_visible = await fi.is_visible()
                     input_id = await fi.get_attribute("id") or ""
                     input_name = await fi.get_attribute("name") or ""
@@ -491,10 +520,20 @@ class EasyApplyAgent:
                         continue
 
                     # Try to upload regardless of visibility
-                    await fi.set_input_files(payload, timeout=3000)
-                    log.info("📎 ✅ Resume uploaded successfully!")
-                    self._resume_uploaded = True
-                    return
+                    for upload_attempt in range(2):
+                        try:
+                            await fi.set_input_files(payload, timeout=3000)
+                            log.info("📎 ✅ Resume uploaded successfully!")
+                            self._resume_uploaded = True
+                            await asyncio.sleep(2) # let LinkedIn process
+                            return
+                        except Exception as up_e:
+                            if upload_attempt == 1:
+                                log.warning("⚠️ Resume upload failed twice, moving on anyway.")
+                                self._resume_uploaded = True
+                                return
+                            log.warning("⚠️ Resume upload failed, retrying...")
+                            await asyncio.sleep(1)
 
                 except Exception as e:
                     log.debug(f"File input attempt failed: {e}")
@@ -503,43 +542,31 @@ class EasyApplyAgent:
         except Exception as e:
             log.debug(f"File input search failed: {e}")
 
-        # Strategy 2: Look for upload buttons and intercept file chooser
-        upload_buttons = [
-            "button:has-text('Upload')",
-            "button:has-text('Browse')",
-            "label:has-text('Upload')",
-            "[aria-label*='upload']",
-            "[aria-label*='Upload']"
-        ]
-
-        for selector in upload_buttons:
+        # Strategy 2: Look for 'Upload resume' buttons that trigger file choosers
+        if not getattr(self, '_resume_uploaded', False):
             try:
-                buttons = await self.page.locator(selector).all()
-                for btn in buttons:
-                    if not await btn.is_visible():
-                        continue
-
-                    btn_text = await btn.text_content() or ""
-                    if "cover" in btn_text.lower():
-                        continue
-
-                    log.info(f"Trying upload button: {btn_text}")
-
+                upload_buttons = await self.page.locator(
+                    f"{self.active_modal_sel} button:has-text('Upload'), "
+                    f"{self.active_modal_sel} button[aria-label*='upload' i], "
+                    f"{self.active_modal_sel} [data-test-upload-button]"
+                ).all()
+                
+                for btn in upload_buttons:
                     try:
-                        async with self.page.expect_file_chooser(timeout=3000) as fc_info:
-                            await btn.click()
-
-                        file_chooser = await fc_info.value
-                        await file_chooser.set_files(payload)
-                        log.info("📎 ✅ Resume uploaded via file chooser!")
-                        self._resume_uploaded = True
-                        return
-
-                    except Exception as e:
-                        log.debug(f"Upload button failed: {e}")
-                        continue
-            except Exception:
-                continue
+                        if not await btn.is_visible() or not await btn.is_enabled():
+                            continue
+                        
+                        log.info(f"Clicking upload button: {(await btn.text_content() or '').strip()}")
+                        await btn.click(timeout=3000)
+                        await asyncio.sleep(2) # Give filechooser time to be intercepted
+                        
+                        if getattr(self, '_resume_uploaded', False):
+                            return
+                    except Exception as btn_e:
+                        log.debug(f"Upload button click failed: {btn_e}")
+                        
+            except Exception as strat2_e:
+                log.debug(f"Strategy 2 search failed: {strat2_e}")
 
         log.debug("No resume upload found this step - will try next step")
 
@@ -547,20 +574,45 @@ class EasyApplyAgent:
     def _get_tech_experience(self, question_text: str) -> str:
         """Check if question contains known technologies"""
         q = question_text.lower()
+        import math
 
         for tech in KNOWN_TECHNOLOGIES:
             if tech in q:
                 log.info(f"🔧 Found known technology '{tech}' in question")
-                return str(MY_KNOWN_TECH_EXPERIENCE)
+                try:
+                    val = float(MY_KNOWN_TECH_EXPERIENCE)
+                    return "0" if val < 1 else str(int(math.floor(val)))
+                except Exception:
+                    return str(MY_KNOWN_TECH_EXPERIENCE)
 
         log.info("❌ Unknown technology in question")
-        return MY_UNKNOWN_TECH_EXPERIENCE
+        return None
 
     # ───────────────────────────────────────────────────────
     def _get_smart_answer(self, question_text: str, field_type: str = "text") -> str:
         """Smart answering with technology-specific experience and location handling"""
         q = question_text.lower()
         print(f"Question : '{q}'")
+        
+        # ── Smart Hardcoding (Bypass AI entirely) ──
+        # ECTC / Expected Salary
+        if any(word in q for word in [
+            "ectc", "expected ctc", "expected fixed component", "expected salary",
+            "expectation", "desired salary", "target salary", "compensation expectation"
+        ]):
+            return "Negotiable"
+
+        # Serving/On Notice Period Yes/No
+        if any(word in q for word in ["serving your notice", "serving notice", "serving a notice", "on notice period", "on notice"]):
+            return "No"
+
+        # Notice Period
+        if any(word in q for word in [
+            "notice period", "how soon can you join",
+            "available to join", "join immediately"
+        ]):
+            return "Immediate"
+            
         # Location/Geography questions
         if any(word in q for word in [
             "city", "location", "where do you live", "current location",
@@ -599,12 +651,17 @@ class EasyApplyAgent:
             "development experience", "software experience", "coding experience"
         ]):
             tech_experience = self._get_tech_experience(question_text)
-            if tech_experience != MY_UNKNOWN_TECH_EXPERIENCE:
+            if tech_experience is not None:
                 return tech_experience
             elif any(word in q for word in ["total", "overall", "general", "programming", "development", "software"]):
-                return str(MY_GENERAL_EXPERIENCE)
+                try:
+                    import math
+                    val = float(MY_GENERAL_EXPERIENCE)
+                    return "0" if val < 1 else str(int(math.floor(val)))
+                except Exception:
+                    return str(MY_GENERAL_EXPERIENCE)
             else:
-                return tech_experience
+                return None
 
         # Salary related questions
         if any(word in q for word in [
@@ -612,11 +669,18 @@ class EasyApplyAgent:
             "package", "current salary", "expected salary", "pay", "wage",
             "expectations", "expectation"
         ]):
-            if any(word in q for word in ["current", "present", "existing"]):
+            if field_type == "number":
+                if any(word in q for word in ["current", "present", "existing"]):
+                    return str(int(MY_CURRENT_CTC))
+                elif any(word in q for word in ["expected", "expect", "desired", "target"]):
+                    return str(int(MY_EXPECTED_CTC))
+                return str(int(MY_CURRENT_CTC))
+            else:
+                if any(word in q for word in ["current", "present", "existing"]):
+                    return str(MY_CURRENT_CTC)
+                elif any(word in q for word in ["expected", "expect", "desired", "target"]):
+                    return "Negotiable"
                 return str(MY_CURRENT_CTC)
-            elif any(word in q for word in ["expected", "expect", "desired", "target"]):
-                return str(MY_EXPECTED_CTC)
-            return str(MY_CURRENT_CTC)
 
         # Notice period / availability / joining timeline
         if any(word in q for word in [
@@ -678,6 +742,18 @@ class EasyApplyAgent:
                 # If domestic job (or no country mentioned): Authorized, and NO sponsorship needed
                 return "No" if is_sponsorship_q else "Yes"
 
+        # Default answers - return None for unknown so Groq is triggered
+        if field_type == "text":
+            if any(word in q for word in ["how many", "number", "count"]):
+                tech_exp = self._get_tech_experience(question_text)
+                return tech_exp if tech_exp is not None else None
+            return None
+        return None
+
+    def _get_fallback_guess(self, question_text: str, field_type: str = "text") -> str:
+        """Fallback guesswork for when the Groq API hits rate limits or fails"""
+        q = question_text.lower()
+        
         # Relocation questions
         if any(word in q for word in [
             "relocate", "relocation", "willing to relocate", "move", "willing to move",
@@ -728,10 +804,10 @@ class EasyApplyAgent:
         ]):
             return "I am a recent Computer Science graduate with 1 year of hands-on project experience, eager to contribute to your team and grow my career."
 
-        # Default answers
+        # Default fallback answers
         if field_type == "text":
-            if any(word in q for word in ["how many", "number", "count"]):
-                return self._get_tech_experience(question_text)
+            if any(word in q for word in ["how many", "number", "count", "years", "experience"]):
+                return "0"
             return "Yes"
         return "Yes"
 
@@ -835,6 +911,97 @@ class EasyApplyAgent:
         
         return False
 
+    async def _ask_groq_batch(self, questions: list[str]) -> dict:
+        """Batch ask Groq for unknown questions, cache them in Supabase"""
+        if not questions:
+            return {}
+            
+        log.info(f"🧠 Asking Groq for {len(questions)} unknown questions...")
+        
+        prompt = f"""
+You are an expert AI filling out a job application for this user.
+Answer the following questions based strictly on the user profile below.
+Return ONLY a valid JSON object mapping the exact question string to the answer string.
+For numeric questions (like years of experience), return a single number string (e.g. "2" not "2 years").
+For Yes/No questions, return "Yes" or "No".
+Explicitly extract matching keywords and technologies from the profile to answer specific experience questions.
+If the profile doesn't have the info, make a reasonable, professional guess.
+Do NOT ask to confirm user details or output conversational text. Output ONLY valid JSON.
+
+User Profile:
+{json.dumps(self.user_profile, indent=2)}
+
+Questions:
+{json.dumps(questions, indent=2)}
+"""
+        try:
+            completion = await asyncio.to_thread(
+                client.chat.completions.create,
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that outputs only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                response_format={"type": "json_object"}
+            )
+            
+            response_text = completion.choices[0].message.content
+            new_answers = json.loads(response_text)
+            
+            # Update cache in memory
+            if "cached_answers" not in self.user_profile:
+                self.user_profile["cached_answers"] = {}
+                
+            self.user_profile["cached_answers"].update(new_answers)
+            
+            # Persist cache to DB immediately to avoid data loss
+            if self.user_id:
+                try:
+                    from config import supabase
+                    # Use the email column as requested by user
+                    existing = supabase.table("User").select("user_data").eq("email", self.user_id).single().execute()
+                    current_data = existing.data.get("user_data") or {}
+                    current_data["cached_answers"] = self.user_profile["cached_answers"]
+                    supabase.table("User").update({"user_data": current_data}).eq("email", self.user_id).execute()
+                    log.info(f"💾 Incremental cache persisted to Supabase for {self.user_id}")
+                except Exception as e:
+                    log.warning(f"Incremental cache save failed: {e}")
+            # Supabase is updated once at the end of the entire pipeline.
+            return new_answers
+            
+        except Exception as e:
+            log.error(f"Groq API error or rate limit hit: {e}. Using fallback guesswork.")
+            fallback_answers = {}
+            for q in questions:
+                fallback_answers[q] = self._get_fallback_guess(q, "text")
+                
+            if "cached_answers" not in self.user_profile:
+                self.user_profile["cached_answers"] = {}
+            self.user_profile["cached_answers"].update(fallback_answers)
+            
+            return fallback_answers
+
+    def _get_cached_or_smart_answer(self, question: str, field_type: str = "text") -> str:
+        # 1. Regex check
+        ans = self._get_smart_answer(question, field_type)
+        if ans is not None:
+            return ans
+            
+        # 2. Cache check
+        cached = self.user_profile.get("cached_answers", {})
+        if question in cached:
+            log.info(f"🧠 Retrieved '{question}' from cache")
+            return str(cached[question])
+            
+        # 3. Last resort fallback
+        if field_type == "text":
+            if any(word in question.lower() for word in ["how many", "number", "count", "years", "experience"]):
+                return "0"
+            return "Yes"
+        return "Yes"
+
+
 
     async def fill_and_submit_modal(
     self,
@@ -891,6 +1058,14 @@ class EasyApplyAgent:
                     await btn.scroll_into_view_if_needed()
                     await asyncio.sleep(0.5)
                     
+                    # ── SCOUT MODE: End of form detection ──
+                    label_lower = label.lower()
+                    if any(x in label_lower for x in ["review", "submit", "finish", "done", "apply"]):
+                        if self._scouted_unknowns:
+                            pass # removed local import
+                            log.info(f"🕵️ Scout Mode: Reached end of form ({label}). Deferring job to get answers for {len(self._scouted_unknowns)} questions.")
+                            raise Exception(f"DEFER_JOB:{json.dumps(self._scouted_unknowns)}")
+                    
                     log.info(f"➡️ Clicking: '{label}'")
                     
                     try:
@@ -936,9 +1111,68 @@ class EasyApplyAgent:
             except Exception as overlay_e:
                 log.debug(f"Error handling multi-dialog overlay: {overlay_e}")
 
-            # Try to upload resume on EVERY step until successful
+            # GLOBAL FILE CHOOSER INTERCEPTOR
+            # Safely blocks OS dialogs triggered by hidden buttons
+            if resume_payload and not self._resume_uploaded:
+                async def _handle_chooser(file_chooser):
+                    try:
+                        log.info("📂 File chooser intercepted — injecting resume programmatically")
+                        await file_chooser.set_files([{
+                            "name": resume_payload["name"],
+                            "mimeType": resume_payload["mimeType"],
+                            "buffer": resume_payload["buffer"],
+                        }])
+                        self._resume_uploaded = True
+                        log.info("✅ Resume injected via file chooser interceptor")
+                        self.page.remove_listener("filechooser", _handle_chooser)
+                    except Exception as e:
+                        log.error(f"File chooser interception failed: {e}")
+                
+                # Only register if not already registered (avoid memory leak)
+                if not getattr(self, '_chooser_registered', False):
+                    self.page.on("filechooser", _handle_chooser)
+                    self._chooser_registered = True
+                    
+            # Try to upload resume directly via hidden inputs
             if resume_payload and not self._resume_uploaded:
                 await self._force_upload_resume(resume_payload)
+
+            # --- PASS 1: PRE-SCAN & BATCH UNKNOWNS TO GROQ ---
+            try:
+                all_inputs = await self.page.locator(
+                    f"{self.active_modal_sel} select, "
+                    f"{self.active_modal_sel} [role='combobox'], "
+                    f"{self.active_modal_sel} input[type='text'], "
+                    f"{self.active_modal_sel} input[type='number'], "
+                    f"{self.active_modal_sel} input[type='email'], "
+                    f"{self.active_modal_sel} input[type='tel'], "
+                    f"{self.active_modal_sel} input:not([type]), "
+                    f"{self.active_modal_sel} textarea, "
+                    f"{self.active_modal_sel} input[type='radio'], "
+                    f"{self.active_modal_sel} [role='radio']"
+                ).all()
+                
+                unknowns_to_batch = []
+                for inp in all_inputs:
+                    if await inp.is_visible():
+                        q_text = await self._get_question_text(inp)
+                        if q_text and q_text != "Unknown question":
+                            if self._get_smart_answer(q_text, "text") is None:
+                                cached = self.user_profile.get("cached_answers", {})
+                                if q_text not in cached and q_text not in unknowns_to_batch:
+                                    unknowns_to_batch.append(q_text)
+                
+                if unknowns_to_batch:
+                    # Scout mode: Add to tracked unknowns instead of immediately deferring
+                    for u in unknowns_to_batch:
+                        if u not in self._scouted_unknowns:
+                            self._scouted_unknowns.append(u)
+                    log.info(f"🕵️ Scout Mode: Tracked {len(unknowns_to_batch)} new unknown questions. Proceeding to next step with dummy answers.")
+            except Exception as e:
+                if str(e).startswith("DEFER_JOB:"):
+                    raise e # Re-raise to break out of modal loop
+                log.debug(f"Pre-scan batching error: {e}")
+            # -------------------------------------------------
 
             # Handle selects and comboboxes FIRST (before text inputs)
             dropdown_roots = await self.page.locator(
@@ -966,7 +1200,7 @@ class EasyApplyAgent:
 
                     question = await self._get_question_text(root)
                     self.collected_questions.append({"type": "dropdown", "text": question})
-                    smart_answer = self._get_smart_answer(question, "select")
+                    smart_answer = self._get_cached_or_smart_answer(question, "select")
 
                     log.info(f"🔽 Processing dropdown: '{question}...' - Answer: '{smart_answer}'")
 
@@ -1118,9 +1352,24 @@ class EasyApplyAgent:
                                 self._location_filled = True
                         continue
 
-                    # Skip if already filled
+                    # Check for validation errors early
+                    error_found = False
                     if current_value:
-                        continue
+                        try:
+                            error_found = await inp.evaluate("""el => {
+                                const container = el.closest('.jobs-easy-apply-form-element') || 
+                                                  el.closest('.fb-dash-form-element') || 
+                                                  el.closest('.artdeco-text-input--container') || 
+                                                  el.parentElement.parentElement;
+                                if (!container) return false;
+                                return container.querySelectorAll('.artdeco-inline-feedback--error, [role="alert"], p[id*="error"]').length > 0;
+                            }""")
+                        except Exception:
+                            pass
+                            
+                        # If it has a value AND no error, it's valid, so skip it!
+                        if not error_found:
+                            continue
 
                     # Other field handling
                     if typ == "email" or "email" in name:
@@ -1135,29 +1384,99 @@ class EasyApplyAgent:
                     elif self._country_not_in_list and any(w in (placeholder + question.lower()) for w in ["country", "specify", "other"]):
                         continue
                     else:
-                        answer = self._get_smart_answer(question, "text")
-                        await inp.fill(answer)
-
-                        await asyncio.sleep(0.3)  # Wait for validation
-                        # Check for validation errors (scoped check)
-                        try:
-                            error_found = await inp.evaluate("""el => {
-                                const container = el.closest('.jobs-easy-apply-form-element') || 
+                        answer = self._get_cached_or_smart_answer(question, "text")
+                        
+                        # Scout mode dummy answers
+                        if question in self._scouted_unknowns:
+                            for dummy in ["0", "1", "Yes"]:
+                                await inp.fill(dummy)
+                                await inp.dispatch_event("input")
+                                await inp.dispatch_event("change")
+                                await asyncio.sleep(0.5)
+                                try:
+                                    error = await inp.evaluate("""el => {
+                                        const c = el.closest('.jobs-easy-apply-form-element') || 
                                                   el.closest('.fb-dash-form-element') || 
-                                                  el.closest('.artdeco-text-input--container') || 
-                                                  el.parentElement.parentElement;
-                                if (!container) return false;
-                                return container.querySelectorAll('.artdeco-inline-feedback--error, [role="alert"], p[id*="error"]').length > 0;
-                            }""")
+                                                  el.parentElement?.parentElement;
+                                        return c ? c.querySelectorAll('.artdeco-inline-feedback--error, [role="alert"], p[id*="error"]').length > 0 : false;
+                                    }""")
+                                except Exception:
+                                    error = False
+                                if not error:
+                                    break
+                            continue
                             
-                            if error_found:
-                                log.warning(f"⚠️ Validation failed for '{answer}'.")
-                                if not answer.isdigit():
-                                    log.warning("Retrying with '0'")
-                                    await inp.fill("0")
-                                    await asyncio.sleep(0.3)
-                        except Exception as err_check:
-                            log.debug(f"Validation check error: {err_check}")
+                        original_answer = str(answer).strip() if answer is not None else ""
+                        
+                        # Handle null/None/empty
+                        if not original_answer or original_answer.lower() == "null" or original_answer.lower() == "none":
+                            val = "0"
+                        else:
+                            # Try parsing as float first to handle decimals like 0.8
+                            try:
+                                numeric = float(original_answer)
+                                val = str(int(math.floor(numeric))) if numeric >= 0 else "0"
+                            except ValueError:
+                                # It's not a direct number. Let's see if the field is numeric or expects a number
+                                input_type = (await inp.get_attribute("type") or "").lower()
+                                input_mode = (await inp.get_attribute("inputmode") or "").lower()
+                                is_numeric_field = (
+                                    input_type == "number" or
+                                    input_mode in ["numeric", "decimal"] or
+                                    any(word in question.lower() for word in [
+                                        "ctc", "salary", "fixed component", "experience", "years", 
+                                        "notice period", "days", "months", "c fixed", "exp", "notice",
+                                        "compensation", "joining", "how soon"
+                                    ])
+                                )
+                                
+                                if is_numeric_field:
+                                    ans_lower = original_answer.lower()
+                                    if ans_lower in ["negotiable", "immediate"]:
+                                        if any(x in question.lower() for x in ["expected ctc", "expected salary", "expected fixed", "desired salary", "ectc"]):
+                                            val = MY_EXPECTED_CTC
+                                        else:
+                                            val = "0"
+                                    else:
+                                        # Extract the first digits from string (e.g. "30 days" -> 30)
+                                        match = re.search(r'\d+', original_answer)
+                                        val = match.group(0) if match else "0"
+                                else:
+                                    val = original_answer
+                            
+                        await inp.fill(val)
+                        await inp.dispatch_event("input")
+                        await inp.dispatch_event("change")
+                        await asyncio.sleep(0.5)
+                        
+                        # In-place dynamic validation retry loop
+                        for _retry in range(3):
+                            try:
+                                error_now = await inp.evaluate("""el => {
+                                    const c = el.closest('.jobs-easy-apply-form-element') || 
+                                              el.closest('.fb-dash-form-element') || 
+                                              el.parentElement?.parentElement;
+                                    return c ? c.querySelectorAll('.artdeco-inline-feedback--error, [role="alert"], p[id*="error"]').length > 0 : false;
+                                }""")
+                            except Exception:
+                                error_now = False
+                                
+                            if not error_now:
+                                break
+                                
+                            log.warning(f"⚠️ Retry {_retry+1}: invalid value '{val}' for '{question}'")
+                            
+                            if _retry == 0:
+                                val = "0"
+                            elif _retry == 1:
+                                val = "1"
+                            else:
+                                val = original_answer
+                                
+                            await inp.fill(val)
+                            await inp.dispatch_event("input")
+                            await inp.dispatch_event("change")
+                            await asyncio.sleep(0.5)
 
                 except Exception as e:
                     log.error(f"Text input error for '{question}': {e}")
@@ -1185,7 +1504,7 @@ class EasyApplyAgent:
                         question = ""
 
                     if question:
-                        smart_answer = self._get_smart_answer(question, "radio").lower()
+                        smart_answer = self._get_cached_or_smart_answer(question, "radio").lower()
                         log.info(f"🔘 Processing radio: '{question}' - Answer: '{smart_answer}'")
                         
                         match_found = False
@@ -1244,7 +1563,7 @@ class EasyApplyAgent:
                         if not aria_radios: continue
                         
                         question = await self._get_question_text(aria_radios[0])
-                        smart_answer = self._get_smart_answer(question, "radio").lower() if question else "yes"
+                        smart_answer = self._get_cached_or_smart_answer(question, "radio").lower() if question else "yes"
                         log.info(f"🔘 Processing ARIA radio: '{question}' - Answer: '{smart_answer}'")
                         
                         match_found = False
@@ -1304,6 +1623,10 @@ class EasyApplyAgent:
             label, clicked = await safe_click_modal_button()
             
             if not clicked:
+                if self._scouted_unknowns:
+                    pass # removed local import
+                    log.info(f"🕵️ Scout Mode: Next button not clickable or not found, but we have {len(self._scouted_unknowns)} scouted unknowns. Deferring job.")
+                    raise Exception(f"DEFER_JOB:{json.dumps(self._scouted_unknowns)}")
                 log.warning("No Next/Submit button found")
                 return False
 
@@ -1322,6 +1645,10 @@ class EasyApplyAgent:
                 return True
 
         log.error("❌ Wizard limit reached without submission")
+        if self._scouted_unknowns:
+            pass # removed local import
+            log.info(f"🕵️ Scout Mode: Wizard limit reached, but we have {len(self._scouted_unknowns)} scouted unknowns. Deferring job.")
+            raise Exception(f"DEFER_JOB:{json.dumps(self._scouted_unknowns)}")
         return False
 
     def reset_for_new_job(self):
@@ -1332,6 +1659,8 @@ class EasyApplyAgent:
         self._country_picked = False
         self._phone_filled = False
         self._location_filled = False
+        self._scouted_unknowns.clear()
+        self._chooser_registered = False
         self.active_modal_sel = ".artdeco-modal"
         log.info("🔄 Agent state reset for new job")
 
@@ -1657,79 +1986,121 @@ async def main(
         except Exception as e:
             log.warning(f"Could not persist LinkedIn storage state: {e}")
 
-        agent = EasyApplyAgent(page)
+        agent = EasyApplyAgent(page, user_id=progress_user, user_profile=user_profile)
         applied = []
         failed = []
 
         # ── Helper: emit progress after each job outcome ──────────────
-        def emit(success: bool, current_url: str | None, company_name: str | None, reason: str =""):
+        def emit(success: bool, current_url: str | None, company_name: str | None, reason: str ="", is_already_applied: bool = False):
             jobs_applied_counter[0] += 1
             progress = min(int((jobs_applied_counter[0] / total_jobs) * 89) + 11, 99)
 
             company = normalize_company_name(company_name)
 
             # Verbose console log for debugging
-            if success:
-                print(f"[apply] ✅ Applied ({jobs_applied_counter[0]}/{total_jobs}) - {company}")
+            if is_already_applied:
+                print(f"[apply] ✅ Already Applied ({jobs_applied_counter[0]}/{total_jobs}) - {company}")
+            elif success:
+                print(f"[apply] 📎 Applied ({jobs_applied_counter[0]}/{total_jobs}) - {company}")
             else:
                 reason_part = f": {reason}" if reason else ""
                 print(f"[apply] ❌ Skipped ({jobs_applied_counter[0]}/{total_jobs}) - {company}{reason_part}")
 
             # User-friendly Redis stream message
             if log_callback:
-                if success:
+                if is_already_applied:
+                    msg = f"Already Applied {jobs_applied_counter[0]}/{total_jobs} - {company}"
+                    status = "already applied"
+                elif success:
                     msg = f"Applied {jobs_applied_counter[0]}/{total_jobs} - {company}"
+                    status = "applied"
                 else:
                     reason_part = f": {reason}" if reason else ""
                     msg = f"Skipped {jobs_applied_counter[0]}/{total_jobs} - {company}{reason_part}"
+                    status = "skipped"
                 
                 log_callback({
                     "progress": progress,
-                    "status":   "applied" if success else "skipped",
+                    "status":   status,
                     "message":  msg,
                     "job_url":  current_url,
                     "job_company": company,
                     "success":  success,
                 })
 
-        # ── Per-job apply loop ────────────────────────────────────────────────
-        while True:
-            batch = await jobs_queue.get()
-            if batch is None:
-                # Poison pill received
-                break
+        # ── Per-job apply loop & Rolling API Architecture ───────────────────
+        deferred_jobs = []
+        retry_queue = asyncio.Queue()
+        questions_buffer = []
+        questions_buffer_lock = asyncio.Lock()
+        api_tasks = []
+        job_tracker = {} # url -> list of questions
+
+        async def flush_questions_buffer(force=False):
+            async with questions_buffer_lock:
+                if len(questions_buffer) >= 15 or (force and len(questions_buffer) > 0):
+                    batch_q = list(questions_buffer)
+                    questions_buffer.clear()
+                    if not batch_q: return
+                    
+                    async def _call_groq_and_push(questions_chunk):
+                        # log_callback removed as requested by user to keep UI clean
+                        await agent._ask_groq_batch(questions_chunk)
+                        
+                        # Find jobs that are now ready and push to retry_queue
+                        for d_job in list(deferred_jobs):
+                            d_url = d_job.get("job_url")
+                            if d_url in job_tracker:
+                                q_list = job_tracker[d_url]
+                                cached = agent.user_profile.get("cached_answers", {})
+                                if all(q in cached for q in q_list):
+                                    await retry_queue.put(d_job)
+                                    deferred_jobs.remove(d_job)
+                                    del job_tracker[d_url]
+                    
+                    api_tasks.append(asyncio.create_task(_call_groq_and_push(batch_q)))
+
+        async def process_job(job, idx, is_retry=False):
+            url, b64 = job.get("job_url"), job.get("resume_binary")
+            company_name = job.get("company_name")
+            if not url or not b64:
+                log.warning(f"Job {idx}: missing data - skipped")
+                emit(False, url, company_name, "incomplete job data") 
+                return
+
+            log.info(f"\n{'='*60}")
+            log.info(f"📍 Processing Job {idx} {'(RETRY)' if is_retry else ''}")
+            log.info(f"🔗 URL: {url}")
+            log.info(f"{'='*60}")
             
-            for idx, job in enumerate(batch, 1):
-                url, b64 = job.get("job_url"), job.get("resume_binary")
-                company_name = job.get("company_name")
-                if not url or not b64:
-                    log.warning(f"Job {idx}: missing data - skipped")
-                    emit(False, url, company_name, "incomplete job data") 
-                    continue
+            if not await safe_goto(page, url):
+                failed.append(url)
+                emit(False, url, company_name, "page unavailable") 
+                return
+            
+            payload = make_resume_payload(b64)
+            agent.reset_for_new_job()
 
-                log.info(f"\n{'='*60}")
-                log.info(f"📍 Processing Job {idx}/{len(batch)}")
-                log.info(f"🔗 URL: {url}")
-                log.info(f"{'='*60}")
-                
-                if not await safe_goto(page, url):
-                    failed.append(url)
-                    emit(False, url, company_name, "page unavailable") 
-                    continue
-                
-                payload = make_resume_payload(b64)
-                agent.reset_for_new_job()
-
-                # ── Find Easy Apply button ────────────────────────────────────
-
+            try:
                 if not await agent.find_and_click_easy_apply():
                     log.warning("No Easy Apply button found - skipping")
                     failed.append(url)
                     emit(False, url, company_name, "direct apply only")
-                    continue
+                    return
+            except Exception as e:
+                if str(e) == "NO_LONGER_ACCEPTING":
+                    log.warning("Job is no longer accepting applications - skipping")
+                    failed.append(url)
+                    emit(False, url, company_name, "not accepting applications")
+                    return
+                elif str(e) == "ALREADY_APPLIED":
+                    log.info("Job already applied - marking as success/applied")
+                    applied.append(url)
+                    emit(True, url, company_name, is_already_applied=True)
+                    return
+                raise e
 
-                # ── Fill & submit modal ───────────────────────────────────────
-
+            try:
                 success = await agent.fill_and_submit_modal(
                     user={
                         "first": FIRST_NAME,
@@ -1748,14 +2119,80 @@ async def main(
                     log.warning(f"❌ Job {idx} application failed")
 
                 emit(success, url, company_name)
+            except Exception as e:
+                if str(e).startswith("DEFER_JOB:"):
+                    # We hit an unknown question
+                    unknowns = json.loads(str(e).replace("DEFER_JOB:", ""))
+                    log.info(f"⏳ Deferring Job {idx} due to {len(unknowns)} unknown questions.")
+                    
+                    # Track this job
+                    deferred_jobs.append(job)
+                    job_tracker[url] = unknowns
+                    
+                    # Add to buffer and flush if needed
+                    async with questions_buffer_lock:
+                        for uq in unknowns:
+                            if uq not in questions_buffer:
+                                questions_buffer.append(uq)
+                    await flush_questions_buffer(force=False)
+                    return
+                else:
+                    # Check if we have scouted unknowns
+                    if getattr(agent, '_scouted_unknowns', []):
+                        pass # removed local import
+                        unknowns = list(agent._scouted_unknowns)
+                        log.info(f"⏳ Deferring Job {idx} due to {len(unknowns)} scouted unknowns after modal error: {e}")
+                        
+                        # Track this job
+                        deferred_jobs.append(job)
+                        job_tracker[url] = unknowns
+                        
+                        # Add to buffer and flush if needed
+                        async with questions_buffer_lock:
+                            for uq in unknowns:
+                                if uq not in questions_buffer:
+                                    questions_buffer.append(uq)
+                        await flush_questions_buffer(force=False)
+                        return
+                    failed.append(url)
+                    log.error(f"❌ Job {idx} modal error: {e}")
+                    emit(False, url, company_name)
+            
+            await asyncio.sleep(3)
 
-                # Show questions captured
-                if agent.collected_questions:
-                    print(f"\n📝 Questions captured for Job {idx}:")
-                    for q in agent.collected_questions:
-                        print(f"  • [{q['type']}] {q['text']}...")
+        # ── Pass 1: Initial Processing ───────────────────────────────────────
+        idx_counter = 0
+        while True:
+            batch = await jobs_queue.get()
+            if batch is None:
+                break
+            
+            for job in batch:
+                idx_counter += 1
+                await process_job(job, idx_counter)
 
-                await asyncio.sleep(3)
+        # ── Pass 2: Retry Deferred Jobs (Parallel Pipeline) ───────────────────
+        if deferred_jobs or questions_buffer:
+            await flush_questions_buffer(force=True)
+            if deferred_jobs and log_callback:
+                log_callback({"progress": 60, "status": "retrying", "message": f"Retrying {len(deferred_jobs)} deferred jobs with AI answers..."})
+                
+            # Process as they come into retry_queue, OR if API tasks finish, flush remainder
+            while True:
+                try:
+                    d_job = retry_queue.get_nowait()
+                    idx_counter += 1
+                    await process_job(d_job, idx_counter, is_retry=True)
+                except asyncio.QueueEmpty:
+                    # check if api_tasks are done
+                    if all(t.done() for t in api_tasks):
+                        # Force process remaining deferred_jobs
+                        for d_job in list(deferred_jobs):
+                            idx_counter += 1
+                            await process_job(d_job, idx_counter, is_retry=True)
+                            deferred_jobs.remove(d_job)
+                        break
+                    await asyncio.sleep(1)
 
         # ── Batch summary log ─────────────────────────────────────────────
 
@@ -1766,6 +2203,17 @@ async def main(
         log.info(f"📊 Success rate: {(len(applied)/(len(applied)+len(failed))*100):.1f}%")
         log.info(f"{'='*60}")
 
+        # ── Delayed DB Write ─────────────────────────────────────────────
+        if user_id and agent.user_profile:
+            from config import supabase
+            try:
+                # Use email for update as per instructions
+                user_email = agent.user_profile.get("email", "")
+                if user_email:
+                    supabase.table("User").update({"user_data": agent.user_profile}).eq("email", user_email).execute()
+                    log.info("💾 Saved all new AI answers to Supabase permanent cache")
+            except Exception as db_e:
+                log.error(f"Failed to update Supabase cache: {db_e}")
 
         return {
             "applied": applied,
@@ -1840,7 +2288,7 @@ def run_apply_pipeline(job_id: str, job_data: dict, log_callback):
 
 async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     from config import supabase
-    import json
+    pass # removed local import
 
     user_id = job_data["user_id"]
     input_data = job_data.get("input_data", {})
@@ -1867,7 +2315,7 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     total_jobs = len(jobs_to_apply)
 
     # Fetch pre-parsed user profile + prior apply history for resume-aware idempotency.
-    user_res = supabase.table("User").select("user_data, applied_jobs").eq("id", user_id).execute()
+    user_res = supabase.table("User").select("user_data, applied_jobs").eq("email", email).execute()
     user_row = user_res.data[0] if user_res.data else {}
     user_profile = user_row.get("user_data", {}) or {}
     history_applied = set(user_row.get("applied_jobs") or [])
@@ -1925,7 +2373,11 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
         }).eq("id", job_id).execute()
         return
 
-    log_callback({"progress": 5, "status": "in_progress", "message": f"Applying to {len(remaining)} remaining of {total_jobs} jobs..."})
+    already_applied_count = total_jobs - len(remaining)
+    if already_applied_count > 0:
+        log_callback({"progress": 5, "status": "in_progress", "message": f"{already_applied_count} out of {total_jobs} jobs were already applied. Proceeding with remaining {len(remaining)} jobs..."})
+    else:
+        log_callback({"progress": 5, "status": "in_progress", "message": f"Applying to all {total_jobs} jobs..."})
 
     # ── Durable per-job checkpoint ────────────────────────────────────────
     # Wraps log_callback: forwards every event to Redis, and on each terminal
@@ -1955,7 +2407,7 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
             # brand-new job_id (minted after a failed row) also skips them.
             if status == "applied":
                 merged = list(history_applied | set(applied_so_far))
-                supabase.table("User").update({"applied_jobs": merged}).eq("id", user_id).execute()
+                supabase.table("User").update({"applied_jobs": merged}).eq("email", email).execute()
         except Exception as e:
             print(f"Checkpoint write failed: {e}")
 
@@ -2091,12 +2543,15 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
         except:
             pass
 
-        # Clear the LinkedIn session from PostgreSQL since it is invalid/expired
-        try:
-            clear_linkedin_context(email)
-            log.info(f"🧹 Successfully cleared invalid LinkedIn session for {email}")
-        except Exception as clear_err:
-            print(f"Failed to clear linkedin context: {clear_err}")
+        # Clear the LinkedIn session from PostgreSQL ONLY since it is invalid/expired (session lost or login failed)
+        if any(x in str(run_error).lower() for x in ["session connection lost", "login failed", "credentials missing", "unauthorized"]):
+            try:
+                clear_linkedin_context(email)
+                log.info(f"🧹 Successfully cleared invalid LinkedIn session for {email}")
+            except Exception as clear_err:
+                print(f"Failed to clear linkedin context: {clear_err}")
+        else:
+            log.info("⚠️ Error is not session-related. Keeping LinkedIn session context intact.")
 
         # Reconcile all remaining jobs as failed due to connection loss
         reconcile_unaccounted("connection lost")

@@ -29,7 +29,7 @@ Applying to jobs on LinkedIn is **tedious, time-consuming, and repetitive**. Pro
 
 DevHire is a **full-stack AI automation platform** that:
 
-1. **Extracts Your Profile** – Uses a Chrome extension to capture LinkedIn credentials, cookies, and browser fingerprint
+1. **Cloud-Based Automation** – Uses a centralized context pooling system and Cloud Run workers to execute tasks without needing any Chrome extensions
 2. **Parses Your Resume** – Analyzes your resume using Google Gemini AI to extract skills, experience, and qualifications
 3. **Searches for Jobs** – Scrapes LinkedIn using Playwright (headless browser) based on parsed job titles and keywords from your resume
 4. **Tailors Resumes** – Uses Google Gemini to dynamically generate job-specific resumes for each application with LaTeX rendering to PDF (supports **4 professional templates**)
@@ -65,11 +65,10 @@ DevHire is a **full-stack AI automation platform** that:
 └──────────────────────────────────┘      └─────────────────────────────┘
          ↕ (Browser control)
 ┌─────────────────────────────────────────────────────┐
-│   Chrome Extension (Manifest V3)                   │
-│  • Captures LinkedIn cookies & localStorage       │
-│  • Sends credentials to backend                   │
-│  • Injects content scripts for data collection    │
-│  • 🆕 Browser fingerprint collection              │
+│   Cloud Run Workers (Serverless)                   │
+│  • Instantly scales headless Playwright instances  │
+│  • Executes scraping & tailoring instantly         │
+│  • Streams real-time progress via Redis SSE        │
 └─────────────────────────────────────────────────────┘
                         ↕
 ┌─────────────────────────────────────────────────────┐
@@ -99,7 +98,7 @@ DevHire is a **full-stack AI automation platform** that:
 | **Browser Automation** | Playwright (async) | LinkedIn login, job scraping, form filling |
 | **Auth** | Supabase + JWT + AES-256 | User registration, login, session management, credential encryption |
 | **Database** | PostgreSQL + Prisma | User profiles, applied jobs, resume URLs, LinkedIn context |
-| **Extension** | Chrome Manifest V3 | Cookie/fingerprint capture, credential sync, session persistence |
+\| **Queue** \| Redis + QStash \| Manages job scheduling and priority queues for Free vs Pro tiers \|
 | **Webcast Server** | Node.js, Playwright, WS, CDP | Streams remote headless browser login session to frontend canvas with mouse/keyboard/scroll sync |
 
 ---
