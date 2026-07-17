@@ -117,6 +117,26 @@ class EasyApplyAgent:
         self._field_attempts = {}
         self._scouted_unknowns = []
         self.active_modal_sel = ".artdeco-modal"
+        self._current_resume_payload = None
+        self.page.on("filechooser", self._handle_file_chooser)
+
+    async def _handle_file_chooser(self, file_chooser):
+        """Page-wide file chooser listener to inject resume programmatically without leaking handlers"""
+        try:
+            payload = getattr(self, '_current_resume_payload', None)
+            if payload and not getattr(self, '_resume_uploaded', False):
+                log.info("📂 File chooser intercepted — injecting resume programmatically")
+                await file_chooser.set_files([{
+                    "name": payload["name"],
+                    "mimeType": payload["mimeType"],
+                    "buffer": payload["buffer"],
+                }])
+                self._resume_uploaded = True
+                log.info("✅ Resume injected via page-wide file chooser listener")
+            else:
+                log.debug("📂 File chooser event ignored (no payload or already uploaded)")
+        except Exception as e:
+            log.error(f"File chooser interception failed: {e}")
 
     # ───────────────────────────────────────────────────────
     async def find_and_click_easy_apply(self) -> bool:
@@ -308,20 +328,30 @@ class EasyApplyAgent:
                                         continue # Go to next attempt to find the REAL modal
                                     
                                     # 2. Is it an Intermediate Resume/Unsubmitted Dialog?
-                                    if any(x in dlg_text for x in ["resume", "unsubmitted"]) and any(x in dlg_text for x in ["application", "apply", "continue"]):
+                                    is_intermediate = False
+                                    btns = await current_modal.locator('button').all()
+                                    target_btn = None
+                                    for b in btns:
+                                        if await b.is_visible() and await b.is_enabled():
+                                            b_text = (await b.text_content() or "").strip().lower()
+                                            # Avoid matching "upload resume" or "upload file" buttons as intermediate continue buttons
+                                            if any(x == b_text for x in ["continue", "resume", "start new"]) or ("resume" in b_text and "upload" not in b_text and "file" not in b_text):
+                                                is_intermediate = True
+                                                target_btn = b
+                                                break
+                                    
+                                    if is_intermediate and target_btn:
                                         log.info("🕵️ Intermediate dialog detected. Checking buttons...")
-                                        btns = await current_modal.locator('button').all()
-                                        for b in btns:
-                                            if await b.is_visible() and await b.is_enabled():
-                                                b_text = (await b.text_content() or "").strip().lower()
-                                                if any(x in b_text for x in ["continue", "resume", "start new"]):
-                                                    log.info(f"🎯 Clicking intermediate dialog button: '{b_text}'")
-                                                    await b.click()
-                                                    for _ in range(5):
-                                                        if not await current_modal.is_visible():
-                                                            break
-                                                        await asyncio.sleep(0.5)
-                                                    break
+                                        b_text = (await target_btn.text_content() or "").strip().lower()
+                                        log.info(f"🎯 Clicking intermediate dialog button: '{b_text}'")
+                                        try:
+                                            await target_btn.click()
+                                        except:
+                                            await self.page.evaluate("(b)=>b.click()", target_btn)
+                                        for _ in range(5):
+                                            if not await current_modal.is_visible():
+                                                break
+                                            await asyncio.sleep(0.5)
                                         await asyncio.sleep(1)
                                         continue # Go to next attempt
                                         
@@ -1113,25 +1143,8 @@ Questions:
 
             # GLOBAL FILE CHOOSER INTERCEPTOR
             # Safely blocks OS dialogs triggered by hidden buttons
-            if resume_payload and not self._resume_uploaded:
-                async def _handle_chooser(file_chooser):
-                    try:
-                        log.info("📂 File chooser intercepted — injecting resume programmatically")
-                        await file_chooser.set_files([{
-                            "name": resume_payload["name"],
-                            "mimeType": resume_payload["mimeType"],
-                            "buffer": resume_payload["buffer"],
-                        }])
-                        self._resume_uploaded = True
-                        log.info("✅ Resume injected via file chooser interceptor")
-                        self.page.remove_listener("filechooser", _handle_chooser)
-                    except Exception as e:
-                        log.error(f"File chooser interception failed: {e}")
-                
-                # Only register if not already registered (avoid memory leak)
-                if not getattr(self, '_chooser_registered', False):
-                    self.page.on("filechooser", _handle_chooser)
-                    self._chooser_registered = True
+            if resume_payload:
+                self._current_resume_payload = resume_payload
                     
             # Try to upload resume directly via hidden inputs
             if resume_payload and not self._resume_uploaded:
@@ -1346,6 +1359,11 @@ Questions:
                     elif (any(word in question.lower() for word in ["location", "city", "where do you", "live", "reside"]) and 
                         not any(word in question.lower() for word in ["country"])):
                         
+                        if current_value and current_value.lower() not in ["yes", "no"] and len(current_value.strip()) > 2:
+                            log.info(f"Location field already has REAL value: '{current_value}', skipping")
+                            self._location_filled = True
+                            continue
+                        
                         if not self._location_filled:
                             success = await self._handle_location_autocomplete(inp, MY_CURRENT_CITY)
                             if success:
@@ -1504,6 +1522,16 @@ Questions:
                         question = ""
 
                     if question:
+                        # Check if any radio in the group is already checked
+                        any_checked = False
+                        for r in group_radios:
+                            if await r.is_checked():
+                                any_checked = True
+                                break
+                        if any_checked:
+                            log.info(f"Radio group for '{question}' already has a selection, skipping")
+                            continue
+
                         smart_answer = self._get_cached_or_smart_answer(question, "radio").lower()
                         log.info(f"🔘 Processing radio: '{question}' - Answer: '{smart_answer}'")
                         
@@ -1562,6 +1590,16 @@ Questions:
                         aria_radios = await group.locator("[role='radio']").all()
                         if not aria_radios: continue
                         
+                        # Check if any ARIA radio is already checked
+                        any_checked = False
+                        for r in aria_radios:
+                            if (await r.get_attribute("aria-checked")) == "true":
+                                any_checked = True
+                                break
+                        if any_checked:
+                            log.info("ARIA Radio group already has a selection, skipping")
+                            continue
+
                         question = await self._get_question_text(aria_radios[0])
                         smart_answer = self._get_cached_or_smart_answer(question, "radio").lower() if question else "yes"
                         log.info(f"🔘 Processing ARIA radio: '{question}' - Answer: '{smart_answer}'")
@@ -2416,6 +2454,7 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     # ── Producer function: Batched Tailoring (only the remaining jobs) ──
     async def tailor_producer():
         try:
+
             from agents.tailor import process_batch, extract_facts, extract_resume_text
             user_data_str = json.dumps(user_profile) if user_profile else None
             # PASS 1 (atomic-fact extraction) is JD-independent — run it ONCE for the whole

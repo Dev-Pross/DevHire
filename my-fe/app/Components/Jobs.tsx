@@ -774,7 +774,7 @@ const Jobs = () => {
                     <select
                       value={experienceFilter}
                       onChange={(e) => setExperienceFilter(e.target.value)}
-                      className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-gray-200 outline-none focus:border-emerald-500/40"
+                      className="w-[145px] rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-gray-200 outline-none focus:border-emerald-500/40"
                     >
                       <option value="">Any experience</option>
                       {experienceOptions.map((exp) => (
