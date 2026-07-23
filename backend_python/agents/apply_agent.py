@@ -2209,12 +2209,26 @@ async def main(
                 idx_counter += 1
                 await process_job(job, idx_counter)
 
-        # ── Pass 2: Retry Deferred Jobs (Parallel Pipeline) ───────────────────
-        if deferred_jobs or questions_buffer:
+        # ── Pass 2+: Retry Deferred Jobs (up to 3 passes) ────────────────────
+        MAX_DEFER_RETRY_PASSES = 3
+        for defer_pass in range(MAX_DEFER_RETRY_PASSES):
+            if not deferred_jobs and not questions_buffer:
+                break
+
+            # Drop completed Groq tasks; keep only in-flight ones for this pass
+            api_tasks[:] = [t for t in api_tasks if not t.done()]
+
             await flush_questions_buffer(force=True)
             if deferred_jobs and log_callback:
-                log_callback({"progress": 60, "status": "retrying", "message": f"Retrying {len(deferred_jobs)} deferred jobs with AI answers..."})
-                
+                log_callback({
+                    "progress": 60,
+                    "status": "retrying",
+                    "message": (
+                        f"Retrying {len(deferred_jobs)} jobs with AI answers "
+                        f"(pass {defer_pass + 1}/{MAX_DEFER_RETRY_PASSES})..."
+                    ),
+                })
+
             # Process as they come into retry_queue, OR if API tasks finish, flush remainder
             while True:
                 try:
@@ -2228,9 +2242,24 @@ async def main(
                         for d_job in list(deferred_jobs):
                             idx_counter += 1
                             await process_job(d_job, idx_counter, is_retry=True)
-                            deferred_jobs.remove(d_job)
+                            # Remove this attempt; process_job re-appends if it defers again
+                            if d_job in deferred_jobs:
+                                deferred_jobs.remove(d_job)
                         break
                     await asyncio.sleep(1)
+
+        # Anything still deferred after max passes → failed / skipped
+        for d_job in list(deferred_jobs):
+            d_url = d_job.get("job_url")
+            d_company = d_job.get("company_name")
+            log.warning(
+                f"❌ Deferred job exhausted {MAX_DEFER_RETRY_PASSES} retry passes - skipping: {d_url}"
+            )
+            failed.append(d_url)
+            emit(False, d_url, d_company, "deferred questions unresolved after retries")
+            deferred_jobs.remove(d_job)
+            if d_url in job_tracker:
+                del job_tracker[d_url]
 
         # ── Batch summary log ─────────────────────────────────────────────
 
