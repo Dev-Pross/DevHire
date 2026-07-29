@@ -273,7 +273,7 @@ class EasyApplyAgent:
                             modal_selectors = [
                                 "div[role='dialog']",
                                 ".artdeco-modal",
-                                "[aria-labelledby='dialog-header']",
+                                # "[aria-labelledby='dialog-header']",
                                 ".jobs-easy-apply-modal"
                             ]
                             
@@ -1044,13 +1044,14 @@ Questions:
             """Safely click Next/Submit buttons within modal only"""
             button_selectors = [
                 # Most specific selectors first
-                "button[aria-label='Submit application']:not([disabled])",
+                "button[aria-label*='Submit']:not([disabled])",
+                "button[aria-label='Submit']:not([disabled])",
                 "button[aria-label='Review your application']:not([disabled])",
                 "button[aria-label*='Continue to next step']:not([disabled])",
                 "button[aria-label*='Continue applying']:not([disabled])",
                 
                 # Text-based selectors with exact matches
-                f"{self.active_modal_sel} button:has-text('Submit application'):not([disabled])",
+                f"{self.active_modal_sel} button:has-text('Submit'):not([disabled])",
                 f"{self.active_modal_sel} button:has-text('Review'):not([disabled])",
                 f"{self.active_modal_sel} button:has-text('Next'):not([disabled])",
                 f"{self.active_modal_sel} button:has-text('Continue'):not([disabled])",
@@ -1108,7 +1109,22 @@ Questions:
                 except Exception as e:
                     log.debug(f"Error with selector {selector}: {e}")
                     continue
-            
+
+            disabled_sel  = f"{self.active_modal_sel} button.artdeco-button--primary[disabled], {self.active_modal_sel} button[disabled]"
+            disabled_btns = self.page.locator(disabled_sel)
+
+            if( await disabled_btns.count() > 0 and await disabled_btns.first.is_visible()):
+                log.debug("Disabled submit button detected. Filling mandatory fields...")
+                await self._fill_form_fields(user)
+                await asyncio.sleep(1)
+                enabled_btn = self.page.locator(f"{self.active_modal_sel} button.artdeco-button--primary:not([disabled])").first
+                if (await enabled_btn.count() > 0 and await enabled_btn.is_visible()):
+                    label  = (await enabled_btn.text_content() or "").strip()
+                    log.info(f"➡️ Clicking newly enabled button: '{label}'")
+                    await enabled_btn.click(timeout=5000)
+                    await asyncio.sleep(2)
+                    return label.lower(), True
+
             log.warning("⚠️ No valid Next/Submit/Review button found")
             return "", False
 
