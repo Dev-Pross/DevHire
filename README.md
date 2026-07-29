@@ -197,4 +197,5 @@ npm run dev
 ## 🔒 Security & Privacy
 - User connections to the Jobs Server are handled exclusively via the headless Auth Server webcast, avoiding the need for a browser extension.
 - Connections use stealth automation to ensure secure and isolated environment interactions.
-- User context is stored securely in PostgreSQL as `JSONB` and tied strictly to the user's Supabase Auth identity.
+- User context is stored securely in PostgreSQL as `JSONB` .
+  
