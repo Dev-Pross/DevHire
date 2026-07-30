@@ -273,7 +273,7 @@ class EasyApplyAgent:
                             modal_selectors = [
                                 "div[role='dialog']",
                                 ".artdeco-modal",
-                                # "[aria-labelledby='dialog-header']",
+                                "[aria-labelledby='dialog-header']",
                                 ".jobs-easy-apply-modal"
                             ]
                             
