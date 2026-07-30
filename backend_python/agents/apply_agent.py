@@ -94,16 +94,6 @@ log = logging.getLogger("EasyApply")
 
 # ╭─────────────────── EasyApplyAgent ───────────────────╮
 class EasyApplyAgent:
-    NEXT_BTN_SEL = (
-        ".artdeco-modal.jobs-easy-apply-modal "
-        ".jobs-easy-apply-modal "
-        "button.artdeco-button--2.artdeco-button--primary.ember-view:not([disabled])"
-    )
-    PRIMARY_BTN_SEL = (
-        ".jobs-easy-apply-modal button.artdeco-button--primary:not([disabled])"
-        ".artdeco-modal.jobs-easy-apply-modal button.artdeco-button--primary:not([disabled])"
-    )
-
     def __init__(self, page: Page, user_id: str = None, user_profile: dict = None):
         self.page = page
         self.user_id = user_id
@@ -643,6 +633,13 @@ class EasyApplyAgent:
         ]):
             return "Immediate"
             
+        # URL / Links
+        if any(word in q for word in [
+            "linkedin", "github", "portfolio", "website", "url", "link",
+            "profile"
+        ]):
+            return "https://www.linkedin.com/in/"
+
         # Location/Geography questions
         if any(word in q for word in [
             "city", "location", "where do you live", "current location",
@@ -1006,11 +1003,28 @@ Questions:
             for q in questions:
                 fallback_answers[q] = self._get_fallback_guess(q, "text")
                 
-            if "cached_answers" not in self.user_profile:
-                self.user_profile["cached_answers"] = {}
-            self.user_profile["cached_answers"].update(fallback_answers)
-            
+            # Do NOT persist fallback/dummy answers into cache or DB so we can retry Groq later when rate limit resets
             return fallback_answers
+
+    def _normalize_q(self, text: str) -> str:
+        if not text: return ""
+        cleaned = re.sub(r'[\*\?:,\n\r\t]', ' ', text.lower())
+        return " ".join(cleaned.split())
+
+    def _find_in_cache(self, question: str, cached: dict) -> str | None:
+        if not cached:
+            return None
+        if question in cached:
+            return str(cached[question])
+            
+        norm_q = self._normalize_q(question)
+        for c_k, c_v in cached.items():
+            norm_ck = self._normalize_q(c_k)
+            if norm_q == norm_ck:
+                return str(c_v)
+            if len(norm_q) > 10 and (norm_ck in norm_q or norm_q in norm_ck):
+                return str(c_v)
+        return None
 
     def _get_cached_or_smart_answer(self, question: str, field_type: str = "text") -> str:
         # 1. Regex check
@@ -1018,11 +1032,12 @@ Questions:
         if ans is not None:
             return ans
             
-        # 2. Cache check
+        # 2. Cache check (with normalized fuzzy matching)
         cached = self.user_profile.get("cached_answers", {})
-        if question in cached:
+        cached_val = self._find_in_cache(question, cached)
+        if cached_val is not None:
             log.info(f"🧠 Retrieved '{question}' from cache")
-            return str(cached[question])
+            return cached_val
             
         # 3. Last resort fallback
         if field_type == "text":
@@ -1044,92 +1059,121 @@ Questions:
             """Safely click Next/Submit buttons within modal only"""
             button_selectors = [
                 # Most specific selectors first
-                "button[aria-label*='Submit']:not([disabled])",
-                "button[aria-label='Submit']:not([disabled])",
+                "button[aria-label='Submit application']:not([disabled])",
                 "button[aria-label='Review your application']:not([disabled])",
                 "button[aria-label*='Continue to next step']:not([disabled])",
                 "button[aria-label*='Continue applying']:not([disabled])",
                 
                 # Text-based selectors with exact matches
-                f"{self.active_modal_sel} button:has-text('Submit'):not([disabled])",
+                f"{self.active_modal_sel} button:has-text('Submit application'):not([disabled])",
                 f"{self.active_modal_sel} button:has-text('Review'):not([disabled])",
                 f"{self.active_modal_sel} button:has-text('Next'):not([disabled])",
                 f"{self.active_modal_sel} button:has-text('Continue'):not([disabled])",
                 
                 # Fallback to primary buttons only
-                f"{self.active_modal_sel} button.artdeco-button--primary:not([disabled])"
+                f"{self.active_modal_sel} button.artdeco-button--primary:not([disabled])",
+                
+                # UN-SCOPED Fallbacks (highly resilient to LinkedIn UI changes)
+                "footer button:has-text('Submit application'):not([disabled])",
+                "footer button:has-text('Review'):not([disabled])",
+                "footer button:has-text('Next'):not([disabled])",
+                "footer button:has-text('Continue'):not([disabled])",
+                "button:has-text('Submit application'):not([disabled])",
+                "button:has-text('Review'):not([disabled])",
+                "button:has-text('Next'):not([disabled])",
+                "button:has-text('Continue'):not([disabled])"
             ]
             
-            for selector in button_selectors:
-                try:
-                    btn = self.page.locator(selector).first
-                    
-                    # Check if button exists and is visible
-                    if not await btn.count():
+            # Efficiently wait for the DOM to settle and at least one button to attach
+            combined_selector = ", ".join(button_selectors)
+            try:
+                await self.page.wait_for_selector(combined_selector, state="attached", timeout=7000)
+                await asyncio.sleep(0.3) # Tiny buffer for render animations
+            except Exception:
+                log.debug("Timeout waiting for combined button selector.")
+            
+            for attempt in range(2):
+                for selector in button_selectors:
+                    try:
+                        buttons = await self.page.locator(selector).all()
+                        
+                        for btn in buttons:
+                            # Fix 4: scroll first, then check visibility
+                            await btn.scroll_into_view_if_needed()
+                            await asyncio.sleep(0.5)
+
+                            if not await btn.is_visible():
+                                continue
+                            
+                            # Fix 5: Get actual inner text
+                            try:
+                                label = (await btn.evaluate("el => el.innerText") or "").strip()
+                            except:
+                                label = (await btn.text_content() or "").strip()
+                            
+                            label_lower = label.lower()
+                            
+                            # Sequential check as requested
+                            if not any(x in label_lower for x in ["submit", "review", "next", "continue", "apply", "finish", "done"]):
+                                continue
+                            
+                            # Skip if the text is too long (likely grabbed dialog content)
+                            if len(label) > 50:
+                                log.debug(f"Skipping - text too long: {label[:50]}...")
+                                continue
+                            
+                            # Skip if text contains unwanted content
+                            if any(x in label_lower for x in ["dialog content", "current value", "additional questions", "application powered"]):
+                                log.debug(f"Skipping - contains dialog content")
+                                continue
+                            
+                            log.info(f"➡️ Found button: '{label}' with selector: {selector}")
+                            
+                            # ── SCOUT MODE: End of form detection ──
+                            if any(x in label_lower for x in ["review", "submit", "finish", "done", "apply"]):
+                                if self._scouted_unknowns:
+                                    pass # removed local import
+                                    log.info(f"🕵️ Scout Mode: Reached end of form ({label}). Deferring job to get answers for {len(self._scouted_unknowns)} questions.")
+                                    raise Exception(f"DEFER_JOB:{json.dumps(self._scouted_unknowns)}")
+                            
+                            log.info(f"➡️ Clicking: '{label}'")
+                            
+                            try:
+                                await btn.click(timeout=5000)
+                            except:
+                                await btn.evaluate("el => el.click()")
+                            
+                            await asyncio.sleep(2)
+                            return label_lower, True
+                    except Exception as e:
+                        if str(e).startswith("DEFER_JOB:"):
+                            raise e
+                        log.debug(f"Error with selector {selector}: {e}")
                         continue
                         
-                    if not await btn.is_visible():
-                        continue
-                    
-                    # Get the actual button text (not the whole dialog)
-                    label = (await btn.text_content() or "").strip()
-                    
-                    # Skip if the text is too long (likely grabbed dialog content)
-                    if len(label) > 50:
-                        log.debug(f"Skipping - text too long: {label[:50]}...")
-                        continue
-                    
-                    # Skip if text contains unwanted content
-                    if any(x in label.lower() for x in ["dialog content", "current value", "additional questions", "application powered"]):
-                        log.debug(f"Skipping - contains dialog content")
-                        continue
-                    
-                    log.info(f"➡️ Found button: '{label}' with selector: {selector}")
-                    
-                    await btn.scroll_into_view_if_needed()
-                    await asyncio.sleep(0.5)
-                    
-                    # ── SCOUT MODE: End of form detection ──
-                    label_lower = label.lower()
-                    if any(x in label_lower for x in ["review", "submit", "finish", "done", "apply"]):
-                        if self._scouted_unknowns:
-                            pass # removed local import
-                            log.info(f"🕵️ Scout Mode: Reached end of form ({label}). Deferring job to get answers for {len(self._scouted_unknowns)} questions.")
-                            raise Exception(f"DEFER_JOB:{json.dumps(self._scouted_unknowns)}")
-                    
-                    log.info(f"➡️ Clicking: '{label}'")
-                    
-                    try:
-                        await btn.click(timeout=5000)
-                    except:
-                        await btn.evaluate("el => el.click()")
-                    
-                    await asyncio.sleep(2)
-                    return label.lower(), True
-                except Exception as e:
-                    log.debug(f"Error with selector {selector}: {e}")
-                    continue
-
-            disabled_sel  = f"{self.active_modal_sel} button.artdeco-button--primary[disabled], {self.active_modal_sel} button[disabled]"
-            disabled_btns = self.page.locator(disabled_sel)
-
-            if( await disabled_btns.count() > 0 and await disabled_btns.first.is_visible()):
-                log.debug("Disabled submit button detected. Filling mandatory fields...")
-                await self._fill_form_fields(user)
-                await asyncio.sleep(1)
-                enabled_btn = self.page.locator(f"{self.active_modal_sel} button.artdeco-button--primary:not([disabled])").first
-                if (await enabled_btn.count() > 0 and await enabled_btn.is_visible()):
-                    label  = (await enabled_btn.text_content() or "").strip()
-                    log.info(f"➡️ Clicking newly enabled button: '{label}'")
-                    await enabled_btn.click(timeout=5000)
-                    await asyncio.sleep(2)
-                    return label.lower(), True
-
-            log.warning("⚠️ No valid Next/Submit/Review button found")
+                if attempt == 0:
+                    log.info(f"⏳ Retry 1/2: Waiting for buttons to settle...")
+                    await asyncio.sleep(1.0)
+            
+            log.warning("⚠️ No valid Next/Submit/Review button found after waiting")
             return "", False
 
         for step in range(max_steps):
             log.info(f"🔄 Wizard step {step + 1}")
+            
+            # Fix 1: Re-detect active modal dynamically at the start of each step
+            try:
+                for modal_sel in [".artdeco-modal", "div[role='dialog']", "[aria-labelledby='dialog-header']", ".jobs-easy-apply-modal"]:
+                    modals = await self.page.locator(modal_sel).all()
+                    visible_modals = []
+                    for m in modals:
+                        if await m.is_visible():
+                            visible_modals.append(m)
+                    if visible_modals:
+                        self.active_modal_sel = modal_sel
+                        break
+            except Exception as e:
+                log.debug(f"Dynamic modal detection failed: {e}")
             
             # Check for save dialog at start of each step
             await self._handle_save_dialog()
@@ -1186,9 +1230,14 @@ Questions:
                     if await inp.is_visible():
                         q_text = await self._get_question_text(inp)
                         if q_text and q_text != "Unknown question":
+                            # Prevent filenames (like resumes) from being treated as questions
+                            q_lower = q_text.lower()
+                            if ".pdf" in q_lower or ".doc" in q_lower:
+                                continue
+                                
                             if self._get_smart_answer(q_text, "text") is None:
                                 cached = self.user_profile.get("cached_answers", {})
-                                if q_text not in cached and q_text not in unknowns_to_batch:
+                                if self._find_in_cache(q_text, cached) is None and q_text not in unknowns_to_batch:
                                     unknowns_to_batch.append(q_text)
                 
                 if unknowns_to_batch:
@@ -2212,7 +2261,8 @@ async def main(
                     log.error(f"❌ Job {idx} modal error: {e}")
                     emit(False, url, company_name)
             
-            await asyncio.sleep(3)
+            # Sleep longer to prevent LinkedIn's Easy Apply GraphQL rate limits
+            await asyncio.sleep(random.randint(3, 6))
 
         # ── Pass 1: Initial Processing ───────────────────────────────────────
         idx_counter = 0
@@ -2225,8 +2275,8 @@ async def main(
                 idx_counter += 1
                 await process_job(job, idx_counter)
 
-        # ── Pass 2+: Retry Deferred Jobs (up to 3 passes) ────────────────────
-        MAX_DEFER_RETRY_PASSES = 3
+        # ── Pass 2+: Retry Deferred Jobs (up to 5 passes) ────────────────────
+        MAX_DEFER_RETRY_PASSES = 5
         for defer_pass in range(MAX_DEFER_RETRY_PASSES):
             if not deferred_jobs and not questions_buffer:
                 break
@@ -2512,6 +2562,15 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
                 facts = await asyncio.to_thread(extract_facts, original_txt)
             except Exception as e:
                 print(f"[tailor] PASS 1 hoist failed ({e}); each batch will self-extract")
+            
+            # Fetch original untailored resume binary to bypass Gemini tailoring during applier testing
+            import requests
+            try:
+                resp = await asyncio.to_thread(requests.get, resume_url)
+                default_base64_resume = base64.b64encode(resp.content).decode("utf-8") if resp.status_code == 200 else ""
+            except Exception as fe:
+                print(f"[tailor] Failed to fetch default resume binary: {fe}")
+                default_base64_resume = ""
             # 15 jobs per batch = one Gemini call (RPM-cheap on free tier). process_batch
             # -> tailor_jobs sends all 15 in one structured-output call (max_output_tokens
             # is the model max), and only splits into smaller calls if that truncates.
@@ -2524,14 +2583,14 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
                     log_callback({"progress": 10, "status": "tailoring", "message": "Tailoring resumes..."})
                 print(f"[tailor] Processing batch {(i//batch_size)+1} of {((remaining_count-1)//batch_size)+1}...")
                 # Isolate each batch: a single tailoring failure must NOT abandon the
-                # remaining batches. On failure, enqueue the jobs with no resume_binary
-                # so the consumer still emits a 'skipped' event and they stay counted.
+                # remaining batches. On failure, enqueue the jobs with default resume_binary
+                # so the consumer still processes them.
                 try:
-                    tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0, facts) # template=0 explicitly
+                    tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0, facts)
                 except Exception as be:
-                    print(f"[tailor] Batch {(i//batch_size)+1} failed ({be}); enqueueing as skipped")
+                    print(f"[tailor] Batch {(i//batch_size)+1} failed ({be}); enqueueing with default resume")
                     tailored_batch = [
-                        {"job_url": j.get("job_url"), "resume_binary": "", "company_name": j.get("company_name")}
+                        {"job_url": j.get("job_url"), "resume_binary": default_base64_resume, "company_name": j.get("company_name")}
                         for j in batch_jobs
                     ]
                 await jobs_queue.put(tailored_batch)

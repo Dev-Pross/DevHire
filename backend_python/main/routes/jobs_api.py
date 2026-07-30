@@ -283,11 +283,38 @@ async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
             active_res = supabase.table("workflow_sessions").select("id, workflow_type, status, last_active_at").eq("user_id", internal_user_id).neq("status", "completed").neq("status", "failed").execute()
             if active_res.data:
                 active_job = cast(Dict[str, Any], active_res.data[0])
+                active_job_id = str(active_job.get("id") or "")
+                active_status = str(active_job.get("status") or "running")
 
-                # Only auto-reconnect if it's the exact same workflow type
+                # If the worker process died (heartbeat is missing/expired), mark old job as failed immediately!
+                if not _is_worker_heartbeat_fresh(active_job_id):
+                    print(f"🧹 Clearing dead active job {active_job_id} (heartbeat missing/stale)")
+                    try:
+                        supabase.table("workflow_sessions").update({
+                            "status": "failed",
+                            "output_data": {"message": "Workflow aborted: worker process terminated unexpectedly"}
+                        }).eq("id", active_job_id).execute()
+                        
+                        # Re-attempt inserting the new job now that the old job is marked failed
+                        supabase.table("workflow_sessions").insert({
+                            "id": job_id,
+                            "user_id": internal_user_id,
+                            "workflow_type": req.workflow_type,
+                            "status": "pending",
+                            "input_data": req.input_data
+                        }).execute()
+
+                        _trigger_worker(job_id)
+                        return {
+                            "job_id": job_id,
+                            "status": "pending",
+                            "message": "Cleared stale dead job and started new workflow"
+                        }
+                    except Exception as clear_err:
+                        print(f"Failed to auto-clear dead job: {clear_err}")
+
+                # Only auto-reconnect if it's the exact same workflow type and actually alive
                 if active_job["workflow_type"] == req.workflow_type:
-                    active_status = str(active_job.get("status") or "running")
-                    active_job_id = str(active_job.get("id") or "")
                     if _should_resume_active_session(active_status, active_job_id, cast(Optional[str], active_job.get("last_active_at"))):
                         print(f"🔁 Resuming user's stale {active_status} active job: {active_job_id}")
                         return await _resume_existing_active_session(active_job_id, active_status)
