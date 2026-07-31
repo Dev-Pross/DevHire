@@ -34,7 +34,6 @@ async function fetch(id: any) {
   let user = await prisma.user.findFirst({
     where: { id }
   });
-
   if (user) {
     const now = new Date();
     const lastReset = user.credits_last_reset ? new Date(user.credits_last_reset) : new Date(0);
@@ -55,9 +54,9 @@ async function fetch(id: any) {
 
     // Reset daily apply count on a new UTC day
     if (
-      lastApplyReset.getUTCFullYear() !== now.getUTCFullYear() ||
-      lastApplyReset.getUTCMonth() !== now.getUTCMonth() ||
-      lastApplyReset.getUTCDate() !== now.getUTCDate()
+      lastApplyReset.getFullYear() !== now.getUTCFullYear() ||
+      lastApplyReset.getMonth() !== now.getUTCMonth() ||
+      lastApplyReset.getDate() !== now.getUTCDate()
     ) {
       updateData.daily_apply_count = 0;
       updateData.daily_apply_date = now;

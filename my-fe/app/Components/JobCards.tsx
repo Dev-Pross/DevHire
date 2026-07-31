@@ -31,6 +31,11 @@ const containerVariants: Variants = {
   hidden: {},
   show: { transition: { staggerChildren: 0.045 } },
 };
+const SkipIcon = () => (
+  <svg className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+  </svg>
+);
 const cardVariants: Variants = {
   hidden: { opacity: 0, y: 18, scale: 0.97 },
   show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: "easeOut" } },
@@ -60,13 +65,13 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
 
   // Dynamic daily quota & reset timer calculation
   const maxLimit = (user as any)?.max_daily_applies ?? 40;
-  
+
   const now = new Date();
   const lastApplyDate = (user as any)?.daily_apply_date ? new Date((user as any).daily_apply_date) : null;
   const isToday = lastApplyDate
-    ? lastApplyDate.getUTCFullYear() === now.getUTCFullYear() &&
-      lastApplyDate.getUTCMonth() === now.getUTCMonth() &&
-      lastApplyDate.getUTCDate() === now.getUTCDate()
+    ? lastApplyDate.getFullYear() === now.getUTCFullYear() &&
+    lastApplyDate.getMonth() === now.getUTCMonth() &&
+    lastApplyDate.getDate() === now.getUTCDate()
     : false;
 
   const dailyCount = isToday ? ((user as any)?.daily_apply_count ?? 0) : 0;
@@ -123,7 +128,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
     }
 
     if (jobs.length > remainingQuota) {
-      toast(`Capped selection to ${remainingQuota} job(s) based on your daily limit`, { icon: "ℹ️" });
+      toast(`Capped selection to ${remainingQuota} job(s) based on your daily limit`, { icon: <SkipIcon /> });
       setSelectedIds(
         jobs.slice(0, remainingQuota).map(({ job_id, job_description, job_url, company_name }) => ({
           job_id, job_description, job_url, company_name
@@ -202,14 +207,13 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
           >
             {selectedIds.length > 0 ? "Deselect all" : "Select all"}
           </button>
-          
+
           <div className="w-px h-4 bg-white/[0.08]" />
           <div className="flex items-center gap-2">
-            <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${
-              remainingQuota === 0
-                ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-            }`}>
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${remainingQuota === 0
+              ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+              : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+              }`}>
               {dailyCount}/{maxLimit} Today
             </span>
             {resetTimer && (
@@ -261,8 +265,8 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
       {/* ─── Job Cards Grid ─── */}
       <motion.div
         className={`grid gap-5 ${layout === "grid"
-            ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
-            : "grid-cols-1 md:grid-cols-2"
+          ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+          : "grid-cols-1 md:grid-cols-2"
           }`}
         variants={containerVariants}
         initial="hidden"
@@ -292,8 +296,8 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
               <div className="absolute top-4 right-4 z-10">
                 <div
                   className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${selected
-                      ? "bg-emerald-500 border-emerald-500 scale-110"
-                      : "border-white/[0.15] bg-transparent group-hover:border-white/[0.3]"
+                    ? "bg-emerald-500 border-emerald-500 scale-110"
+                    : "border-white/[0.15] bg-transparent group-hover:border-white/[0.3]"
                     }`}
                 >
                   {selected && (

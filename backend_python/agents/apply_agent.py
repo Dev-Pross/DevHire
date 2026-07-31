@@ -2090,7 +2090,7 @@ async def main(
             log_callback({"progress": 6, "status": "processing", "message": "Connecting to server..."})
         pw = await async_playwright().start()
         launch_kwargs = {
-            "headless": False,
+            "headless": True,
             
             "args": [
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
@@ -2406,7 +2406,7 @@ async def setup_and_login(progress_user, user_id, password, log_callback=None):
         log_callback({"progress": 6, "status": "processing", "message": "Connecting to server..."})
     pw = await async_playwright().start()
     launch_kwargs = {
-        "headless": False,
+        "headless": True,
         "args": [
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]
@@ -2490,8 +2490,8 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     user_profile = user_row.get("user_data", {}) or {}
     history_applied = set(user_row.get("applied_jobs") or [])
 
-    from datetime import date
-    today_str = date.today().isoformat()
+    from datetime import datetime, timezone
+    today_str = datetime.now(timezone.utc).date().isoformat()
 
     db_daily_count = user_row.get("daily_apply_count") or 0
     db_daily_date = user_row.get("daily_apply_date")
