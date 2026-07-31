@@ -565,8 +565,14 @@ def render_one_page(static_profile, tj, template: int = 0, max_trims: int = 4) -
     back to the candidate's original PDF). Extra compiles happen only on overflow.
     """
     pdf = None
+    prev_tex = None
     for attempt in range(max_trims + 1):
         tex = _render_tex(static_profile, tj, template)
+        if prev_tex == tex:
+            log.info("No more content changes after trim; breaking early to save time")
+            break
+        prev_tex = tex
+        
         pdf = compile_tex(tex)
         if not pdf:
             return None

@@ -317,7 +317,21 @@ class EasyApplyAgent:
                                         await asyncio.sleep(1)
                                         continue # Go to next attempt to find the REAL modal
                                     
-                                    # 2. Is it an Intermediate Resume/Unsubmitted Dialog?
+                                    # 2. Is it a Stale Success/Confirmation Dialog?
+                                    if any(x in dlg_text for x in ["application submitted", "you've applied", "application sent", "applied to"]):
+                                        log.info("🎉 Previous application success dialog detected. Dismissing...")
+                                        close_btn = current_modal.locator('button[aria-label="Dismiss"]').first
+                                        if not await close_btn.is_visible():
+                                            close_btn = current_modal.locator('button:has-text("Close")').first
+                                        if await close_btn.is_visible():
+                                            try:
+                                                await close_btn.click()
+                                            except:
+                                                await self.page.evaluate("(b)=>b.click()", close_btn)
+                                            await asyncio.sleep(1)
+                                        continue # Go to next attempt to find the REAL modal
+
+                                    # 3. Is it an Intermediate Resume/Unsubmitted Dialog?
                                     is_intermediate = False
                                     btns = await current_modal.locator('button').all()
                                     target_btn = None
@@ -345,7 +359,7 @@ class EasyApplyAgent:
                                         await asyncio.sleep(1)
                                         continue # Go to next attempt
                                         
-                                    # 3. Is it the actual Application Modal?
+                                    # 4. Is it the actual Application Modal?
                                     # We default to True as long as it's not a safety reminder or intermediate resume dialog,
                                     # ensuring high resilience against dynamic copy updates on LinkedIn.
                                     log.info("✅ Verified Application Modal (assumed valid as not a safety/resume intermediate dialog)")
@@ -1063,12 +1077,14 @@ Questions:
                 "button[aria-label='Review your application']:not([disabled])",
                 "button[aria-label*='Continue to next step']:not([disabled])",
                 "button[aria-label*='Continue applying']:not([disabled])",
+                "button[aria-label*='Save and continue']:not([disabled])",
                 
                 # Text-based selectors with exact matches
                 f"{self.active_modal_sel} button:has-text('Submit application'):not([disabled])",
                 f"{self.active_modal_sel} button:has-text('Review'):not([disabled])",
                 f"{self.active_modal_sel} button:has-text('Next'):not([disabled])",
                 f"{self.active_modal_sel} button:has-text('Continue'):not([disabled])",
+                f"{self.active_modal_sel} button:has-text('Save'):not([disabled])",
                 
                 # Fallback to primary buttons only
                 f"{self.active_modal_sel} button.artdeco-button--primary:not([disabled])",
@@ -1078,10 +1094,12 @@ Questions:
                 "footer button:has-text('Review'):not([disabled])",
                 "footer button:has-text('Next'):not([disabled])",
                 "footer button:has-text('Continue'):not([disabled])",
+                "footer button:has-text('Save'):not([disabled])",
                 "button:has-text('Submit application'):not([disabled])",
                 "button:has-text('Review'):not([disabled])",
                 "button:has-text('Next'):not([disabled])",
-                "button:has-text('Continue'):not([disabled])"
+                "button:has-text('Continue'):not([disabled])",
+                "button:has-text('Save'):not([disabled])"
             ]
             
             # Efficiently wait for the DOM to settle and at least one button to attach
@@ -1092,7 +1110,7 @@ Questions:
             except Exception:
                 log.debug("Timeout waiting for combined button selector.")
             
-            for attempt in range(2):
+            for attempt in range(4):
                 for selector in button_selectors:
                     try:
                         buttons = await self.page.locator(selector).all()
@@ -1114,7 +1132,11 @@ Questions:
                             label_lower = label.lower()
                             
                             # Sequential check as requested
-                            if not any(x in label_lower for x in ["submit", "review", "next", "continue", "apply", "finish", "done"]):
+                            if not any(x in label_lower for x in ["submit", "review", "next", "continue", "apply", "finish", "done", "save"]):
+                                continue
+                                
+                            if "save" in label_lower and "application" in label_lower:
+                                log.debug("Skipping 'Save this application' discard button")
                                 continue
                             
                             # Skip if the text is too long (likely grabbed dialog content)
@@ -1151,11 +1173,12 @@ Questions:
                         log.debug(f"Error with selector {selector}: {e}")
                         continue
                         
-                if attempt == 0:
-                    log.info(f"⏳ Retry 1/2: Waiting for buttons to settle...")
-                    await asyncio.sleep(1.0)
+                if attempt < 3:
+                    delay = float(attempt + 1)
+                    log.info(f"⏳ Retry {attempt+1}/3: Waiting {delay}s for buttons to settle...")
+                    await asyncio.sleep(delay)
             
-            log.warning("⚠️ No valid Next/Submit/Review button found after waiting")
+            log.warning("⚠️ No valid Next/Submit/Review/Save button found after waiting")
             return "", False
 
         for step in range(max_steps):
@@ -2133,35 +2156,8 @@ async def main(
 
         # ── Per-job apply loop & Rolling API Architecture ───────────────────
         deferred_jobs = []
-        retry_queue = asyncio.Queue()
         questions_buffer = []
-        questions_buffer_lock = asyncio.Lock()
-        api_tasks = []
         job_tracker = {} # url -> list of questions
-
-        async def flush_questions_buffer(force=False):
-            async with questions_buffer_lock:
-                if len(questions_buffer) >= 15 or (force and len(questions_buffer) > 0):
-                    batch_q = list(questions_buffer)
-                    questions_buffer.clear()
-                    if not batch_q: return
-                    
-                    async def _call_groq_and_push(questions_chunk):
-                        # log_callback removed as requested by user to keep UI clean
-                        await agent._ask_groq_batch(questions_chunk)
-                        
-                        # Find jobs that are now ready and push to retry_queue
-                        for d_job in list(deferred_jobs):
-                            d_url = d_job.get("job_url")
-                            if d_url in job_tracker:
-                                q_list = job_tracker[d_url]
-                                cached = agent.user_profile.get("cached_answers", {})
-                                if all(q in cached for q in q_list):
-                                    await retry_queue.put(d_job)
-                                    deferred_jobs.remove(d_job)
-                                    del job_tracker[d_url]
-                    
-                    api_tasks.append(asyncio.create_task(_call_groq_and_push(batch_q)))
 
         async def process_job(job, idx, is_retry=False):
             url, b64 = job.get("job_url"), job.get("resume_binary")
@@ -2232,12 +2228,10 @@ async def main(
                     deferred_jobs.append(job)
                     job_tracker[url] = unknowns
                     
-                    # Add to buffer and flush if needed
-                    async with questions_buffer_lock:
-                        for uq in unknowns:
-                            if uq not in questions_buffer:
-                                questions_buffer.append(uq)
-                    await flush_questions_buffer(force=False)
+                    # Add to buffer
+                    for uq in unknowns:
+                        if uq not in questions_buffer:
+                            questions_buffer.append(uq)
                     return
                 else:
                     # Check if we have scouted unknowns
@@ -2250,12 +2244,10 @@ async def main(
                         deferred_jobs.append(job)
                         job_tracker[url] = unknowns
                         
-                        # Add to buffer and flush if needed
-                        async with questions_buffer_lock:
-                            for uq in unknowns:
-                                if uq not in questions_buffer:
-                                    questions_buffer.append(uq)
-                        await flush_questions_buffer(force=False)
+                        # Add to buffer
+                        for uq in unknowns:
+                            if uq not in questions_buffer:
+                                questions_buffer.append(uq)
                         return
                     failed.append(url)
                     log.error(f"❌ Job {idx} modal error: {e}")
@@ -2280,11 +2272,22 @@ async def main(
         for defer_pass in range(MAX_DEFER_RETRY_PASSES):
             if not deferred_jobs and not questions_buffer:
                 break
+                
+            # Process any buffered questions synchronously in chunks of 15
+            if questions_buffer:
+                if log_callback:
+                    log_callback({
+                        "progress": 50,
+                        "status": "processing",
+                        "message": f"Asking Groq for {len(questions_buffer)} questions in batches..."
+                    })
+                
+                batch_size = 15
+                for i in range(0, len(questions_buffer), batch_size):
+                    chunk = questions_buffer[i:i+batch_size]
+                    await agent._ask_groq_batch(chunk)
+                questions_buffer.clear()
 
-            # Drop completed Groq tasks; keep only in-flight ones for this pass
-            api_tasks[:] = [t for t in api_tasks if not t.done()]
-
-            await flush_questions_buffer(force=True)
             if deferred_jobs and log_callback:
                 log_callback({
                     "progress": 60,
@@ -2295,24 +2298,19 @@ async def main(
                     ),
                 })
 
-            # Process as they come into retry_queue, OR if API tasks finish, flush remainder
-            while True:
-                try:
-                    d_job = retry_queue.get_nowait()
-                    idx_counter += 1
-                    await process_job(d_job, idx_counter, is_retry=True)
-                except asyncio.QueueEmpty:
-                    # check if api_tasks are done
-                    if all(t.done() for t in api_tasks):
-                        # Force process remaining deferred_jobs
-                        for d_job in list(deferred_jobs):
-                            idx_counter += 1
-                            await process_job(d_job, idx_counter, is_retry=True)
-                            # Remove this attempt; process_job re-appends if it defers again
-                            if d_job in deferred_jobs:
-                                deferred_jobs.remove(d_job)
-                        break
-                    await asyncio.sleep(1)
+            jobs_to_retry = list(deferred_jobs)
+            for d_job in jobs_to_retry:
+                d_url = d_job.get("job_url")
+                if d_url in job_tracker:
+                    q_list = job_tracker[d_url]
+                    cached = agent.user_profile.get("cached_answers", {})
+                    # Use _find_in_cache for case-insensitive matching (Issue #5)
+                    if all(agent._find_in_cache(q, cached) is not None for q in q_list):
+                        idx_counter += 1
+                        if d_job in deferred_jobs:
+                            deferred_jobs.remove(d_job)
+                        del job_tracker[d_url]
+                        await process_job(d_job, idx_counter, is_retry=True)
 
         # Anything still deferred after max passes → failed / skipped
         for d_job in list(deferred_jobs):
