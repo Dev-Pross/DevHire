@@ -2,63 +2,88 @@ import prisma from "@/app/utiles/database";
 import { Prisma } from "@prisma/client";
 
 
-async function insert_user(data:any){
-  return prisma.user.create({data})
+async function insert_user(data: any) {
+  return prisma.user.create({ data })
 }
 
-async function update_row(id:string, data:{ column: string, value: any}){
-  if(!id){
+async function update_row(id: string, data: { column: string, value: any }) {
+  if (!id) {
     throw new Error("id not provided")
   }
-  if(!data.column){
-   throw new Error("column name not provided")
+  if (!data.column) {
+    throw new Error("column name not provided")
   }
-  if(data.value === undefined){
-   throw new Error("value not provided")
+  if (data.value === undefined) {
+    throw new Error("value not provided")
   }
   // A null value clears the column. Prisma rejects a bare JS null for a Json
   // column, so translate it to the DB-null token.
   const value = data.value === null ? Prisma.DbNull : data.value;
   return prisma.user.update({
-    where: { id: id},
-    data:{
-      [data.column] : value
+    where: { id: id },
+    data: {
+      [data.column]: value
     }
   })
 }
 
-async function fetch(id:any) {
-  if(!id){
+async function fetch(id: any) {
+  if (!id) {
     throw new Error("id not provided")
   }
-  const user = await prisma.user.findFirst({
-    where: {id}
+  let user = await prisma.user.findFirst({
+    where: { id }
   });
 
   if (user) {
-    // Check if we need to reset daily credits
     const now = new Date();
     const lastReset = user.credits_last_reset ? new Date(user.credits_last_reset) : new Date(0);
-    
-    // Compare UTC days to see if it's a new day
+    const lastApplyReset = (user as any).daily_apply_date ? new Date((user as any).daily_apply_date) : new Date(0);
+
+    const updateData: any = {};
+
+    // Reset generation/fetch credits on a new UTC day
     if (
       lastReset.getUTCFullYear() !== now.getUTCFullYear() ||
       lastReset.getUTCMonth() !== now.getUTCMonth() ||
       lastReset.getUTCDate() !== now.getUTCDate()
     ) {
-      const updatedUser = await prisma.user.update({
+      updateData.shared_generation_credits = 5;
+      updateData.fetch_jobs_credits = 2;
+      updateData.credits_last_reset = now;
+    }
+
+    // Reset daily apply count on a new UTC day
+    if (
+      lastApplyReset.getUTCFullYear() !== now.getUTCFullYear() ||
+      lastApplyReset.getUTCMonth() !== now.getUTCMonth() ||
+      lastApplyReset.getUTCDate() !== now.getUTCDate()
+    ) {
+      updateData.daily_apply_count = 0;
+      updateData.daily_apply_date = now;
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      user = await prisma.user.update({
         where: { id: user.id },
-        data: {
-          shared_generation_credits: 5,
-          fetch_jobs_credits: 2,
-          credits_last_reset: now
-        }
+        data: updateData
       });
-      return updatedUser;
     }
   }
 
-  return user;
+  let max_daily_applies = 40;
+  try {
+    const sysConfig = await prisma.systemConfig.findUnique({
+      where: { key: "MAX_DAILY_APPLY_LIMIT" }
+    });
+    if (sysConfig && sysConfig.value) {
+      max_daily_applies = parseInt(sysConfig.value, 10);
+    }
+  } catch (e) {
+    console.error("Failed to fetch SystemConfig MAX_DAILY_APPLY_LIMIT:", e);
+  }
+
+  return user ? { ...user, max_daily_applies } : user;
 }
 export async function POST(request: Request) {
   const url = new URL(request.url)
@@ -67,17 +92,17 @@ export async function POST(request: Request) {
 
   try {
 
-    switch(action){
+    switch (action) {
       case "insert":
         const created = await insert_user(body)
-        return new Response(JSON.stringify({success:true, user: created}),{
-          status:201
+        return new Response(JSON.stringify({ success: true, user: created }), {
+          status: 201
         });
 
       case "update":
-        const {id, data} = body
-        const updated = await update_row(id,data)
-        return new Response(JSON.stringify({success:true,  message:"row updated"}),{
+        const { id, data } = body
+        const updated = await update_row(id, data)
+        return new Response(JSON.stringify({ success: true, message: "row updated" }), {
           status: 200
         })
 
@@ -119,7 +144,7 @@ export async function POST(request: Request) {
       case "deduct_credit": {
         const { id: creditUserId, type: creditType } = body;
         if (!creditUserId) throw new Error("id not provided");
-        
+
         const user = await prisma.user.findFirst({ where: { id: creditUserId } });
         if (!user) throw new Error("user not found");
 
@@ -152,8 +177,8 @@ export async function POST(request: Request) {
       }
 
       default:
-        return new Response(JSON.stringify({ success: false, message: "Invalid action" }), 
-        { status: 400 });
+        return new Response(JSON.stringify({ success: false, message: "Invalid action" }),
+          { status: 400 });
     }
   } catch (error: any) {
     return new Response(
@@ -163,20 +188,19 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request){
+export async function GET(request: Request) {
   const url = new URL(request.url)
   const action = url.searchParams.get("id")
 
-  try
-  {
+  try {
 
     const user = await fetch(action)
-    return new Response(JSON.stringify({success: true, user:user}),{status:200})
+    return new Response(JSON.stringify({ success: true, user: user }), { status: 200 })
 
-  }catch(err: any){
-    return new Response(JSON.stringify({success: false, message: err.message || "Unknown error" }),
-  {
-    status: 500
-  })
+  } catch (err: any) {
+    return new Response(JSON.stringify({ success: false, message: err.message || "Unknown error" }),
+      {
+        status: 500
+      })
   }
 }

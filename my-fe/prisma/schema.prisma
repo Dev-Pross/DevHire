@@ -23,6 +23,8 @@ model User {
   tier                      TIER               @default(FREE)
   isConnected               Boolean            @default(false)
   workflow_sessions         workflow_sessions?
+  daily_apply_count         Int                @default(0)
+  daily_apply_date          DateTime?          @db.Date
 
   @@map("User")
 }
@@ -56,3 +58,12 @@ enum TIER {
   FREE
   PRO
 }
+
+model SystemConfig {
+  key        String   @id
+  value      String
+  updated_at DateTime @default(now()) @updatedAt
+
+  @@map("SystemConfig")
+}
+

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { motion, type Variants } from "framer-motion";
 import { useUser } from "../utiles/UserContext";
@@ -58,14 +58,84 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [showPopup, setShowPopup] = useState(false);
 
+  // Dynamic daily quota & reset timer calculation
+  const maxLimit = (user as any)?.max_daily_applies ?? 40;
+  
+  const now = new Date();
+  const lastApplyDate = (user as any)?.daily_apply_date ? new Date((user as any).daily_apply_date) : null;
+  const isToday = lastApplyDate
+    ? lastApplyDate.getUTCFullYear() === now.getUTCFullYear() &&
+      lastApplyDate.getUTCMonth() === now.getUTCMonth() &&
+      lastApplyDate.getUTCDate() === now.getUTCDate()
+    : false;
+
+  const dailyCount = isToday ? ((user as any)?.daily_apply_count ?? 0) : 0;
+  const remainingQuota = Math.max(0, maxLimit - dailyCount);
+
+  const [resetTimer, setResetTimer] = useState<string>("");
+
+  useEffect(() => {
+    function updateCountdown() {
+      const current = new Date();
+      const nextReset = new Date(Date.UTC(
+        current.getUTCFullYear(),
+        current.getUTCMonth(),
+        current.getUTCDate() + 1,
+        0, 0, 0
+      ));
+      const diffMs = nextReset.getTime() - current.getTime();
+
+      if (diffMs <= 0) {
+        setResetTimer("Resets soon");
+        return;
+      }
+
+      const totalSeconds = Math.floor(diffMs / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      if (hours > 0) {
+        setResetTimer(`Resets in ${hours} hour${hours > 1 ? "s" : ""} ${minutes} min${minutes !== 1 ? "s" : ""}`);
+      } else if (minutes > 0) {
+        setResetTimer(`Resets in ${minutes} min${minutes > 1 ? "s" : ""}`);
+      } else {
+        setResetTimer(`Resets in a few seconds (${seconds}s)`);
+      }
+    }
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const isSelected = (id: string) => selectedIds.some((s) => s.job_id === id);
 
   const selectAllHandler = () => {
-    if (selectedIds.length === jobs.length) {
+    if (selectedIds.length > 0) {
       setSelectedIds([]);
       return;
     }
-    setSelectedIds(jobs.map(({ job_id, job_description, job_url, company_name }) => ({ job_id, job_description, job_url, company_name })));
+
+    if (remainingQuota <= 0) {
+      toast.error(`Daily limit reached (${dailyCount}/${maxLimit}). Try again when timer resets.`);
+      return;
+    }
+
+    if (jobs.length > remainingQuota) {
+      toast(`Capped selection to ${remainingQuota} job(s) based on your daily limit`, { icon: "ℹ️" });
+      setSelectedIds(
+        jobs.slice(0, remainingQuota).map(({ job_id, job_description, job_url, company_name }) => ({
+          job_id, job_description, job_url, company_name
+        }))
+      );
+    } else {
+      setSelectedIds(
+        jobs.map(({ job_id, job_description, job_url, company_name }) => ({
+          job_id, job_description, job_url, company_name
+        }))
+      );
+    }
   };
 
   const ApplierHandler = () => {
@@ -87,8 +157,21 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
 
   const cardHandler = (e: React.MouseEvent<HTMLLabelElement>, job: { job_id: string; job_url: string; job_description: string; company_name?: string }) => {
     e.preventDefault();
+    const isAlreadySelected = selectedIds.some((s) => s.job_id === job.job_id);
+
+    if (!isAlreadySelected) {
+      if (remainingQuota <= 0) {
+        toast.error(`Daily limit reached (${dailyCount}/${maxLimit}). Selection disabled until reset.`);
+        return;
+      }
+      if (selectedIds.length >= remainingQuota) {
+        toast.error(`Cannot select more than ${remainingQuota} job(s) based on your remaining quota today.`);
+        return;
+      }
+    }
+
     setSelectedIds((prev) =>
-      prev.some((s) => s.job_id === job.job_id)
+      isAlreadySelected
         ? prev.filter((s) => s.job_id !== job.job_id)
         : [...prev, job]
     );
@@ -105,7 +188,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
       {/* ─── Sticky Toolbar ─── */}
       <div className="w-full px-5 py-3.5 flex flex-wrap justify-between items-center gap-3 sticky top-[65px] backdrop-blur-xl bg-[#0A0A0A]/85 z-10 border border-white/[0.06] rounded-2xl mb-6">
         {/* Left section */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <p className="text-sm text-gray-500">
             <span className="text-emerald-400 font-semibold">{jobs.length}</span> jobs found
           </p>
@@ -117,8 +200,24 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
             className="text-xs text-gray-400 px-3 py-1.5 rounded-lg border border-white/[0.08] hover:border-white/[0.15] hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer"
             onClick={selectAllHandler}
           >
-            {selectedIds.length === jobs.length ? "Deselect all" : "Select all"}
+            {selectedIds.length > 0 ? "Deselect all" : "Select all"}
           </button>
+          
+          <div className="w-px h-4 bg-white/[0.08]" />
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${
+              remainingQuota === 0
+                ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+            }`}>
+              {dailyCount}/{maxLimit} Today
+            </span>
+            {resetTimer && (
+              <span className="text-xs text-gray-400 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/[0.06]">
+                {resetTimer}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Right section */}

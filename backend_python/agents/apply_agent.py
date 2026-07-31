@@ -84,6 +84,8 @@ KNOWN_TECHNOLOGIES = [
     "json", "xml", "http", "https", "tcp", "ip"
 ]
 
+MAX_DAILY_APPLICATIONS = 40  # Soft throttle safety cap
+DAILY_LIMIT_REACHED = "EASY_APPLY_DAILY_LIMIT_REACHED"
 
 # ─────────────────────────── LOGGING ───────────────────────────
 logging.basicConfig(
@@ -192,6 +194,13 @@ class EasyApplyAgent:
                 raise e
             log.debug(f"Error checking for already applied status: {e}")
 
+        # Scroll to top of the page before button search
+        try:
+            await self.page.evaluate("window.scrollTo(0, 0)")
+            await asyncio.sleep(0.5)
+        except:
+            pass
+
         selectors = [
             'button[aria-label*="Easy Apply"]',
             'a[aria-label*="Easy Apply to this job"]',
@@ -202,10 +211,17 @@ class EasyApplyAgent:
             'button:has-text("Apply"):has-text("Easy")'
         ]
 
+        # Wait for any selector to appear first
+        combined_selector = ", ".join(selectors)
+        try:
+            await self.page.wait_for_selector(combined_selector, timeout=10000)
+        except Exception:
+            log.debug("Timeout waiting for combined Easy Apply selectors")
+
         for selector in selectors:
             try:
                 log.info(f"Trying selector: {selector}")
-                await self.page.wait_for_selector(selector, timeout=3000)
+                await self.page.wait_for_selector(selector, timeout=5000)
                 buttons = await self.page.locator(selector).all()
                 log.info(f"Found {len(buttons)} buttons with selector: {selector}")
 
@@ -243,13 +259,13 @@ class EasyApplyAgent:
                                     log.debug(f"JS click failed: {e3}")
                             
                             # Strategy 3: Direct click with force
-                            # if not click_success:
-                            #     try:
-                            #         await btn.click(force=True, timeout=3000)
-                            #         click_success = True
-                            #         log.info("✅ Clicked with force=True")
-                            #     except Exception as e1:
-                            #         log.debug(f"Force click failed: {e1}")
+                            if not click_success:
+                                try:
+                                    await btn.click(force=True, timeout=3000)
+                                    click_success = True
+                                    log.info("✅ Clicked with force=True")
+                                except Exception as e1:
+                                    log.debug(f"Force click failed: {e1}")
 
                             if not click_success:
                                 log.warning("❌ Could not click Easy Apply button")
@@ -317,7 +333,12 @@ class EasyApplyAgent:
                                         await asyncio.sleep(1)
                                         continue # Go to next attempt to find the REAL modal
                                     
-                                    # 2. Is it a Stale Success/Confirmation Dialog?
+                                    # 2. Is it a LinkedIn Easy Apply Limit Modal?
+                                    if any(x in dlg_text for x in ["you reached today's easy apply limit", "reached today's limit", "easy apply limit"]):
+                                        log.warning("🚨 LinkedIn Easy Apply Daily Limit reached modal detected!")
+                                        raise Exception(DAILY_LIMIT_REACHED)
+
+                                    # 3. Is it a Stale Success/Confirmation Dialog?
                                     if any(x in dlg_text for x in ["application submitted", "you've applied", "application sent", "applied to"]):
                                         log.info("🎉 Previous application success dialog detected. Dismissing...")
                                         close_btn = current_modal.locator('button[aria-label="Dismiss"]').first
@@ -1137,6 +1158,11 @@ Questions:
                                 
                             if "save" in label_lower and "application" in label_lower:
                                 log.debug("Skipping 'Save this application' discard button")
+                                continue
+                            
+                            # Skip if text is exactly "Save" (not "Save and continue")
+                            if label_lower.strip() == "save":
+                                log.debug("Skipping standalone 'Save' button (job bookmark, not form action)")
                                 continue
                             
                             # Skip if the text is too long (likely grabbed dialog content)
@@ -2064,7 +2090,7 @@ async def main(
             log_callback({"progress": 6, "status": "processing", "message": "Connecting to server..."})
         pw = await async_playwright().start()
         launch_kwargs = {
-            "headless": True,
+            "headless": False,
             
             "args": [
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
@@ -2158,8 +2184,11 @@ async def main(
         deferred_jobs = []
         questions_buffer = []
         job_tracker = {} # url -> list of questions
+        daily_limit_hit = False
 
         async def process_job(job, idx, is_retry=False):
+            nonlocal daily_limit_hit
+            
             url, b64 = job.get("job_url"), job.get("resume_binary")
             company_name = job.get("company_name")
             if not url or not b64:
@@ -2187,7 +2216,11 @@ async def main(
                     emit(False, url, company_name, "direct apply only")
                     return
             except Exception as e:
-                if str(e) == "NO_LONGER_ACCEPTING":
+                if str(e) == DAILY_LIMIT_REACHED:
+                    log.warning("🛑 Daily Easy Apply limit hit on LinkedIn. Stopping gracefully...")
+                    daily_limit_hit = True
+                    return
+                elif str(e) == "NO_LONGER_ACCEPTING":
                     log.warning("Job is no longer accepting applications - skipping")
                     failed.append(url)
                     emit(False, url, company_name, "not accepting applications")
@@ -2259,17 +2292,23 @@ async def main(
         # ── Pass 1: Initial Processing ───────────────────────────────────────
         idx_counter = 0
         while True:
+            if daily_limit_hit:
+                break
             batch = await jobs_queue.get()
             if batch is None:
                 break
             
             for job in batch:
+                if daily_limit_hit:
+                    break
                 idx_counter += 1
                 await process_job(job, idx_counter)
 
         # ── Pass 2+: Retry Deferred Jobs (up to 5 passes) ────────────────────
         MAX_DEFER_RETRY_PASSES = 5
         for defer_pass in range(MAX_DEFER_RETRY_PASSES):
+            if daily_limit_hit:
+                break
             if not deferred_jobs and not questions_buffer:
                 break
                 
@@ -2367,7 +2406,7 @@ async def setup_and_login(progress_user, user_id, password, log_callback=None):
         log_callback({"progress": 6, "status": "processing", "message": "Connecting to server..."})
     pw = await async_playwright().start()
     launch_kwargs = {
-        "headless": True,
+        "headless": False,
         "args": [
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]
@@ -2446,10 +2485,40 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     total_jobs = len(jobs_to_apply)
 
     # Fetch pre-parsed user profile + prior apply history for resume-aware idempotency.
-    user_res = supabase.table("User").select("user_data, applied_jobs").eq("email", email).execute()
+    user_res = supabase.table("User").select("user_data, applied_jobs, daily_apply_count, daily_apply_date").eq("email", email).execute()
     user_row = user_res.data[0] if user_res.data else {}
     user_profile = user_row.get("user_data", {}) or {}
     history_applied = set(user_row.get("applied_jobs") or [])
+
+    from datetime import date
+    today_str = date.today().isoformat()
+
+    db_daily_count = user_row.get("daily_apply_count") or 0
+    db_daily_date = user_row.get("daily_apply_date")
+
+    # Reset in DB if it's a new day
+    if db_daily_date != today_str:
+        try:
+            supabase.table("User").update({
+                "daily_apply_count": 0,
+                "daily_apply_date": today_str
+            }).eq("email", email).execute()
+            db_daily_count = 0
+        except Exception as reset_e:
+            log.error(f"Failed to reset daily count in Supabase: {reset_e}")
+
+    # Fetch dynamic daily apply limit from SystemConfig table
+    max_daily_limit = MAX_DAILY_APPLICATIONS
+    try:
+        cfg_res = supabase.table("SystemConfig").select("value").eq("key", "MAX_DAILY_APPLY_LIMIT").execute()
+        if cfg_res.data and cfg_res.data[0].get("value"):
+            max_daily_limit = int(cfg_res.data[0]["value"])
+    except Exception as cfg_e:
+        log.warning(f"Could not fetch dynamic MAX_DAILY_APPLY_LIMIT from DB: {cfg_e}")
+
+    # Proactive daily limit check
+    if db_daily_count >= max_daily_limit:
+        raise Exception(f"Daily Easy Apply limit of {max_daily_limit} reached. Stopping pipeline proactively.")
 
     # Resume from any checkpoint already persisted on this session's row.
     applied_so_far = list(output_data.get("applied", []))
@@ -2538,7 +2607,17 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
             # brand-new job_id (minted after a failed row) also skips them.
             if status == "applied":
                 merged = list(history_applied | set(applied_so_far))
-                supabase.table("User").update({"applied_jobs": merged}).eq("email", email).execute()
+                
+                # Fetch latest daily count first to prevent overwrite
+                curr_user = supabase.table("User").select("daily_apply_count").eq("email", email).single().execute()
+                new_count = (curr_user.data.get("daily_apply_count") or 0) + 1
+                
+                from datetime import date
+                supabase.table("User").update({
+                    "applied_jobs": merged,
+                    "daily_apply_count": new_count,
+                    "daily_apply_date": date.today().isoformat()
+                }).eq("email", email).execute()
         except Exception as e:
             print(f"Checkpoint write failed: {e}")
 
