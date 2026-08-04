@@ -44,6 +44,69 @@ hlr.setFormatter(_Fmt("%(asctime)s | %(levelname)s | %(message)s"))
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(), handlers=[hlr])
 log = logging.getLogger("tailor")
 _TEMPLATE = 0
+
+TEMPLATE_BUDGETS = {
+    0: {
+        "max_total_bullets": 15,
+        "max_per_entry": 3,
+        "min_per_entry": 2,
+        "max_summary_chars": 300,
+        "max_words_per_bullet": 12,
+        "default_font_pt": 10,
+        "min_font_pt": 9,
+    },
+    1: {
+        "max_total_bullets": 12,
+        "max_per_entry": 3,
+        "min_per_entry": 2,
+        "max_summary_chars": 250,
+        "max_words_per_bullet": 10,
+        "default_font_pt": 10,
+        "min_font_pt": 9,
+    },
+    2: {
+        "max_total_bullets": 10,
+        "max_per_entry": 2,
+        "min_per_entry": 2,
+        "max_summary_chars": 200,
+        "max_words_per_bullet": 12,
+        "default_font_pt": 12,
+        "min_font_pt": 11,
+    },
+    3: {
+        "max_total_bullets": 14,
+        "max_per_entry": 3,
+        "min_per_entry": 2,
+        "max_summary_chars": 280,
+        "max_words_per_bullet": 12,
+        "default_font_pt": 10,
+        "min_font_pt": 9,
+    },
+}
+
+def _calculate_yoe(experience_list):
+    if not experience_list:
+        return 0
+    import datetime, re
+    current_year = datetime.datetime.now().year
+    min_year = current_year
+    max_year = 0
+    found_any = False
+    
+    for exp in experience_list:
+        date_str = getattr(exp, "date", "")
+        years = [int(y) for y in re.findall(r'\b(19|20)\d{2}\b', date_str)]
+        if years:
+            found_any = True
+            min_year = min(min_year, min(years))
+            max_year = max(max_year, max(years))
+        if "present" in date_str.lower() or "current" in date_str.lower():
+            max_year = current_year
+            
+    if not found_any:
+        return len(experience_list)
+        
+    return max_year - min_year
 # ╰───────────────────────────────────────────────────────────────╯
 
 jinja_env = Environment(
@@ -245,7 +308,7 @@ SYNTHESIZE_INSTRUCTIONS = r"""
 
     --- OUTPUT FORMAT ---
 
-    1. RAW TEXT ONLY: Emit plain, human-readable text in every string field. Do NOT escape any characters for LaTeX, Markdown, or HTML (no backslashes before &, %, $, #, _, {, }, ~, ^). Downstream code performs all escaping; pre-escaping will corrupt the rendered resume. The only exception is JSON's own required escaping (e.g. \" inside a string).
+    1. RAW TEXT ONLY: Emit plain, human-readable text in every string field. Do NOT escape any characters for LaTeX, Markdown, or HTML (no backslashes before &, %, $, #, _, {{, }}, ~, ^). Downstream code performs all escaping; pre-escaping will corrupt the rendered resume. The only exception is JSON's own required escaping (e.g. \" inside a string).
     2. EXACT JOB COUNT: Generate exactly N entries in the `tailored_jobs` array, where N equals the number of <JOB_DESCRIPTION> blocks provided. Each entry's `job_index` MUST match its JOB number (1-indexed).
 
     --- CRITICAL GUARDRAILS (CLOSED-WORLD, ZERO HALLUCINATION) ---
@@ -261,18 +324,27 @@ SYNTHESIZE_INSTRUCTIONS = r"""
     5. COMPOSE EACH BULLET FROM FACTS: For every experience entry and every project entry, write bullets by composing that entry's `facts` into JD-tailored sentences. Each bullet:
        - draws on one or more facts of THE SAME entry (never another entry's facts);
        - LEADS with the technology, methodology, or outcome THIS JD emphasizes (chosen from that fact's `tech`/`metric`/`outcome`);
-       - starts with a strong action verb; one line, ~10-15 words;
+       - starts with a strong action verb; one line, ~{max_words_per_bullet} words max;
        - states only what the facts support — surface a metric only if the fact carries one.
        Tailor emphasis and ordering to each JD: the same facts should yield visibly different bullets for a backend JD vs a data JD.
     6. ALL ENTRIES (sourcing, not rendering): Rank EVERY experience entry and EVERY project entry by relevance to this JD. You MUST include ALL projects and ALL experience entries. NEVER drop an entire project or experience block. If `experience` facts is empty, output `experience: []`.
     7. SUMMARY: Write `professional_summary` for each JD from the facts to foreground the strengths that match that JD's core requirements. Max 430 characters, 2-3 sentences, metric-driven and punchy.
-    8. ATS KEYWORD MAXIMIZATION & ONE-PAGE FITTING: The resume MUST fit a single page. Use 2-4 bullets per entry. To maximize ATS match rates, you must pack these bullets with as many relevant keywords from the JD as naturally possible. Prioritize experience bullets, then project bullets. Do NOT impose a hard total bullet cap. If space constraints are severe, reduce the NUMBER of bullets per project, but NEVER drop the last project entirely.
+    8. CONTENT BUDGET (STRICT):
+       - Total bullet budget across ALL experience + project entries: {max_total_bullets}.
+       - Every entry MUST have at least {min_per_entry} bullets. NEVER give any entry fewer.
+       - No entry may exceed {max_per_entry} bullets.
+       - Each bullet MUST be at most {max_words_per_bullet} words. Keep bullets single-line. Front-load the most impactful keyword from the JD within the first 5 words.
+       - professional_summary: max {max_summary_chars} characters.
+       - DISTRIBUTE BASED ON ENTRY COUNT:
+         * If total entries (experience + projects) >= 5: keep bullets concise (~10 words each). Rank entries by JD relevance. Give top-ranked entries {max_per_entry} bullets, lower-ranked entries {min_per_entry} bullets.
+         * If total entries <= 3: elaborate each bullet with richer technical depth ({max_words_per_bullet} to {max_words_expanded} words each). Use {max_per_entry} or more bullets per entry. Expand professional_summary to near {max_summary_chars} characters. The goal is a complete, balanced page with no empty space — but ONLY using facts from EXTRACTED_FACTS, never invented detail.
+       - Do NOT try to estimate page fit or self-trim. The rendering system handles page fitting. Your job: fill the budget completely and distribute evenly.
 
     --- SKILLS / ACHIEVEMENTS ---
 
     9. ALL SKILLS: Include ALL names from `skills_raw`, grouped into logical categories (e.g. "Languages", "Backend & AI", "Frontend", "Database & Infra", "Tools & Frameworks"). Do NOT cherry-pick only JD-relevant skills; within each category, order JD-relevant skills first. Do NOT rename or invent skills.
-    10. SKILL SCORING (proficiency, NOT relevance): For every skill assign `level` ∈ {"Beginner","Intermediate","Advanced","Expert"} and `score` ∈ 0.1-1.0 reflecting PROFICIENCY ONLY (0.8-1.0 if used across multiple complex projects/core employment; 0.5-0.7 if mentioned once; default "Intermediate"/0.7 if ambiguous). Express JD-relevance through ordering (rule 9), never by lowering a score.
-    11. ACHIEVEMENTS: For each item in the facts' achievements, output { "name": <short title>, "description": <one concise sentence pitching its relevance for ATS, derived from `raw`> }.
+    10. SKILL SCORING (proficiency, NOT relevance): For every skill assign `level` ∈ {{"Beginner","Intermediate","Advanced","Expert"}} and `score` ∈ 0.1-1.0 reflecting PROFICIENCY ONLY (0.8-1.0 if used across multiple complex projects/core employment; 0.5-0.7 if mentioned once; default "Intermediate"/0.7 if ambiguous). Express JD-relevance through ordering (rule 9), never by lowering a score.
+    11. ACHIEVEMENTS: For each item in the facts' achievements, output {{ "name": <short title>, "description": <one concise sentence pitching its relevance for ATS, derived from `raw`> }}.
 
     --- STATIC vs TAILORED FIELDS ---
 
@@ -280,7 +352,7 @@ SYNTHESIZE_INSTRUCTIONS = r"""
 
 """
 
-def build_prompt(payload: str, jobs: List[str], mode: str = "synthesize") -> str:
+def build_prompt(payload: str, jobs: List[str], mode: str = "synthesize", template: int = 0) -> str:
     """Build the prompt for either pass.
 
     mode="extract"  : `payload` is the raw resume text; `jobs` is ignored (Pass 1 is
@@ -297,8 +369,18 @@ def build_prompt(payload: str, jobs: List[str], mode: str = "synthesize") -> str
             "</EXTRACTED_PDF_TEXT>",
         ])
 
+    budget = TEMPLATE_BUDGETS.get(template, TEMPLATE_BUDGETS[0])
+    instructions = SYNTHESIZE_INSTRUCTIONS.format(
+        max_total_bullets=budget["max_total_bullets"],
+        max_per_entry=budget["max_per_entry"],
+        min_per_entry=budget["min_per_entry"],
+        max_summary_chars=budget["max_summary_chars"],
+        max_words_per_bullet=budget["max_words_per_bullet"],
+        max_words_expanded=budget["max_words_per_bullet"] + 4,
+    )
+
     prompt_parts = [
-        SYNTHESIZE_INSTRUCTIONS,
+        instructions,
         "\n## Candidate Facts and Job Descriptions",
         "<EXTRACTED_FACTS>",
         payload,
@@ -321,8 +403,8 @@ class TruncatedOutputError(Exception):
     over-budget prompt is futile — the caller (tailor_jobs) should split instead."""
 
 
-def ask_gemini(payload: str, jobs: List[str], *, schema=Format, mode: str = "synthesize"):
-    prompt = build_prompt(payload, jobs, mode)
+def ask_gemini(payload: str, jobs: List[str], *, schema=Format, mode: str = "synthesize", template: int = 0):
+    prompt = build_prompt(payload, jobs, mode, template)
     # Start with first model and move through MODELS on specific failures
     model_idx = 0
     choose_model = MODELS[model_idx]
@@ -400,7 +482,7 @@ def extract_facts(original_txt: str) -> "ResumeFacts":
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Adaptive batch tailoring ───────────────────────────────────╮
-def tailor_jobs(facts_json: str, jds: List[str], offset: int = 0) -> Format:
+def tailor_jobs(facts_json: str, jds: List[str], offset: int = 0, template: int = 0) -> Format:
     """Tailor N job descriptions in ONE Gemini call when it fits the output budget.
 
     On truncation / short return / call failure, split the list and retry each
@@ -413,7 +495,7 @@ def tailor_jobs(facts_json: str, jds: List[str], offset: int = 0) -> Format:
     """
     n = len(jds)
     try:
-        res = ask_gemini(facts_json, jds)
+        res = ask_gemini(facts_json, jds, template=template)
         got = list(res.tailored_jobs)
         if n == 1:
             # Single job is unambiguous: there is exactly one JD, so force the one
@@ -448,13 +530,13 @@ def tailor_jobs(facts_json: str, jds: List[str], offset: int = 0) -> Format:
     merged: List[TailoredJob] = []
     left_err = right_err = None
     try:
-        left = tailor_jobs(facts_json, jds[:mid], offset)
+        left = tailor_jobs(facts_json, jds[:mid], offset, template)
         static = static or left.static_profile
         merged.extend(left.tailored_jobs)
     except Exception as e:
         left_err = e
     try:
-        right = tailor_jobs(facts_json, jds[mid:], offset + mid)
+        right = tailor_jobs(facts_json, jds[mid:], offset + mid, template)
         static = static or right.static_profile
         merged.extend(right.tailored_jobs)
     except Exception as e:
@@ -556,26 +638,102 @@ def _trim_one(tj) -> bool:
     return True
 
 
-def render_one_page(static_profile, tj, template: int = 0, max_trims: int = 4) -> bytes | None:
-    """Render -> compile -> guarantee a SINGLE page.
-
-    If the compiled PDF spans more than one page, trim the least-relevant project
-    content (see _trim_one) and recompile, up to `max_trims` times. Returns the
-    compiled PDF bytes, or None if compilation fails outright (caller then falls
-    back to the candidate's original PDF). Extra compiles happen only on overflow.
+def _tighten_latex(tex: str, tier: int, template: int) -> str:
+    """Apply graduated spacing/font reductions to the rendered LaTeX.
+    
+    Tier 0: no changes
+    Tier 1: tighten item spacing (itemsep, vspace between items)
+    Tier 2: tighten section spacing (vspace between sections)  
+    Tier 3: one font step down (10pt→9pt or 12pt→11pt)
+    
+    Returns the modified LaTeX string.
     """
+    if tier <= 0:
+        return tex
+        
+    import re
+    
+    if template == 0:
+        # Tier 1: Tighten item/bullet spacing
+        if tier >= 1:
+            # We don't replace the section title's \vspace{-4pt} here.
+            tex = tex.replace("\\vspace{-2pt}", "\\vspace{-4pt}")   # resumeItem
+            tex = tex.replace("\\vspace{-5pt}", "\\vspace{-8pt}")   # titlerule, itemListEnd
+        # Tier 2: Tighten section/heading spacing
+        if tier >= 2:
+            tex = tex.replace("\\vspace{-7pt}", "\\vspace{-10pt}")  # project/subheading
+            tex = tex.replace("\\vspace{-4pt}", "\\vspace{-6pt}")   # section format
+            tex = tex.replace("\\vspace{3pt}", "\\vspace{1pt}")     # header name
+            tex = tex.replace("\\vspace{5pt}", "\\vspace{2pt}")     # header role
+            tex = tex.replace("\\vspace{4pt}", "\\vspace{1pt}")     # header links
+            # Push margins slightly tighter
+            tex = tex.replace("\\addtolength{\\topmargin}{-0.5in}", 
+                              "\\addtolength{\\topmargin}{-0.6in}")
+            tex = tex.replace("\\addtolength{\\textheight}{1.0in}", 
+                              "\\addtolength{\\textheight}{1.2in}")
+    
+    elif template == 1:
+        if tier >= 1:
+            tex = tex.replace("itemsep=1pt", "itemsep=0pt")
+            tex = tex.replace("topsep=1pt", "topsep=0pt")
+            tex = tex.replace("\\vspace{6pt}", "\\vspace{2pt}")    # after exp/project
+        if tier >= 2:
+            tex = tex.replace("\\vspace{8pt}", "\\vspace{4pt}")    # section headers
+            tex = tex.replace("\\vspace{4pt}", "\\vspace{1pt}")    # section sub-spacing
+            tex = tex.replace("\\vspace{2cm}", "\\vspace{0.5cm}")  # flexible spacer
+    
+    elif template == 2:
+        if tier >= 1:
+            tex = tex.replace("scale=0.75", "scale=0.82")          # tighter margins
+        if tier >= 2:
+            tex = tex.replace("\\[5pt]", "\\[2pt]")               # name spacing
+    
+    elif template == 3:
+        if tier >= 1:
+            tex = tex.replace("itemsep=2pt", "itemsep=0pt")
+            tex = tex.replace("topsep=2pt", "topsep=0pt")
+        if tier >= 2:
+            tex = tex.replace("\\vspace{8pt}", "\\vspace{4pt}")    # section/role
+            tex = tex.replace("\\vspace{5pt}", "\\vspace{2pt}")    # after header
+            tex = tex.replace("\\[5pt]", "\\[2pt]")               # name spacing
+    
+    # Tier 3: Font step down (common for all templates)
+    if tier >= 3:
+        budget = TEMPLATE_BUDGETS.get(template, TEMPLATE_BUDGETS[0])
+        default_font = budget["default_font_pt"]
+        min_font = budget["min_font_pt"]
+        
+        # We only drop font size once. Replace default_font with min_font in documentclass
+        tex = re.sub(
+            fr'\\documentclass\[(.*?)({default_font}pt)(.*?)\]', 
+            fr'\\documentclass[\1{min_font}pt\3]', 
+            tex
+        )
+        # moderncv uses \renewcommand*{\namefont}{\fontsize{24}{28}
+        if template == 2:
+             tex = tex.replace("\\fontsize{24}{28}", "\\fontsize{22}{26}")
+             
+    return tex
+
+
+def render_one_page(static_profile, tj, template: int = 0, has_experience: bool = False) -> bytes | None:
+    """Render -> compile -> guarantee a SINGLE page (or 2 for experienced).
+    
+    Uses graduated spacing and font reductions instead of trimming content.
+    """
+    max_pages = 2 if has_experience and _calculate_yoe(getattr(tj, "experience", [])) >= 2 else 1
+    
     pdf = None
-    prev_tex = None
-    for attempt in range(max_trims + 1):
+    MAX_TIGHTEN_TIERS = 3
+    
+    for tier in range(MAX_TIGHTEN_TIERS + 1):
         tex = _render_tex(static_profile, tj, template)
-        if prev_tex == tex:
-            log.info("No more content changes after trim; breaking early to save time")
-            break
-        prev_tex = tex
+        tex = _tighten_latex(tex, tier, template)
         
         pdf = compile_tex(tex)
         if not pdf:
             return None
+            
         try:
             doc = fitz.open(stream=pdf, filetype="pdf")
             pages = doc.page_count
@@ -583,14 +741,14 @@ def render_one_page(static_profile, tj, template: int = 0, max_trims: int = 4) -
         except Exception as e:
             log.warning("Page-count check failed (%s); accepting compiled PDF as-is", e)
             return pdf
-        if pages <= 1:
+            
+        if pages <= max_pages:
             return pdf
-        log.info("Resume is %d pages; trimming least-relevant project content (attempt %d/%d)",
-                 pages, attempt + 1, max_trims)
-        if not _trim_one(tj):
-            log.warning("No project content left to trim; returning best-effort %d-page PDF", pages)
-            return pdf
-    log.warning("Still over one page after %d trims; returning best-effort PDF", max_trims)
+            
+        log.info("Resume is %d pages (max %d); tightening to tier %d",
+                 pages, max_pages, tier + 1)
+                 
+    log.warning("All spacing tiers exhausted; returning best-effort %d-page PDF", pages)
     return pdf
 
 # ╰───────────────────────────────────────────────────────────────╯
@@ -684,7 +842,7 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
         # output budget; splits and retries on truncation. Per-job isolation — a single
         # failed job is absent from the result and falls back to its original PDF below.
         # Pass 2 sees ONLY the facts, never the resume prose, so it cannot copy bullets.
-        gemini_ans = tailor_jobs(facts_json, [j["job_description"] for j in jobs])
+        gemini_ans = tailor_jobs(facts_json, [j["job_description"] for j in jobs], template=template)
         # Identity fields are authoritative from the extracted facts — never trust Pass-2
         # regeneration for them. Deep-copy so escape_pydantic doesn't mutate the shared
         # `facts` (which would double-escape across batches in the apply pipeline).
@@ -712,7 +870,7 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
                 else:
                     # Render + compile + GUARANTEE one page (trim least-relevant project
                     # content and recompile on overflow).
-                    pdf = render_one_page(gemini_ans.static_profile, tj, template)
+                    pdf = render_one_page(gemini_ans.static_profile, tj, template, has_experience=bool(tj.experience))
                 if not pdf:
                     if original_pdf:
                         pdf = original_pdf
