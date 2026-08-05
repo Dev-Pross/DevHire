@@ -75,6 +75,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
     : false;
 
   const dailyCount = isToday ? ((user as any)?.daily_apply_count ?? 0) : 0;
+  const effectiveDailyCount = Math.min(maxLimit, dailyCount + selectedIds.length);
   const remainingQuota = Math.max(0, maxLimit - dailyCount);
 
   const [resetTimer, setResetTimer] = useState<string>("");
@@ -214,7 +215,7 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
               ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
               : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
               }`}>
-              {dailyCount}/{maxLimit} Today
+              {effectiveDailyCount}/{maxLimit} Today
             </span>
             {resetTimer && (
               <span className="text-xs text-gray-400 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/[0.06]">

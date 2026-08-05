@@ -980,6 +980,9 @@ class EasyApplyAgent:
             
         log.info(f"🧠 Asking Groq for {len(questions)} unknown questions...")
         
+        # Prune cached_answers from user_profile to keep prompt tokens lean
+        clean_profile = {k: v for k, v in self.user_profile.items() if k != "cached_answers"}
+        
         prompt = f"""
 You are an expert AI filling out a job application for this user.
 Answer the following questions based strictly on the user profile below.
@@ -991,7 +994,7 @@ If the profile doesn't have the info, make a reasonable, professional guess.
 Do NOT ask to confirm user details or output conversational text. Output ONLY valid JSON.
 
 User Profile:
-{json.dumps(self.user_profile, indent=2)}
+{json.dumps(clean_profile, indent=2)}
 
 Questions:
 {json.dumps(questions, indent=2)}
@@ -1008,6 +1011,13 @@ Questions:
                 response_format={"type": "json_object"}
             )
             
+            # Log token usage metrics with distinct identifier
+            if hasattr(completion, 'usage') and completion.usage:
+                p_tok = getattr(completion.usage, 'prompt_tokens', 0)
+                c_tok = getattr(completion.usage, 'completion_tokens', 0)
+                t_tok = getattr(completion.usage, 'total_tokens', 0)
+                log.info(f"📊 [GROQ_TOKEN_METRICS] Questions: {len(questions)} | Prompt Tokens: {p_tok} | Completion Tokens: {c_tok} | Total Tokens: {t_tok}")
+
             response_text = completion.choices[0].message.content
             new_answers = json.loads(response_text)
             
@@ -2589,9 +2599,9 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
             return
         url = ev.get("job_url")
         status = ev.get("status")
-        if not url or status not in ("applied", "skipped"):
+        if not url or status not in ("applied", "already applied", "skipped"):
             return
-        if status == "applied":
+        if status in ("applied", "already applied"):
             applied_so_far.append(url)
         else:
             failed_so_far.append(url)
