@@ -2352,9 +2352,11 @@ async def main(
                 d_url = d_job.get("job_url")
                 if d_url in job_tracker:
                     q_list = job_tracker[d_url]
-                    cached = agent.user_profile.get("cached_answers", {})
-                    # Use _find_in_cache for case-insensitive matching (Issue #5)
-                    if all(agent._find_in_cache(q, cached) is not None for q in q_list):
+                    # Check both candidate profile rules (_get_smart_answer) and Groq cache (_find_in_cache)
+                    is_ready = all(agent._get_cached_or_smart_answer(q) is not None for q in q_list)
+                    
+                    # On final pass, force retry so form submission is attempted using smart fallbacks
+                    if is_ready or defer_pass == MAX_DEFER_RETRY_PASSES - 1:
                         idx_counter += 1
                         if d_job in deferred_jobs:
                             deferred_jobs.remove(d_job)
