@@ -211,7 +211,7 @@ export const HeroTalent = () => {
               status feed — feels like a real product screenshot
               ═══════════════════════════════════════════════════════════ */}
           <motion.div
-            className="flex-1 relative hidden lg:flex justify-center items-center min-h-[540px]"
+            className="flex-1 relative hidden lg:flex justify-center items-center min-h-[640px]"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.4, ease: "easeOut" as const }}
@@ -235,7 +235,7 @@ export const HeroTalent = () => {
 
             {/* ── Main Dashboard Card ── */}
             <motion.div
-              className="absolute top-2 right-4 w-[290px] bg-[#111]/90 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-5 shadow-2xl shadow-black/50"
+              className="absolute top-[40px] right-4 w-[290px] bg-[#111]/90 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-5 shadow-2xl shadow-black/50"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.7 }}

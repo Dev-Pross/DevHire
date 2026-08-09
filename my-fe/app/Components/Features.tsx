@@ -417,7 +417,7 @@ const Features = () => {
             </svg>
             FEATURES
           </span>
-          <h2 className="text-3xl lg:text-5xl font-bold gradient-text mb-4">
+          <h2 className="text-3xl lg:text-5xl font-bold gradient-text mb-4 p-2">
             All the Tools you need to help
           </h2>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">

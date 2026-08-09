@@ -54,7 +54,7 @@ export const Pricing = () => {
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium mb-6">
             Pricing
           </span>
-          <h2 className="text-3xl lg:text-5xl font-bold gradient-text mb-4">
+          <h2 className="text-3xl lg:text-5xl font-bold gradient-text mb-4 p-2">
             Choose the perfect plan
           </h2>
           <p className="text-gray-400 text-lg max-w-xl mx-auto">
