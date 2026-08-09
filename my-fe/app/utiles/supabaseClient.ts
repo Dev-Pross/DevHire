@@ -9,6 +9,6 @@ const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 // export const supabase = createClient(supabaseUrl, supabaseAnon)
 
 
-import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-export const supabase = createPagesBrowserClient()
+export const supabase = createClientComponentClient()

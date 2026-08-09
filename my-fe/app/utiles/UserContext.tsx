@@ -46,8 +46,8 @@ const UserContext = createContext<UserContextType>({
   user: defaultUser,
   loading: true,
   isLoggedIn: false,
-  refreshUser: async () => {},
-  logout: async () => {},
+  refreshUser: async () => { },
+  logout: async () => { },
 });
 
 export const useUser = () => useContext(UserContext);
@@ -59,7 +59,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const fetchUserData = useCallback(async () => {
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError || !sessionData?.session?.user) {
         setUser(defaultUser);
         setLoading(false);
@@ -138,8 +138,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
           if (userData.user.daily_apply_date) {
             dailyApplyDate = userData.user.daily_apply_date;
           }
-          if (typeof userData.max_daily_applies === "number") {
-            maxDailyApplies = userData.max_daily_applies;
+          if (typeof userData.user.max_daily_applies === "number") {
+            maxDailyApplies = userData.user.max_daily_applies;
           }
         }
       } catch (err) {

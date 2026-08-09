@@ -2190,6 +2190,7 @@ async def main(
                     "success":  success,
                 })
 
+        
         # ── Per-job apply loop & Rolling API Architecture ───────────────────
         deferred_jobs = []
         questions_buffer = []
@@ -2406,8 +2407,8 @@ async def main(
         }
 
     finally:
-        await context.close()
-        await browser.close()
+        await safe_close(context)
+        await safe_close(browser)
         await pw.stop()
 
 if __name__ == "__main__":
@@ -2445,7 +2446,7 @@ async def setup_and_login(progress_user, user_id, password, log_callback=None):
         return pw, browser, context, page
     except Exception as e:
         try:
-            await browser.close()
+            await safe_close(browser)
             await pw.stop()
         except:
             pass
@@ -2697,7 +2698,7 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
         pw_check, browser_check, context_check, page_check = await setup_and_login(email, l_email, l_pass, log_callback)
         # Close check browser completely to save resources during tailoring
         try:
-            await browser_check.close()
+            await safe_close(browser_check)
             await pw_check.stop()
         except:
             pass
@@ -2739,7 +2740,7 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
                     pass
             # Cleanup main browser instance
             try:
-                await browser_instance.close()
+                await safe_close(browser_instance)
                 await pw_instance.stop()
             except:
                 pass
@@ -2769,7 +2770,7 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
         # Cleanup any dangling browser processes
         try:
             if browser_instance:
-                await browser_instance.close()
+                await safe_close(browser_instance)
             if pw_instance:
                 await pw_instance.stop()
         except:
@@ -2806,3 +2807,13 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
 
         # Re-raise error to bubble up
         raise run_error
+
+async def safe_close(object, timeout=3.0):
+    if not object:
+        return
+    try:
+        await asyncio.wait_for(object.close(), timeout=timeout)
+    except asyncio.TimeoutError:
+        print("⚠️ Timeout while closing Playwright object. Forcefully bypassing.")
+    except Exception as e:
+        print(f"⚠️ Error while closing Playwright object: {e}")

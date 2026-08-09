@@ -208,13 +208,13 @@ async def linkedin_login(browser, email_val, password_val):
 
         # LOGGED_IN_CONTEXT = context
 
-        await page.close()
+        await safe_close(page)
         return context
             
     except Exception as e:
         print(f"❌ Login error: {e}")
-        await page.close()
-        await context.close()
+        await safe_close(page)
+        await safe_close(context)
         return None
 
 async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_password=None, is_connected=True):
@@ -1054,7 +1054,7 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
         return {}
     finally:
         if page:
-            await page.close()
+            await safe_close(page)
 
 # ---------------------------------------------------------------------------
 # 5. GEMINI API PROCESSING FUNCTIONS (OPTIMIZED)
@@ -1524,13 +1524,13 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
         finally:
             if LOGGED_IN_CONTEXT:
                 try:
-                    await LOGGED_IN_CONTEXT.close()
+                    await safe_close(LOGGED_IN_CONTEXT)
                     print("="*70)
                     print(f"context has been closed")
                     print("="*70)
                 except Exception as e:
                     print(f"⚠️ Error closing context: {e}")
-            await browser.close()
+            await safe_close(browser)
     
     print(f"\n{'='*70}")
     print(f"🏆 SPEED-OPTIMIZED EXTRACTION COMPLETE!")
@@ -1609,6 +1609,17 @@ def run_scraper_pipeline(job_id: str, job_data: dict, log_callback):
         import traceback
         traceback.print_exc()
         raise e
+
+async def safe_close(object, timeout=3.0):
+    if not object:
+        return
+    try:
+        await asyncio.wait_for(object.close(), timeout=timeout)
+    except asyncio.TimeoutError:
+        print("⚠️ Timeout while closing Playwright object. Forcefully bypassing.")
+    except Exception as e:
+        print(f"⚠️ Error while closing Playwright object: {e}")
+
 
 async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback, state: dict):
     from config import supabase
