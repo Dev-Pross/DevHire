@@ -93,7 +93,7 @@
  \begin{itemize}[leftmargin=0.15in, label={}]
     \small{\item{
       <BLOCK> for skill in job.skills </BLOCK>
-     \textbf{<<skill.category>>}{:<BLOCK> for val in skill.values </BLOCK><< val.name >><BLOCK> if not loop.last </BLOCK>, <BLOCK> endif </BLOCK><BLOCK> endfor </BLOCK>} \\
+     \textbf{<<skill.category>>}{: <BLOCK> for val in skill.values </BLOCK><< val.name >><BLOCK> if not loop.last </BLOCK>, <BLOCK> endif </BLOCK><BLOCK> endfor </BLOCK>} \\
      <BLOCK> endfor </BLOCK>
     }}
  \end{itemize}
@@ -116,6 +116,7 @@
     \resumeSubHeadingListEnd
 <BLOCK> endif </BLOCK>
 
+<BLOCK> if job.projects </BLOCK>
 %-----------PROJECTS-----------
 \section{Key Projects}
 \resumeSubHeadingListStart
@@ -130,6 +131,7 @@
     \resumeItemListEnd
     <BLOCK> endfor </BLOCK>
 \resumeSubHeadingListEnd
+<BLOCK> endif </BLOCK>
 
 
 <BLOCK> if job.achievements </BLOCK>

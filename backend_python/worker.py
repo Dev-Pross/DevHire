@@ -37,7 +37,7 @@ def log_to_redis(job_id, event_or_progress, status=None, message=None, extra=Non
         # Keep stream reasonably sized or expire it after a day
         redis_client.expire(stream_key, 86400)
         # Heartbeat is used by /api/jobs/start to detect stale active sessions.
-        redis_client.setex(heartbeat_key, 60, str(time.time()))
+        redis_client.set(heartbeat_key, str(time.time()), ex=60)
     except Exception as e:
         print(f"Redis log error: {e}")
 
@@ -48,18 +48,27 @@ def heartbeat_loop(job_id: str, stop_event: threading.Event):
     while not stop_event.is_set():
         try:
             if redis_client:
-                redis_client.setex(heartbeat_key, 60, str(time.time()))
+                redis_client.set(heartbeat_key, str(time.time()), ex=60)
         except Exception as e:
             print(f"Heartbeat update error for {job_id}: {e}")
         stop_event.wait(10)
 
 def fail_job(job_id, error_message):
     print(f"❌ Failing job: {error_message}")
-    supabase.table("workflow_sessions").update({
-        "status": "failed"
-    }).eq("id", job_id).execute()
-    log_to_redis(job_id, -1, "error", error_message)
-    sys.exit(1)
+    try:
+        supabase.table("workflow_sessions").update({
+            "status": "failed",
+            "output_data": {"error": str(error_message)}
+        }).eq("id", job_id).execute()
+    except Exception as db_e:
+        print(f"Failed DB update in fail_job: {db_e}")
+
+    try:
+        log_to_redis(job_id, -1, "error", str(error_message))
+    except Exception as redis_e:
+        print(f"Failed Redis log in fail_job: {redis_e}")
+
+    cleanup_and_exit(job_id, error_message=error_message, exit_code=1)
 
 def cleanup_and_exit(job_id, error_message=None, exit_code=0):
     if error_message:
@@ -130,11 +139,11 @@ def run_apply_jobs_pipeline(job_id, job_data):
     """
     Orchestrate the auto-apply pipeline
     """
-    from agents.apply_agent import run_apply_pipeline
-    
     log_to_redis(job_id, 10, "in_progress", "Initializing job application pipeline...")
     
     try:
+        from agents.apply_agent import run_apply_pipeline
+
         run_apply_pipeline(job_id, job_data, log_callback=lambda ev: log_to_redis(job_id, ev) if isinstance(ev, dict) else log_to_redis(job_id, ev, "in_progress", "Processing..."))
         log_to_redis(job_id, 100, "done", "Job application completed successfully!")
         
@@ -190,13 +199,16 @@ def main():
             time.sleep(0.5)
         
         # 4. Route to pipeline
-        wf_type = job_data["workflow_type"]
-        if wf_type == "fetch_jobs":
-            run_fetch_jobs_pipeline(job_id, job_data)
-        elif wf_type == "apply_jobs":
-            run_apply_jobs_pipeline(job_id, job_data)
-        else:
-            fail_job(job_id, f"Unknown workflow type: {wf_type}")
+        try:
+            wf_type = job_data["workflow_type"]
+            if wf_type == "fetch_jobs":
+                run_fetch_jobs_pipeline(job_id, job_data)
+            elif wf_type == "apply_jobs":
+                run_apply_jobs_pipeline(job_id, job_data)
+            else:
+                fail_job(job_id, f"Unknown workflow type: {wf_type}")
+        except Exception as route_err:
+            fail_job(job_id, f"Fatal worker exception: {str(route_err)}")
             
         cleanup_and_exit(job_id, exit_code=0)
     finally:

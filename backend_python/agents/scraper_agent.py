@@ -1651,6 +1651,12 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback, sta
                 
             user_data_parsed = parse_main(resume_url)
             
+            # Preserve old cached_answers if they exist so the Applier Agent remains smart
+            if user_record and user_record.get("user_data") and isinstance(user_record.get("user_data"), dict):
+                old_cache = user_record["user_data"].get("cached_answers", {})
+                if old_cache:
+                    user_data_parsed["cached_answers"] = old_cache
+            
             # Save fresh parse result and active URL back to DB
             supabase.table("User").update({
                 "user_data": user_data_parsed,

@@ -13,6 +13,9 @@ interface UserData {
   tier: string;
   shared_generation_credits: number;
   fetch_jobs_credits: number;
+  daily_apply_count: number;
+  daily_apply_date: string | null;
+  max_daily_applies: number;
 }
 
 interface UserContextType {
@@ -34,6 +37,9 @@ const defaultUser: UserData = {
   tier: "FREE",
   shared_generation_credits: 0,
   fetch_jobs_credits: 0,
+  daily_apply_count: 0,
+  daily_apply_date: null,
+  max_daily_applies: 40,
 };
 
 const UserContext = createContext<UserContextType>({
@@ -90,6 +96,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       let tier = "FREE";
       let sharedGenerationCredits = 0;
       let fetchJobsCredits = 0;
+      let dailyApplyCount = 0;
+      let dailyApplyDate: string | null = null;
+      let maxDailyApplies = 40;
 
       try {
         const res = await fetch(`/api/User?id=${userId}`, {
@@ -123,6 +132,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
           if (typeof userData.user.fetch_jobs_credits === "number") {
             fetchJobsCredits = userData.user.fetch_jobs_credits;
           }
+          if (typeof userData.user.daily_apply_count === "number") {
+            dailyApplyCount = userData.user.daily_apply_count;
+          }
+          if (userData.user.daily_apply_date) {
+            dailyApplyDate = userData.user.daily_apply_date;
+          }
+          if (typeof userData.max_daily_applies === "number") {
+            maxDailyApplies = userData.max_daily_applies;
+          }
         }
       } catch (err) {
         console.error("Error fetching user data from DB:", err);
@@ -147,6 +165,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         tier: tier,
         shared_generation_credits: sharedGenerationCredits,
         fetch_jobs_credits: fetchJobsCredits,
+        daily_apply_count: dailyApplyCount,
+        daily_apply_date: dailyApplyDate,
+        max_daily_applies: maxDailyApplies,
       });
       setLoading(false);
     } catch (err) {

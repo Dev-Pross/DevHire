@@ -274,7 +274,7 @@ const ProfilePage = () => {
                       </p>
                       {data?.applied_jobs && (
                         <span className="text-emerald-900 text-xs md:text-sm font-semibold bg-emerald-400 px-2.5 py-1 rounded-full">
-                          {jobCount ? `+${jobCount} now` : "0 added now"}
+                          {data?.daily_apply_count !== undefined ? `${data.daily_apply_count} Today` : "0 Today"}
                         </span>
                       )}
                     </div>

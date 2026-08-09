@@ -191,26 +191,7 @@ const Apply: React.FC = () => {
       }
       setUrl(pdf);
 
-      // Smart initialization: Check for cached results vs fresh job selections
-      const cachedResults = await getApplyResults().catch(() => null);
 
-      // If no new job selections but we have cached results, show them
-      if (!jobData && cachedResults && cachedResults.completedAt) {
-        if (!cancelled) {
-          setResults({
-            applied: cachedResults.applied,
-            failed: cachedResults.failed,
-            total_jobs: cachedResults.total_jobs,
-          });
-          setAppliedCount(cachedResults.applied.length);
-          setSkippedCount(cachedResults.failed.length);
-          setProgress(100);
-          setIsDone(true);
-          hasStarted.current = true;
-          pushLog("Showing results from your last application session.", "done");
-        }
-        return;
-      }
 
       // Check if there's an active job to reconnect to via the server.
       let isReconnecting = false;
@@ -273,6 +254,24 @@ const Apply: React.FC = () => {
 
       if (!jobData && !isReconnecting) {
         // Server had no active/completed session, and no fresh job selections exist — try IndexedDB as fallback
+        const cachedResults = await getApplyResults().catch(() => null);
+        if (cachedResults && cachedResults.completedAt) {
+          if (!cancelled) {
+            setResults({
+              applied: cachedResults.applied,
+              failed: cachedResults.failed,
+              total_jobs: cachedResults.total_jobs,
+            });
+            setAppliedCount(cachedResults.applied.length);
+            setSkippedCount(cachedResults.failed.length);
+            setProgress(100);
+            setIsDone(true);
+            hasStarted.current = true;
+            pushLog("Showing results from your last application session.", "done");
+          }
+          return;
+        }
+
         const persisted = await getApplyProgress().catch(() => null);
         if (!cancelled && persisted && (persisted.applied.length > 0 || persisted.failed.length > 0)) {
           const appliedUrls = persisted.applied.map((item) => item.job_url);

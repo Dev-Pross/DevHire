@@ -24,6 +24,8 @@ interface LogEntry {
 /* ── Phase label from status ─────────────────────────────── */
 function getPhaseLabel(type: string, message: string = ""): string {
   const msg = message.toLowerCase();
+  if (msg.includes("retrying") || type === "retrying") return "Retrying";
+  if (msg.includes("parsing")) return "Parsing";
   if (msg.includes("analyzing") || msg.includes("extracting") || type === "batch_ready") return "Analyzing";
   if (msg.includes("scraping") || msg.includes("searching") || type === "in_progress") return "Scraping";
   if (type === "done") return "Completed";
@@ -772,7 +774,7 @@ const Jobs = () => {
                     <select
                       value={experienceFilter}
                       onChange={(e) => setExperienceFilter(e.target.value)}
-                      className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-gray-200 outline-none focus:border-emerald-500/40"
+                      className="w-[145px] rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-gray-200 outline-none focus:border-emerald-500/40"
                     >
                       <option value="">Any experience</option>
                       {experienceOptions.map((exp) => (
