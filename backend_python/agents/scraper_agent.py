@@ -41,7 +41,7 @@ class Colors:
 # Configuration
 PLATFORMS = {
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search/?f_AL=true&f_E=1%2C2&f_JT=F&f_TPR=r86400&f_WT=1%2C2%2C3&keywords={role}&location=India&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=DD",
+        "url_template": "https://www.linkedin.com/jobs/search-results/?keywords={role}&geoId=102713980&f_TPR=r86400&f_AL=true&f_SAL=f_SA_id_225001%3A272001%24f_SA_id_226001%3A274001%2C275001%2C272015&sortBy=DD",
         "base_url": "https://www.linkedin.com",
         "login_url": "https://www.linkedin.com/login"
     },
@@ -69,8 +69,6 @@ model_1 = 'gemini-2.5-flash'
 model_4 = 'gemini-robotics-er-1.5-preview'
 
 MODELS = [model_1, model_2, model_3, model_4]
-
-MAX_PAGES = 3
 
 
 def normalize_job_url(url: str) -> str:
@@ -316,21 +314,22 @@ async def ensure_logged_in(browser, user_id, linkedin_email=None, linkedin_passw
 # ---------------------------------------------------------------------------
 
 async def load_all_available_jobs_fixed(page):
-    """FIXED: Proper pagination with page-by-page job loading - returns unique job entries."""
+    """Hybrid (Infinite Scroll + Pagination) job loading using leftmost scroll container."""
     try:
-        print("🔄 Starting FIXED pagination job loading...")
-        
+        print("🔄 Starting Hybrid (Infinite Scroll + Pagination) job loading...")
         unique_job_map = {}
-        max_pages = MAX_PAGES
+        max_attempts = 5
         
-        for page_num in range(max_pages):
-            print(f"📄 Processing page {page_num + 1}/{max_pages}")
+        for attempt in range(max_attempts):
+            print(f"📜 Processing batch/page {attempt + 1}/{max_attempts}")
             
-            # Collect job entries from current page
+            # 1. Scroll container to bottom to expose all items/footer
+            await scroll_current_page(page)
+            await asyncio.sleep(1.5)
+            
+            # 2. Collect current jobs from container
             current_page_jobs = await collect_jobs_from_current_page(page)
-            
-            # Add new unique jobs
-            new_jobs_count = 0
+            new_jobs = 0
             for job in current_page_jobs:
                 raw_url = job.get("url", "") if isinstance(job, dict) else ""
                 clean_url = normalize_job_url(raw_url)
@@ -339,361 +338,182 @@ async def load_all_available_jobs_fixed(page):
                         "url": clean_url,
                         "card_title": normalize_text(job.get("card_title", "")),
                     }
-                    new_jobs_count += 1
+                    new_jobs += 1
             
-            print(f"✅ Page {page_num + 1}: Added {new_jobs_count} new jobs (Total: {len(unique_job_map)})")
+            print(f"   📊 Added {new_jobs} new jobs (Total unique: {len(unique_job_map)})")
             
-            # Try to navigate to next page
-            next_clicked = await click_next_page_and_wait(page)
-            if not next_clicked:
-                print(f"🛑 No next page available, stopping at page {page_num + 1}")
-                break
-        
-        print(f"✅ FIXED pagination complete: {len(unique_job_map)} unique jobs from multiple pages")
+            # 3. Check if a visible "Next" page button exists (Account B)
+            clicked_next = await page.evaluate('''
+                () => {
+                    const selectors = [
+                        'button[aria-label*="next" i]',
+                        'button.jobs-search-pagination__button--next',
+                        'button:has-text("Next")',
+                        'a:has-text("Next")',
+                        '.artdeco-pagination__button--next'
+                    ];
+                    
+                    for (const sel of selectors) {
+                        try {
+                            const btn = document.querySelector(sel);
+                            if (btn && btn.offsetParent !== null && !btn.disabled && !btn.classList.contains('artdeco-button--disabled')) {
+                                btn.click();
+                                return true;
+                            }
+                        } catch(e) {}
+                    }
+                    
+                    // Fallback text check
+                    const allButtons = Array.from(document.querySelectorAll('button, a'));
+                    const nextBtn = allButtons.find(el => {
+                        const txt = (el.innerText || '').trim().toLowerCase();
+                        return (txt === 'next' || txt.includes('next >')) && el.offsetParent !== null && !el.disabled;
+                    });
+                    
+                    if (nextBtn) {
+                        nextBtn.click();
+                        return true;
+                    }
+                    
+                    return false;
+                }
+            ''')
+            
+            if clicked_next:
+                print("   🎯 Found and clicked 'Next' page button (Paginated UI detected)")
+                await asyncio.sleep(2.5)  # Wait for page navigation/turn
+            else:
+                print("   📜 No 'Next' button found (Infinite Scroll UI detected)")
+                await asyncio.sleep(1.5)  # Wait for lazy load
+                
+        print(f"✅ Hybrid job loading complete: {len(unique_job_map)} unique jobs collected")
         return list(unique_job_map.values())
         
     except Exception as e:
-        print(f"❌ FIXED pagination error: {e}")
+        print(f"❌ Hybrid job loading error: {e}")
         return []
 
+
 async def scroll_current_page(page):
-    """Fixed scrolling that actually moves the content"""
+    """Scroll the leftmost scroll container to trigger lazy loading with retry for React rendering."""
     try:
-        print("🔄 Starting enhanced scrolling with multiple selectors...")
-        
-        # Extended list of possible LinkedIn job list selectors
-        job_list_selectors = [
-            '.scaffold-layout__content ul',
-            '[data-view-name*="jobs-search"]',
-            '.scaffold-layout__main ul',
-            '.jobs-search-results-list',
-            'ul[data-view-name="jobs-search-results-list"]',
-            '.jobs-search-results__list',
-            '.jobs-search-two-pane__results ul',
-            '.jobs-search-results',
-            'ul[role="list"]',
-            'li[data-occludable-job-id]'
-            '.display-flex .job-card-container',
-            '.display-flex .job-card-container .relative .job-card-list'
-        ]
-        
-        job_list_element = None
-        working_selector = None
-        
-        # Find working selector
-        for selector in job_list_selectors:
-            try:
-                print(f"🔍 Trying selector: {selector}")
-                job_list_element = await page.wait_for_selector(selector, timeout=2000)
-                if job_list_element and await job_list_element.is_visible():
-                    working_selector = selector
-                    print(f"✅ Found working selector: {selector}")
-                    break
-            except:
-                continue
-        
-        if working_selector:
+        scrolled = False
+        for wait_attempt in range(5):
+            scrolled = await page.evaluate(r'''
+                () => {
+                    const scrollContainers = Array.from(document.querySelectorAll('*')).filter(el => {
+                        const style = window.getComputedStyle(el);
+                        const hasScrollbar = style.overflowY === 'auto' || style.overflowY === 'scroll';
+                        const hasOverflowingContent = el.scrollHeight > el.clientHeight;
+                        const isLargeEnough = el.clientHeight > 300;
+                        return hasScrollbar && hasOverflowingContent && isLargeEnough;
+                    });
 
-            await debug_capture_page(page, "07_container_found")
-            # Enhanced scrolling with multiple methods
-            for i in range(2):
-                scroll_result = await page.evaluate(f'''
-                    () => {{
-                        const jobList = document.querySelector('{working_selector}');
-                        if (jobList) {{
-                            const beforeScroll = jobList.scrollTop;
-                            
-                            // Method 1: Standard scrollTop
-                            jobList.scrollTop = jobList.scrollHeight;
-                            
-                            // Method 2: ScrollBy method
-                            jobList.scrollBy(0, 1000);
-                            setTimeout(() => {{
-                                jobList.scrollBy(0, 500);
-                            }}, 1000);
-                            
-                            // Method 3: Force scroll on parent containers
-                            let parent = jobList.parentElement;
-                            while (parent && parent !== document.body) {{
-                                if (parent.scrollHeight > parent.clientHeight) {{
-                                    parent.scrollTop = parent.scrollHeight;
-                                    parent.scrollBy(0, 500);
-                                    setTimeout(() => {{
-                                        jobList.scrollBy(0, 500);
-                                    }}, 1000);
-                                }}
-                                parent = parent.parentElement;
-                            }}
-                            
-                            // Method 4: Scroll the main content area
-                            const mainContent = document.querySelector('.scaffold-layout__main');
-                            if (mainContent) {{
-                                mainContent.scrollTop = mainContent.scrollHeight;
-                            }}
-                            
-                            // Method 5: Page-level scroll as backup
-                            window.scrollBy(0, 800);
+                    if (scrollContainers.length > 0) {
+                        scrollContainers.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+                        const container = scrollContainers[0];
+                        container.scrollTop = container.scrollHeight;
+                        return true;
+                    }
+                    return false;
+                }
+            ''')
+            if scrolled:
+                print("📜 Scrolled leftmost job container to bottom")
+                break
+            
+            # Wait 1s for React to mount container on subsequent searches
+            await asyncio.sleep(1)
 
-                            
-                            const afterScroll = Math.max(
-                                jobList.scrollTop, 
-                                window.pageYOffset,
-                                document.documentElement.scrollTop
-                            );
-                            
-                            return {{
-                                scrolled: afterScroll > beforeScroll,
-                                scrollTop: afterScroll,
-                                scrollHeight: jobList.scrollHeight,
-                                clientHeight: jobList.clientHeight,
-                                canScroll: jobList.scrollHeight > jobList.clientHeight,
-                                windowScroll: window.pageYOffset
-                            }};
-                        }}
-                        return {{scrolled: false}};
-                    }}
-                ''')
-                
-                print(f"📜 Scroll {i+1}/2: Top={scroll_result.get('scrollTop', 0)}, Window={scroll_result.get('windowScroll', 0)}, CanScroll={scroll_result.get('canScroll', False)}")
-                
-                # Additional Playwright-native scrolling
-                try:
-                    if job_list_element:
-                        await job_list_element.scroll_into_view_if_needed()
-                        await page.mouse.wheel(0, 500)# Mouse wheel scroll
-                        
-                except:
-                    pass
-                
-                await asyncio.sleep(0.5)  # Longer wait for content loading
-        else:
-            await debug_capture_page(page, "07_no_container_found")
-            # Fallback to page scrolling
-            print("⚠️ No job list container found, using page scroll")
-            for i in range(3):
-                await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-                await page.mouse.wheel(0, 500)
-                print(f"📜 Page scroll {i+1}/3")
-                await asyncio.sleep(0.5)
-        
-        print("✅ Enhanced scrolling completed")
-        
-        # Force additional job loading
-        await page.evaluate('window.dispatchEvent(new Event("scroll"))')
-        await debug_capture_page(page, "07_no_container_found")
-        await asyncio.sleep(0.5)
-        
+        if not scrolled:
+            print("⚠️ No job list container found after retries, using window scroll fallback")
+            await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
     except Exception as e:
-        print(f"❌ Enhanced scroll error: {e}")
-
-
-async def force_layout_fix(page):
-    """Force proper layout after zoom"""
-    await page.evaluate('''
-        () => {
-            // Force layout recalculation
-            document.body.offsetHeight;
-            
-            // Ensure job list container is properly sized
-            const jobList = document.querySelector('.jobs-search-results-list');
-            if (jobList) {
-                jobList.style.height = '100%';
-                jobList.style.overflowY = 'auto';
-                
-                // Force scroll container recognition
-                jobList.scrollTop = 1;
-                jobList.scrollTop = 0;
-            }
-            
-            console.log('✅ Layout forced');
-        }
-    ''')
+        print(f"❌ Scroll error: {e}")
 
 
 async def collect_jobs_from_current_page(page):
-    """Collect all unique job URLs with lightweight card metadata from current page."""
-
-    # Set standard viewport: 1920x1080
-    await page.set_viewport_size({'width': 2562, 'height': 2000})
-    
-    # Scale content to 25% (shows 4x more content in same space)
+    """Collect all unique job URLs from the leftmost scroll container by scanning for Job IDs."""
     try:
-        await page.evaluate('() => { document.body.style.zoom = "0.25"; }')
-    except Exception as e:
-        print(f"Zooming failed: {e}")
+        await page.set_viewport_size({'width': 2562, 'height': 2000})
         
-    # Scroll dynamically to force LinkedIn to fetch remaining lazy-loaded cards
-    await scroll_current_page(page)
-    await asyncio.sleep(1)
-    
-    # Extract all job URLs and card titles
-    job_entries = await page.evaluate('''
-        () => {
-            const urlMap = new Map();
-            // Find all links containing /jobs/view
-            const links = document.querySelectorAll('a[href*="/jobs/view"]');
-            
-            links.forEach(link => {
-                const href = link.getAttribute('href');
-                if (href) {
-                    // Remove query parameters
-                    const cleanUrl = href.split('?')[0];
+        job_entries = await page.evaluate(r'''
+            () => {
+                const urlMap = new Map();
 
-                    const card = link.closest('li') || link.closest('.job-card-container') || link.parentElement;
-                    const titleNode =
-                        card?.querySelector('.job-card-list__title') ||
-                        card?.querySelector('.job-card-container__link') ||
-                        card?.querySelector('strong') ||
-                        link;
+                const scrollContainers = Array.from(document.querySelectorAll('*')).filter(el => {
+                    const style = window.getComputedStyle(el);
+                    const hasScrollbar = style.overflowY === 'auto' || style.overflowY === 'scroll';
+                    const hasOverflowingContent = el.scrollHeight > el.clientHeight;
+                    const isLargeEnough = el.clientHeight > 300;
+                    return hasScrollbar && hasOverflowingContent && isLargeEnough;
+                });
 
-                    const cardTitle = (titleNode?.textContent || '').trim();
-                    if (!urlMap.has(cleanUrl)) {
-                        urlMap.set(cleanUrl, {
-                            url: cleanUrl,
-                            card_title: cardTitle
-                        });
-                    }
+                let container = document.body;
+                if (scrollContainers.length > 0) {
+                    scrollContainers.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+                    container = scrollContainers[0];
                 }
-            });
-            
-            return Array.from(urlMap.values());
-        }
-    ''')
-    
-    print(f"✅ Found {len(job_entries)} unique job URLs at 4x visibility in 1920x1080")
-    return job_entries
 
-async def click_next_page_and_wait(page):
-    """FIXED: Click next page and wait for new jobs to load"""
-    print("moving to next page, if available")
-    
-    # 1. First ensure 25% zoom to expose all lazy-loaded job cards without scroll bounding
-    try:
-        await page.evaluate("document.body.style.zoom='25%'")
-        # Give a moment for the new zoom scale to take effect
-        await asyncio.sleep(1)
+                // 1. Primary Extractor (Account B / New UI): componentkey="job-card-component-ref-<id>"
+                const compCards = container.querySelectorAll('[componentkey*="job-card-component-ref-"]');
+                compCards.forEach(card => {
+                    const key = card.getAttribute('componentkey') || '';
+                    const match = key.match(/\d{9,10}/);
+                    if (match) {
+                        const jobId = match[0];
+                        const cleanUrl = `https://www.linkedin.com/jobs/view/${jobId}`;
+                        if (!urlMap.has(cleanUrl)) {
+                            const titleNode = card.querySelector('p, span, strong, h3, h4') || card;
+                            const cardTitle = (titleNode.textContent || '').trim();
+                            urlMap.set(cleanUrl, {
+                                url: cleanUrl,
+                                card_title: cardTitle || "Title not extracted"
+                            });
+                        }
+                    }
+                });
+
+                // 2. Fallback Extractor: data-job-id, data-entity-urn, href containing currentJobId or /jobs/view/
+                const fallbackNodes = container.querySelectorAll('[data-job-id], [data-occludable-job-id], [data-entity-urn], a[href]');
+                fallbackNodes.forEach(node => {
+                    let jobId = null;
+                    const attrs = ['data-job-id', 'data-occludable-job-id', 'data-entity-urn', 'href'];
+                    for (const attr of attrs) {
+                        const val = node.getAttribute(attr) || '';
+                        if (val && !val.includes('geoId') && !val.includes('f_SAL')) {
+                            const match = val.match(/currentJobId=(\d+)/) || val.match(/\/jobs\/view\/(\d+)/) || val.match(/\b\d{9,10}\b/);
+                            if (match) {
+                                const found = match[1] || match[0];
+                                if (found !== '102713980') {
+                                    jobId = found;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (jobId) {
+                        const cleanUrl = `https://www.linkedin.com/jobs/view/${jobId}`;
+                        if (!urlMap.has(cleanUrl)) {
+                            const titleNode = node.querySelector('strong, h3, h4, span') || node;
+                            const cardTitle = (titleNode.textContent || '').trim();
+                            urlMap.set(cleanUrl, {
+                                url: cleanUrl,
+                                card_title: cardTitle || "Title not extracted"
+                            });
+                        }
+                    }
+                });
+
+                return Array.from(urlMap.values());
+            }
+        ''')
+        
+        print(f"✅ Extracted {len(job_entries)} job URLs from container")
+        return job_entries
     except Exception as e:
-        print(f"Zoom out failed: {e}")
-
-    try:
-       
-        
-        # Priority selector based on your HTML: aria-label="View next page"
-        next_selectors = [
-            'button[aria-label="View next page"]',
-            'button.jobs-search-pagination__button--next',
-            'button:has-text("Next")',
-            'button[aria-label*="next" i]',  # Case-insensitive partial match
-            'button.artdeco-button.jobs-search-pagination__button',
-            '.jobs-search-pagination__button--next',
-        ]
-        
-        for selector in next_selectors:
-            try:
-                print(f"🔍 Trying selector: {selector}")
-                
-                # Don't wait, just check if exists
-                buttons = await page.locator(selector).all()
-                
-                if len(buttons) == 0:
-                    print(f"  ❌ No buttons found with selector: {selector}")
-                    continue
-                
-                print(f"  ✅ Found {len(buttons)} button(s) with selector: {selector}")
-
-                for idx, btn in enumerate(buttons):
-                    try:
-                        is_visible = await btn.is_visible()
-                        is_enabled = await btn.is_enabled()
-                        
-                        if not is_visible or not is_enabled:
-                            print(f"  ⚠️ Button {idx+1}: visible={is_visible}, enabled={is_enabled}")
-                            continue
-
-                        text = (await btn.text_content() or "").strip()
-                        print(f"  ✅ Button {idx+1}: visible, enabled, text='{text}'")
-
-                        # Get current job count before clicking
-                        current_jobs = await page.query_selector_all('a[href*="/jobs/view"]')
-                        prev_count = len(current_jobs)
-
-                        # Multiple click strategies
-                        click_success = False
-                        
-                        # Strategy 1: Standard click
-                        try:
-                            await btn.scroll_into_view_if_needed()
-                            await asyncio.sleep(0.5)
-                            await btn.click(timeout=5000)
-                            click_success = True
-                            print(f"  🎯 Clicked next button successfully")
-                        except Exception as e1:
-                            print(f"  ⚠️ Standard click failed: {e1}")
-                        
-                        # Strategy 2: JavaScript click
-                        if not click_success:
-                            try:
-                                await page.evaluate("(element) => element.click()", btn)
-                                click_success = True
-                                print(f"  🎯 Clicked with JavaScript")
-                            except Exception as e2:
-                                print(f"  ⚠️ JS click failed: {e2}")
-                        
-                        # Strategy 3: Force click
-                        if not click_success:
-                            try:
-                                await btn.click(force=True, timeout=5000)
-                                click_success = True
-                                print(f"  🎯 Clicked with force=True")
-                            except Exception as e3:
-                                print(f"  ⚠️ Force click failed: {e3}")
-
-                        if click_success:
-                            # Wait for new page to load
-                            await wait_for_page_change(page, prev_count)
-                            return True
-                        else:
-                            print(f"  ❌ All click strategies failed for button {idx+1}")
-                            continue
-
-                    except Exception as e:
-                        print(f"  ❌ Error with button {idx+1}: {e}")
-                        continue
-                        
-            except Exception as e:
-                print(f"  ❌ Selector exception: {e}")
-                continue
-        
-        print("🛑 No clickable next button found with any selector")
-        return False
-        
-    except Exception as e:
-        print(f"❌ Next page click error: {e}")
-        return False
-
-async def wait_for_page_change(page, prev_job_count):
-    """Wait for page to change and new jobs to load"""
-    print("⏳ Waiting for next page to load...")
-    
-    # Wait for page transition
-    await asyncio.sleep(2)
-    # Ensure viewport stays maximized for next page card exposure
-    await page.evaluate("document.body.style.zoom='25%'")
-    
-    # Wait for job count to change (indicating new page loaded)
-    for attempt in range(15):  # Max 7.5 seconds wait
-        current_jobs = await page.query_selector_all('a[href*="/jobs/view"]')
-        current_count = len(current_jobs)
-        
-        if current_count != prev_job_count:
-            print(f"✅ Page changed! Jobs: {prev_job_count} → {current_count}")
-            await asyncio.sleep(1)  # Extra wait for full load
-            return True
-        
-        await asyncio.sleep(0.5)
-    
-    print("⚠️ Page may not have changed, continuing...")
-    return True
+        print(f"❌ Error collecting jobs from page: {e}")
+        return []
 
 
 def extract_first_text(soup: BeautifulSoup, selectors: list[str]) -> str:
@@ -720,17 +540,53 @@ def detect_job_type_from_text(page_text: str) -> str:
 def extract_job_metadata_from_html(html_content: str, fallback_title: str = "") -> dict:
     soup = BeautifulSoup(html_content, 'lxml')
 
+    # 1. Classname-based Selector Extraction
     description = ""
     for selector in [
         'div.show-more-less-html__markup',
         'section.show-more-less-html',
         'div.jobs-description__content',
         '#job-details',
+        'div.description__text',
+        'div.decorated-job-posting__details',
+        '.jobs-box__html-content',
+        '.core-section-container__content',
+        '.description__text--rich',
+        'article',
     ]:
         node = soup.select_one(selector)
         if node:
-            description = normalize_text(node.get_text(" ", strip=True))
-            if description:
+            text_val = normalize_text(node.get_text(" ", strip=True))
+            if text_val and len(text_val) > 30:
+                description = text_val
+                break
+
+    # 2. Text-Based Evidence Extraction (Header Anchor Search: "About the job", "Responsibilities", etc.)
+    if not description:
+        keywords = ["about the job", "job description", "about the role", "role description", "responsibilities", "what you'll do", "summary"]
+        for tag in soup.find_all(['h2', 'h3', 'h4', 'h5', 'strong', 'b', 'span', 'header']):
+            h_text = tag.get_text(" ", strip=True).lower()
+            if any(k in h_text for k in keywords):
+                parent = tag.parent
+                if parent:
+                    p_text = normalize_text(parent.get_text(" ", strip=True))
+                    if len(p_text) > 60:
+                        description = p_text
+                        break
+                sibling = tag.find_next_sibling()
+                if sibling:
+                    s_text = normalize_text(sibling.get_text(" ", strip=True))
+                    if len(s_text) > 60:
+                        description = s_text
+                        break
+
+    # 3. Semantic Text-Block Fallback (Looking for Job Requirement Clues)
+    if not description:
+        for block in soup.find_all(['div', 'section', 'article']):
+            b_text = normalize_text(block.get_text(" ", strip=True))
+            lower_b = b_text.lower()
+            if len(b_text) > 150 and any(k in lower_b for k in ['responsibilities', 'qualifications', 'requirements', 'about the role', 'experience with', 'we are looking for']):
+                description = b_text
                 break
 
     title = extract_first_text(soup, [
@@ -794,10 +650,15 @@ async def extract_job_description_fixed(session: aiohttp.ClientSession, url, fal
     print(f"🚀 Fetching: {url}")
     
     headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+    }
     
-    await asyncio.sleep(1.5)
+    await asyncio.sleep(0.5)
     
     for attempt in range(max_retries):
         try:
@@ -820,8 +681,24 @@ async def extract_job_description_fixed(session: aiohttp.ClientSession, url, fal
                     return "Failed: Could not find the job description element in the HTML."
                 else:
                     print(f"   ⚠️ HTTP {response.status} (attempt {attempt + 1}/{max_retries})")
+                    if response.status == 400:
+                        try:
+                            async with aiohttp.ClientSession() as clean_session:
+                                async with clean_session.get(url, headers={"User-Agent": headers["User-Agent"]}, timeout=aiohttp.ClientTimeout(total=15)) as fallback_resp:
+                                    if fallback_resp.status == 200:
+                                        fallback_html = await fallback_resp.text()
+                                        meta = extract_job_metadata_from_html(fallback_html, fallback_title=fallback_title)
+                                        if meta.get("job_description"):
+                                            print("   ✅ Extracted metadata via fallback clean session!")
+                                            return meta
+                        except Exception:
+                            pass
+
                     if attempt < max_retries - 1:
-                        await asyncio.sleep(2)  # Wait before retry
+                        sleep_time = 5 if response.status == 429 else 2
+                        if response.status == 429:
+                            print(f"   ⏳ HTTP 429 Rate Limit hit! Cooling down for {sleep_time}s...")
+                        await asyncio.sleep(sleep_time)
                         continue
                     return f"Failed: HTTP status {response.status}"
                     
@@ -865,8 +742,20 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
         url = config["url_template"].format(role=job_title.replace(" ", "%20").lower())
         print(f"🔍 {Colors.BOLD}SPEED-OPTIMIZED search: '{job_title}'{Colors.END}")
         
-        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-        print("✅ Navigation complete")
+        # Retry loop for navigation to handle transient HTTP 429 blocks
+        for nav_attempt in range(2):
+            try:
+                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                break
+            except Exception as nav_err:
+                if nav_attempt == 0:
+                    print(f"⚠️ Page navigation hit rate limit ({nav_err}). Retrying after 5s cooldown...")
+                    await asyncio.sleep(5)
+                else:
+                    raise nav_err
+
+        print("✅ Navigation complete. Waiting for React SPA container mounting...")
+        await asyncio.sleep(2.5)  # Give React SPA time to mount search results container
 
         current_url = page.url
         if "login" in current_url or "signup" in current_url or "authwall" in current_url:
@@ -891,8 +780,6 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
         # await asyncio.sleep(1)
         await debug_capture_page(page, "05_search_results", job_title)
 
-        # Force layout fix
-        await force_layout_fix(page)
         await asyncio.sleep(1)
         
         job_cards = await load_all_available_jobs_fixed(page)
@@ -934,49 +821,18 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
                 print(f"   ❌ Job {i}: Processing error: {e}")
                 continue
         
-        # Filtering summary
         print(f"\n📊 FILTERING SUMMARY:")
         print(f"   📁 Total URLs collected: {len(job_cards)}")
         print(f"   ✅ Valid jobs: {len(valid_job_links)}")
         print(f"   🔄 Duplicates skipped: {duplicate_count}")
         
-        print(f"✅ {len(valid_job_links)} jobs ready for OPTIMIZED processing")
-        
-        # Continue with job processing...
-        # results=[]
+        # Fetch descriptions for current job title immediately
         if valid_job_links:
             print(f"✅ {len(valid_job_links)} jobs ready for OPTIMIZED processing with aiohttp...")
             
-            # cookies = await context.cookies()
-            
-            # # Filter out cookies with invalid characters for aiohttp
-            # valid_cookies = []
-            # for cookie in cookies:
-            #     cookie_name = cookie['name']
-            #     # Skip cookies with brackets or other special chars that aiohttp doesn't like
-            #     if '[' not in cookie_name and ']' not in cookie_name:
-            #         valid_cookies.append(cookie)
-            #     else:
-            #         print(f"   ⚠️ Skipping invalid cookie: {cookie_name}")
-            
-            # print(f"   ✅ Using {len(valid_cookies)}/{len(cookies)} valid cookies for authentication")
-            
-            # Use aiohttp to fetch descriptions in controlled batches
-            connector = aiohttp.TCPConnector(limit=3)  # Only 3 concurrent connections
+            connector = aiohttp.TCPConnector(limit=3)  # Polite 3 concurrent connections
             async with aiohttp.ClientSession(connector=connector) as session:
-                # Add valid cookies to session
-                # for cookie in valid_cookies:
-                #     try:
-                #         session.cookie_jar.update_cookies(
-                #             {cookie['name']: cookie['value']},
-                #             response_url=aiohttp.client.URL(config["base_url"])
-                #         )
-                #     except Exception as e:
-                #         print(f"   ⚠️ Could not add cookie {cookie['name']}: {e}")
-    
-                # Process in small batches with delays to avoid rate limiting
-                results = []
-                batch_size = 20  # Only 5 jobs at a time
+                batch_size = 10
                 
                 for i in range(0, len(valid_job_links), batch_size):
                     batch_urls = valid_job_links[i:i + batch_size]
@@ -995,57 +851,33 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
                     ]
                     
                     batch_results = await asyncio.gather(*batch_tasks)
-                    results.extend(batch_results)
                     
-                    # Add delay between batches (except for the last batch)
+                    for job_entry, raw_payload in zip(batch_urls, batch_results):
+                        url = job_entry.get("url", "")
+                        fallback_title = job_entry.get("card_title", "")
+
+                        if isinstance(raw_payload, dict) and raw_payload.get("job_description"):
+                            job_dict[url] = {
+                                "job_url": url,
+                                "job_id": str(uuid.uuid4()),
+                                "job_description": raw_payload.get("job_description", ""),
+                                "title": raw_payload.get("title") or fallback_title,
+                                "company_name": raw_payload.get("company_name", ""),
+                                "location": raw_payload.get("location", ""),
+                                "posted_at": raw_payload.get("posted_at", ""),
+                                "job_type": raw_payload.get("job_type", ""),
+                                "source": "web",
+                            }
+
                     if i + batch_size < len(valid_job_links):
-                        delay = 2  # 5 second delay between batches
-                        print(f"   ⏳ Waiting {delay}s before next batch to avoid rate limiting...")
-                        await asyncio.sleep(delay)
+                        print(f"   ⏳ Cooldown delay (2s) before next batch...")
+                        await asyncio.sleep(2.0)
 
-            # with open(f"results_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}", "w", encoding="utf-8") as f:
-            #     json.dump(results, f, indent=2, ensure_ascii=False)
-            
-
-            processed_count = 0
-            failed_count = 0
-            failed_urls = []
-            
-            # Pair job metadata with fetched raw payload
-            for job_entry, raw_payload in zip(valid_job_links, results):
-                url = job_entry.get("url", "")
-                fallback_title = job_entry.get("card_title", "")
-
-                if isinstance(raw_payload, dict) and raw_payload.get("job_description"):
-                    job_dict[url] = {
-                        "job_url": url,
-                        "job_id": str(uuid.uuid4()),
-                        "job_description": raw_payload.get("job_description", ""),
-                        "title": raw_payload.get("title") or fallback_title,
-                        "company_name": raw_payload.get("company_name", ""),
-                        "location": raw_payload.get("location", ""),
-                        "posted_at": raw_payload.get("posted_at", ""),
-                        "job_type": raw_payload.get("job_type", ""),
-                        "source": "web",
-                    }
-                    processed_count += 1
-                else:
-                    failed_count += 1
-                    failed_urls.append(url)
-                    reason = raw_payload[:50] if isinstance(raw_payload, str) else "No response"
-                    print(f"   ❌ Failed to fetch: {url[:80]}... - Reason: {reason}")
-
-            print(f"\n📊 EXTRACTION SUMMARY:")
-            print(f"   ✅ Successfully processed: {processed_count}/{len(valid_job_links)}")
-            print(f"   ❌ Failed: {failed_count}/{len(valid_job_links)}")
-            # Remove all failed URLs from processed set and valid list
-            failed_set = set(failed_urls)
-            PROCESSED_JOB_URLS.difference_update(failed_set)
-            valid_job_links = [job for job in valid_job_links if job.get("url") not in failed_set]
+            successful_urls = set(job_dict.keys())
+            failed_urls = [job['url'] for job in valid_job_links if job['url'] not in successful_urls]
             if failed_urls:
-                print(f"   ⚠️ Failed URLs saved for debugging")
-            # with open("scrapped_jobs", "w", encoding="utf-8") as f:
-            #     f.write(str(job_dict))
+                PROCESSED_JOB_URLS.difference_update(set(failed_urls))
+                print(f"   ⚠️ Removed {len(failed_urls)} failed URLs from processed set")
 
         return job_dict
         
@@ -1463,7 +1295,7 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
     all_jobs = {}
     PROCESSED_JOB_URLS.clear()
     
-    print(f"🚀 Starting SPEED-OPTIMIZED job extraction with ALL FIXES...")
+    print(f"🚀 Starting SPEED-OPTIMIZED job extraction with PER-TITLE PROGRESS UPDATES...")
     
     async with async_playwright() as p:
         launch_kwargs = {
@@ -1472,7 +1304,6 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
             ]
         }
-        
 
         browser = await p.chromium.launch(**launch_kwargs)
         
@@ -1492,6 +1323,7 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
             if log_callback:
                 log_callback({"progress": 15, "status": "searching", "message": "Server session ready"})
             
+            # PER-TITLE PIPELINE: Search Title -> Fetch Descriptions -> Progress Update -> Next Title
             for i, job_title in enumerate(sanitized_titles, 1):
                 print(f"\n{'='*70}")
                 print(f"⚡ SPEED-OPTIMIZED SEARCH {i}/{len(sanitized_titles)}: '{job_title}'")
@@ -1504,23 +1336,27 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
                         result = await scrape_platform_speed_optimized(
                             login_context, platform_name, PLATFORMS[platform_name], job_title, user_id, is_connected
                         )
-                        title_result.update(result)
-                        all_jobs.update(result)
+                        if isinstance(result, dict):
+                            title_result.update(result)
+                            all_jobs.update(result)
                         print(f"📈 Jobs from '{job_title}': {len(result)}")
                     except Exception as e:
                         print(f"❌ Error searching '{job_title}' on {platform_name}: {e}")
                     
-                    await asyncio.sleep(0.5)  # Minimal wait between searches
+                    await asyncio.sleep(1.0)
                 
                 current_percent = int(15 + (i / len(sanitized_titles)) * 70)  # range 15-85
                 if log_callback:
                     log_callback({"progress": current_percent, "status": "searching", "message": f"Found {len(title_result)} {job_title} jobs"})
                 if not title_result:
                     print(f"⚠️ No jobs retained after filters for '{job_title}'")
-                print(f"📊 '{job_title}' complete. Total unique jobs: {len(all_jobs)}")
+                print(f"📊 '{job_title}' complete. Total unique jobs extracted so far: {len(all_jobs)}")
 
+                # Cooldown pause between job title searches to prevent Playwright goto ERR_HTTP_RESPONSE_CODE_FAILURE
+                if i < len(sanitized_titles):
+                    print("⏳ Cooling down 3.0s before next job title search...")
+                    await asyncio.sleep(3.0)
 
-            
         finally:
             if LOGGED_IN_CONTEXT:
                 try:
@@ -1531,10 +1367,10 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
                 except Exception as e:
                     print(f"⚠️ Error closing context: {e}")
             await safe_close(browser)
-    
+
     print(f"\n{'='*70}")
     print(f"🏆 SPEED-OPTIMIZED EXTRACTION COMPLETE!")
-    print(f"📊 Total unique jobs: {len(all_jobs)}")
+    print(f"📊 Total unique jobs extracted: {len(all_jobs)}")
     print(f"🔢 Total URLs processed: {len(PROCESSED_JOB_URLS)}")
     print(f"⚡ Speed optimization: MAXIMUM")
     print(f"🔧 All fixes applied: YES")
