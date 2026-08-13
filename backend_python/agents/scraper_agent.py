@@ -76,6 +76,63 @@ def normalize_job_url(url: str) -> str:
     return clean_url.replace("://in.linkedin.com", "://www.linkedin.com")
 
 
+async def evaluate_session_or_authwall(page, is_connected=True):
+    # 1. Loop bounded check for /uas URL or saved account chooser with masked email (*@)
+    for attempt in range(3):
+        current_url = page.url
+        if "/uas" in current_url or "login" in current_url:
+            try:
+                masked_email_elem = page.get_by_text(re.compile(r"\*+@"))
+                if await masked_email_elem.count() > 0:
+                    print(f"👤 Saved account chooser detected (attempt {attempt + 1}/3). Clicking profile card...")
+                    await masked_email_elem.first.click()
+                    
+                    try:
+                        await page.wait_for_navigation(timeout=8000)
+                    except Exception:
+                        await asyncio.sleep(2)
+                        
+                    current_url = page.url
+                    if "login" not in current_url and "authwall" not in current_url:
+                        print("✅ Session successfully resumed from Account Chooser!")
+                        return True
+            except Exception as chooser_err:
+                print(f"⚠️ Account chooser check error: {chooser_err}")
+        else:
+            break
+
+    # 2. Re-verify URL and DOM text evidence for true unauthenticated login wall
+    current_url = page.url
+    if "login" in current_url or "signup" in current_url or "authwall" in current_url:
+        has_inputs = await page.locator('input[type="email"], input[type="password"]').count() > 0
+        has_sso = await page.locator('button:has-text("Google"), button:has-text("Apple"), button:has-text("Microsoft"), a:has-text("Google"), button:has-text("Sign in with Google")').count() > 0
+        has_login_btn = await page.locator('button:has-text("Sign in"):not(:has-text("another account")), button:has-text("Log in"):not(:has-text("another account"))').count() > 0
+        
+        # USE AND GATE: True login walls must have input fields AND (SSO or Login Button)
+        if has_inputs and (has_sso or has_login_btn):
+            print("🚨 AUTHENTICATION WALL DETECTED (Confirmed by DOM text evidence)!")
+            if not is_connected:
+                from config import redis_client
+                import requests
+                if redis_client:
+                    redis_client.set("free_queue_status", "paused")
+                
+                admin_webhook = os.getenv("ADMIN_WEBHOOK_URL")
+                if admin_webhook:
+                    try:
+                        requests.post(admin_webhook, json={"alert": "Professional Network Dummy Account Logged Out!"})
+                    except:
+                        pass
+                print("⚠️ Queue paused. Admin intervention required to update dummy context.")
+            raise Exception("Auth wall detected - scraping aborted")
+            
+        # 3. SAFETY NET: If we are still on the login page but it's NOT a true Auth Wall (e.g. click failed)
+        print("⚠️ Stuck on login/authwall URL without confirming DOM text evidence. Aborting to prevent silent failure.")
+        raise Exception("Stuck on login page - navigation failed")
+            
+    return True
+
+
 def normalize_text(value) -> str:
     if value is None:
         return ""
@@ -742,39 +799,32 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
         url = config["url_template"].format(role=job_title.replace(" ", "%20").lower())
         print(f"🔍 {Colors.BOLD}SPEED-OPTIMIZED search: '{job_title}'{Colors.END}")
         
-        # Retry loop for navigation to handle transient HTTP 429 blocks
+        # Retry loop for navigation to handle transient HTTP 429/999 blocks
         for nav_attempt in range(2):
             try:
                 await page.goto(url, wait_until="domcontentloaded", timeout=30000)
                 break
             except Exception as nav_err:
                 if nav_attempt == 0:
-                    print(f"⚠️ Page navigation hit rate limit ({nav_err}). Retrying after 5s cooldown...")
-                    await asyncio.sleep(5)
+                    print(f"⚠️ Page navigation hit rate limit ({nav_err}). Attempting to recover session via homepage...")
+                    try:
+                        # Navigate to homepage to bypass the search endpoint block and trigger the Account Chooser
+                        await page.goto("https://www.linkedin.com/", wait_until="domcontentloaded", timeout=20000)
+                        await asyncio.sleep(2)
+                        
+                        # Evaluate session immediately (this will click the Account Chooser if present)
+                        await evaluate_session_or_authwall(page, is_connected=is_connected)
+                        
+                        print("🔄 Session recovery attempted. Retrying search URL...")
+                    except Exception as recovery_err:
+                        print(f"⚠️ Session recovery failed: {recovery_err}")
                 else:
                     raise nav_err
 
         print("✅ Navigation complete. Waiting for React SPA container mounting...")
         await asyncio.sleep(2.5)  # Give React SPA time to mount search results container
 
-        current_url = page.url
-        if "login" in current_url or "signup" in current_url or "authwall" in current_url:
-            print("🚨 AUTHENTICATION WALL DETECTED!")
-            if not is_connected:
-                from config import redis_client
-                import requests
-                if redis_client:
-                    redis_client.set("free_queue_status", "paused")
-                
-                # Admin webhook notification (example)
-                admin_webhook = os.getenv("ADMIN_WEBHOOK_URL")
-                if admin_webhook:
-                    try:
-                        requests.post(admin_webhook, json={"alert": "Professional Network Dummy Account Logged Out!"})
-                    except:
-                        pass
-                print("⚠️ Queue paused. Admin intervention required to update dummy context.")
-            raise Exception("Auth wall detected - scraping aborted")
+        await evaluate_session_or_authwall(page, is_connected=is_connected)
         
         # await apply_forced_zoom(page)
         # await asyncio.sleep(1)

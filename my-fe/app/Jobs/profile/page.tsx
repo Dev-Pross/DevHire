@@ -48,7 +48,8 @@ const ProfilePage = () => {
     if (!data?.id) return;
     const loadToast = toast.loading("Disconnecting Professional Network...");
     try {
-      const res = await fetch("/api/User?action=update", {
+      // 1. Set isConnected to false
+      const res1 = await fetch("/api/User?action=update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -56,11 +57,22 @@ const ProfilePage = () => {
           data: { column: "isConnected", value: false }
         })
       });
-      if (res.ok) {
+      
+      // 2. Wipe the actual linkedin_session context in the database
+      const res2 = await fetch("/api/User?action=update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: data.id,
+          data: { column: "linkedin_session", value: null }
+        })
+      });
+
+      if (res1.ok && res2.ok) {
         toast.success("Network disconnected successfully!", { id: loadToast });
-        setDbData((prev: any) => ({ ...prev, isConnected: false }));
+        setDbData((prev: any) => ({ ...prev, isConnected: false, linkedin_session: null }));
       } else {
-        toast.error("Failed to disconnect", { id: loadToast });
+        toast.error("Failed to disconnect completely", { id: loadToast });
       }
     } catch (err: any) {
       toast.error("Error: " + err.message, { id: loadToast });
@@ -79,7 +91,15 @@ const ProfilePage = () => {
           credentials: "include",
         });
         const dataq = await res.json();
-        setDbData(dataq.user);
+        
+        let fetchedUser = dataq.user;
+        if (fetchedUser) {
+          // Dynamically enforce connection state based on the actual session context
+          const hasSession = fetchedUser.linkedin_session && fetchedUser.linkedin_session.trim() !== "";
+          fetchedUser.isConnected = hasSession;
+        }
+        
+        setDbData(fetchedUser);
       }
       fetchData();
       try {

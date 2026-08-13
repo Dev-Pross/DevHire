@@ -1851,6 +1851,32 @@ async def login(page: Page, user_id: str|None, password: str| None) -> bool:
     except Exception as e:
         log.warning(f"Initial feed check failed: {e}")
 
+    # ── Check for Saved Account Chooser screen (/uas or login with masked email) ──
+    for attempt in range(3):
+        if "login" in page.url or "/uas" in page.url:
+            try:
+                import re
+                masked_elem = page.get_by_text(re.compile(r"\*+@"))
+                if await masked_elem.count() > 0:
+                    log.info(f"👤 Saved account chooser detected (attempt {attempt + 1}/3). Clicking profile card...")
+                    await masked_elem.first.click()
+                    try:
+                        await page.wait_for_navigation(timeout=8000)
+                    except Exception:
+                        await asyncio.sleep(2)
+                    
+                    if "login" not in page.url and "/uas" not in page.url:
+                        log.info("✅ Session successfully resumed from Account Chooser!")
+                        break
+            except Exception as chooser_e:
+                log.warning(f"Account chooser check failed in apply_agent: {chooser_e}")
+        else:
+            break
+
+    if "login" in page.url or "/uas" in page.url:
+        log.error("❌ Stuck on login page after account chooser attempts.")
+        raise Exception("Stuck on login page - navigation failed")
+
     if "login" not in page.url:
         log.info("✅ Already logged in")
         return True
