@@ -17,11 +17,10 @@ from playwright.async_api import async_playwright
 # from concurrent.futures import ThreadPoolExecutor
 import json
 
-from google import genai
-from google.genai import types
+from agents.llm_gateway import gemini_gateway, GatewayError
 
 # from urllib.parse import urlparse
-from config import GOOGLE_API, LINKEDIN_ID, LINKEDIN_PASSWORD
+from config import LINKEDIN_ID, LINKEDIN_PASSWORD
 
 HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() != "false"
 
@@ -41,7 +40,7 @@ class Colors:
 # Configuration
 PLATFORMS = {
     "linkedin": {
-        "url_template": "https://www.linkedin.com/jobs/search-results/?keywords={role}&geoId=102713980&f_TPR=r86400&f_AL=true&f_SAL=f_SA_id_225001%3A272001%24f_SA_id_226001%3A274001%2C275001%2C272015&sortBy=DD",
+        "url_template": "https://www.linkedin.com/jobs/search/?keywords={role}&geoId=102713980&f_TPR=r86400&f_AL=true{exp_filter}&sortBy=DD",
         "base_url": "https://www.linkedin.com",
         "login_url": "https://www.linkedin.com/login"
     },
@@ -515,6 +514,11 @@ async def collect_jobs_from_current_page(page):
                 // 1. Primary Extractor (Account B / New UI): componentkey="job-card-component-ref-<id>"
                 const compCards = container.querySelectorAll('[componentkey*="job-card-component-ref-"]');
                 compCards.forEach(card => {
+                    const cardText = (card.textContent || '').toLowerCase();
+                    // Skip sponsored external apply cards
+                    if (cardText.includes('responses managed off linkedin') || cardText.includes('off linkedin')) {
+                        return;
+                    }
                     const key = card.getAttribute('componentkey') || '';
                     const match = key.match(/\d{9,10}/);
                     if (match) {
@@ -552,6 +556,11 @@ async def collect_jobs_from_current_page(page):
                     if (jobId) {
                         const cleanUrl = `https://www.linkedin.com/jobs/view/${jobId}`;
                         if (!urlMap.has(cleanUrl)) {
+                            const cardContainer = node.closest('li, [data-occludable-job-id], .job-card-container') || node;
+                            const nodeText = (cardContainer.textContent || '').toLowerCase();
+                            if (nodeText.includes('responses managed off linkedin') || nodeText.includes('off linkedin')) {
+                                return;
+                            }
                             const titleNode = node.querySelector('strong, h3, h4, span') || node;
                             const cardTitle = (titleNode.textContent || '').trim();
                             urlMap.set(cleanUrl, {
@@ -782,7 +791,7 @@ async def extract_job_description_fixed(session: aiohttp.ClientSession, url, fal
 # ---------------------------------------------------------------------------
 
 
-async def scrape_platform_speed_optimized(context, platform_name, config, job_title, user_id, is_connected=True):
+async def scrape_platform_speed_optimized(context, platform_name, config, job_title, user_id, is_connected=True, exp_years: float = 0.0):
     """SPEED OPTIMIZED: URL-deduped collection with raw metadata capture."""
     global PROCESSED_JOB_URLS
     
@@ -796,8 +805,23 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
     job_dict = {}
     
     try:
-        url = config["url_template"].format(role=job_title.replace(" ", "%20").lower())
-        print(f"🔍 {Colors.BOLD}SPEED-OPTIMIZED search: '{job_title}'{Colors.END}")
+        exp_filter = ""
+        if platform_name == "linkedin":
+            if exp_years <= 1.5:
+                # Freshers / Early career: Internship (1), Entry level (2), Associate (3)
+                exp_filter = "&f_E=1%2C2%2C3"
+            elif exp_years <= 4.0:
+                # Mid-level: Associate (3), Mid-Senior (4)
+                exp_filter = "&f_E=3%2C4"
+            else:
+                # Senior level: Mid-Senior (4), Director (5)
+                exp_filter = "&f_E=4%2C5"
+
+        url = config["url_template"].format(
+            role=job_title.replace(" ", "%20").lower(),
+            exp_filter=exp_filter
+        )
+        print(f"🔍 {Colors.BOLD}SPEED-OPTIMIZED search: '{job_title}' (exp_years={exp_years}, filter='{exp_filter}'){Colors.END}")
         
         # Retry loop for navigation to handle transient HTTP 429/999 blocks
         for nav_attempt in range(2):
@@ -849,6 +873,17 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
             try:
                 raw_url = card.get("url", "") if isinstance(card, dict) else ""
                 card_title = normalize_text(card.get("card_title", "")) if isinstance(card, dict) else ""
+
+                # Tier 2: Card-level early prune for freshers (skips fetching HTML for senior roles)
+                if exp_years <= 1.5 and card_title:
+                    card_title_lower = card_title.lower()
+                    senior_markers = [
+                        "senior", "sr.", "sr ", "lead", "principal", "staff",
+                        "architect", "engineering manager", "director", "head of", "vp"
+                    ]
+                    if any(marker in card_title_lower for marker in senior_markers):
+                        print(f"   ⏩ Job {i}: Skipping senior role '{card_title}' for fresher profile")
+                        continue
 
                 full_url = raw_url if raw_url.startswith('http') else config["base_url"] + raw_url
                 clean_url = normalize_job_url(full_url)
@@ -1027,7 +1062,6 @@ async def scrape_platform_speed_optimized(context, platform_name, config, job_ti
 #         return []
 
 
-client = genai.Client(api_key=GOOGLE_API)
 
 
 def normalize_raw_job_payload(url: str, raw_payload) -> dict:
@@ -1096,7 +1130,8 @@ You are a professional job-data extraction specialist. Extract precisely the req
 - If a field is not found in the raw text, output null or an empty string, do not hallucinate data.
 - You will receive known_metadata from Playwright scraping. Treat known_metadata as source of truth.
 - If a known_metadata field has a value, DO NOT overwrite it. Keep it unchanged.
-- Focus on filling missing fields from job_description, especially: experience, salary, key_skills, relevance_score.
+- Focus on filling missing fields from job_description, especially: experience (e.g. '0-2 years', 'Fresher', 'Entry level'), salary, key_skills, relevance_score.
+- For freshers and early-career candidates, jobs requiring 3+ years should receive lower relevance_score.
 - Provide output only as a pure JSON array, with no explanations.
 
 Example:
@@ -1224,45 +1259,14 @@ async def extract_single_batch(batch_dict: dict) -> list:
         - Following the prompt as it is and make sure data should align properly.
         - ** Return VALID JSON OBJECT make sure in the object shouldn't be any Invalid control characters in that JSON Object ** (MANDATORY)
         """
-    model_idx = 0
-    choose_model = MODELS[model_idx]
-
-    for attempt, delay in zip(range(1, 6), (0, 5, 10, 5, 10)):
-        try:
-            print(f"AI - ({choose_model}) attempt {attempt}/5")
-            res = client.models.generate_content(
-                model=choose_model,
-                contents=prompt,
-                config=types.GenerateContentConfig(temperature=0.2)
-            ).text
-            
-            if res is None:
-                print(f"❌ Gemini returned None response on attempt {attempt}")
-                continue
-            
-            # Path(f"gemini_debug_{int(time.time())}.txt").write_text(res, encoding="utf-8")
-            # Path(f"gemini_debug_{int(time.time())}.json").write_text(res, encoding="utf-8")
-
+    try:
+        res = gemini_gateway.generate(contents=prompt, task="scraper", temperature=0.2)
+        if res and isinstance(res, str) and res.strip():
             return parse_bulk_response(res, batch_dict)
-        except Exception as e:
-            # log.error("Gemini error: %s", str(e))
-            # Correctly detect specific HTTP/Status codes in the error text
-            if any(code in str(e) for code in ("404", "429", "503")):
-                # Move to next fallback model if available
-                prev_model = choose_model
-                if model_idx < len(MODELS) - 1:
-                    model_idx += 1
-                    choose_model = MODELS[model_idx]
-                    print(f"Switching model due to error ({e}) → {choose_model}")
-                else:
-                    print(f"Already on last fallback model ({choose_model}); will retry")
-            else:
-                print(f"Gemini error: {str(e)}")
-            # Wait, then retry next attempt (do not break)
-            time.sleep(delay)
-            continue
-    
-    # Return fallback data if all attempts fail
+    except Exception as e:
+        print(f"⚠️ [Scraper Agent] Gateway extraction error: {e}. Using fallback data.")
+
+    # Return fallback data if all cascade attempts fail
     return [create_fallback_data_from_dict(url, jd) for url, jd in batch_dict.items()]
 
 
@@ -1317,7 +1321,7 @@ async def extract_jobs_in_batches(jobs_dict: dict, batch_size: int = 25, log_cal
 # 6. MAIN EXECUTION FUNCTIONS (SPEED OPTIMIZED)
 # ---------------------------------------------------------------------------
 
-async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_callback=None, user_id=None, linkedin_email=None, linkedin_password=None, is_connected=True):
+async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_callback=None, user_id=None, linkedin_email=None, linkedin_password=None, is_connected=True, exp_years: float = 0.0):
     """SPEED OPTIMIZED: All fixes applied - faster execution"""
     global PROCESSED_JOB_URLS, LOGGED_IN_CONTEXT
     
@@ -1384,7 +1388,7 @@ async def search_by_job_titles_speed_optimized(job_titles, platforms=None, log_c
                 for platform_name in platforms:
                     try:
                         result = await scrape_platform_speed_optimized(
-                            login_context, platform_name, PLATFORMS[platform_name], job_title, user_id, is_connected
+                            login_context, platform_name, PLATFORMS[platform_name], job_title, user_id, is_connected, exp_years=exp_years
                         )
                         if isinstance(result, dict):
                             title_result.update(result)
@@ -1538,21 +1542,30 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback, sta
         user_data_parsed = user_record.get("user_data")
         is_connected = bool(user_record.get("isConnected", False))
         
-        if not user_data_parsed:
+        resume_url = input_data.get("resume_url") or user_record.get("resume_url")
+        
+        needs_parse = False
+        if not user_data_parsed or not isinstance(user_data_parsed, dict):
+            needs_parse = True
+        elif resume_url and user_data_parsed.get("parsed_resume_url") != resume_url:
+            needs_parse = True
+
+        if needs_parse:
             log_callback({"progress": 15, "status": "in_progress", "message": "Parsing resume using AI..."})
             
-            # The active resume URL is passed from the frontend payload or DB fallback
-            resume_url = input_data.get("resume_url") or user_record.get("resume_url")
             if not resume_url:
                 raise Exception("No resume URL available for parsing")
                 
-            user_data_parsed = parse_main(resume_url)
+            new_parsed = parse_main(resume_url)
             
-            # Preserve old cached_answers if they exist so the Applier Agent remains smart
-            if user_record and user_record.get("user_data") and isinstance(user_record.get("user_data"), dict):
-                old_cache = user_record["user_data"].get("cached_answers", {})
-                if old_cache:
-                    user_data_parsed["cached_answers"] = old_cache
+            # Preserve old user_data (including cached_answers and manual overrides) by merging
+            if user_data_parsed and isinstance(user_data_parsed, dict):
+                for k, v in new_parsed.items():
+                    user_data_parsed[k] = v
+                user_data_parsed["parsed_resume_url"] = resume_url
+            else:
+                new_parsed["parsed_resume_url"] = resume_url
+                user_data_parsed = new_parsed
             
             # Save fresh parse result and active URL back to DB
             supabase.table("User").update({
@@ -1561,6 +1574,8 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback, sta
             }).eq("id", user_id).execute()
         
         titles = user_data_parsed.get("titles", [])
+        exp_years = float(user_data_parsed.get("general_experience_years") or 0.0)
+        print(f"🎯 Candidate experience profile: {exp_years} yrs across {len(titles)} target titles")
         
         # Phase 3: Playwright Scraping
         log_callback({"progress": 20, "status": "in_progress", "message": "Connecting to server and searching for jobs..."})
@@ -1569,7 +1584,15 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback, sta
         l_email = input_data.get("linkedin_id")
         l_pass = input_data.get("linkedin_password")
         
-        raw_jobs = await search_by_job_titles_speed_optimized(titles, log_callback=log_callback, user_id=email, linkedin_email=l_email, linkedin_password=l_pass, is_connected=is_connected)
+        raw_jobs = await search_by_job_titles_speed_optimized(
+            titles,
+            log_callback=log_callback,
+            user_id=email,
+            linkedin_email=l_email,
+            linkedin_password=l_pass,
+            is_connected=is_connected,
+            exp_years=exp_years
+        )
         
         # Playwright phase complete. Release the lock and trigger the next job early so they can scrape in parallel.
         if not is_connected:
@@ -1659,6 +1682,38 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback, sta
 
         structured_jobs = await extract_jobs_in_batches(raw_jobs, batch_size=25, log_callback=log_callback)
         
+        # Dynamic Candidate-Relative Experience Window:
+        # If candidate is early-career (<= 1.5 yrs), prune jobs requiring >= 3.0 years.
+        # If candidate is experienced (> 1.5 yrs), 100% of 5-15+ year jobs are preserved!
+        if "exp_years" not in locals() or exp_years is None:
+            try:
+                u_res = supabase.table("User").select("user_data").eq("id", user_id).execute()
+                exp_years = float((u_res.data[0].get("user_data") or {}).get("general_experience_years") or 0.0) if u_res.data else 0.0
+            except Exception:
+                exp_years = 0.0
+
+        if exp_years <= 1.5:
+            before_prune = len(structured_jobs)
+            pruned_jobs = []
+            for j in structured_jobs:
+                exp_text = str(j.get("experience") or "").lower()
+                num_match = re.search(r'\b(\d+(?:\.\d+)?)\b', exp_text)
+                min_req = float(num_match.group(1)) if num_match else 0.0
+                if any(w in exp_text for w in ["fresher", "intern", "entry", "trainee", "graduate"]):
+                    min_req = 0.0
+                
+                if min_req >= 3.0:
+                    print(f"   ✂️ Pruning senior job '{j.get('title')}' ({j.get('experience')}) for fresher profile")
+                    continue
+                pruned_jobs.append(j)
+            
+            pruned_diff = before_prune - len(pruned_jobs)
+            if pruned_diff > 0:
+                print(f"🎯 Candidate-Relative Filter: Pruned {pruned_diff} senior jobs (>= 3 yrs) for fresher ({exp_years} yrs).")
+            structured_jobs = pruned_jobs
+        else:
+            print(f"🎯 Candidate-Relative Filter: Preserving all senior/experienced jobs for candidate with {exp_years} yrs experience.")
+
         # Write final structured data to output_data and mark completed
         supabase.table("workflow_sessions").update({
             "status": "completed",

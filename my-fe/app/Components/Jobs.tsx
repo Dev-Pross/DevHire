@@ -79,6 +79,25 @@ function normalizeUrl(url: any): string {
   return typeof url === "string" ? url.split("?")[0].trim() : "";
 }
 
+function parseMinExperience(expStr: string): number | null {
+  const s = (expStr || "").toLowerCase().trim();
+  if (!s || s === "not specified") return null;
+  if (
+    s.includes("fresher") ||
+    s.includes("intern") ||
+    s.includes("entry") ||
+    s.includes("trainee") ||
+    s.includes("graduate")
+  ) {
+    return 0;
+  }
+  if (s.includes("one")) return 1;
+  if (s.includes("two")) return 2;
+  const match = s.match(/(\d+(?:\.\d+)?)/);
+  if (match) return parseFloat(match[1]);
+  return null;
+}
+
 function buildJobKey(job: any, index: number): string {
   if (job && typeof job === "object") {
     if (typeof job.job_url === "string" && job.job_url.trim()) {
@@ -555,17 +574,36 @@ const Jobs = () => {
     () => Array.from(new Set(baseJobs.map((j) => String(j?.job_type || "").trim()).filter(Boolean))).sort(),
     [baseJobs]
   );
-  const experienceOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          baseJobs
-            .map((j) => String(j?.experience || "").trim())
-            .filter((v) => v && v.toLowerCase() !== "not specified")
-        )
-      ).sort(),
-    [baseJobs]
-  );
+  const experienceOptions = useMemo(() => {
+    const counts = { fresher: 0, junior: 0, mid: 0, senior: 0 };
+    baseJobs.forEach((j) => {
+      const expStr = String(j?.experience || "").toLowerCase().trim();
+      const minExp = parseMinExperience(expStr);
+      if (minExp !== null && minExp >= 5) {
+        counts.senior++;
+      } else if (minExp !== null && minExp >= 3) {
+        counts.mid++;
+      } else if (minExp !== null && minExp >= 1) {
+        counts.junior++;
+      } else if (
+        minExp === 0 ||
+        expStr.includes("fresher") ||
+        expStr.includes("intern") ||
+        expStr.includes("entry") ||
+        expStr.includes("trainee")
+      ) {
+        counts.fresher++;
+      }
+    });
+
+    const opts: { id: string; label: string }[] = [];
+    if (counts.fresher > 0) opts.push({ id: "fresher", label: `Fresher / Intern (0–1 yr) (${counts.fresher})` });
+    if (counts.junior > 0) opts.push({ id: "junior", label: `Junior (1–3 yrs) (${counts.junior})` });
+    if (counts.mid > 0) opts.push({ id: "mid", label: `Mid-Level (3–5 yrs) (${counts.mid})` });
+    if (counts.senior > 0) opts.push({ id: "senior", label: `Senior (5+ yrs) (${counts.senior})` });
+    return opts;
+  }, [baseJobs]);
+
   const visibleJobs = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
     return baseJobs.filter((j) => {
@@ -575,7 +613,27 @@ const Jobs = () => {
         if (!hay.includes(kw)) return false;
       }
       if (jobTypeFilter.length && !jobTypeFilter.includes(String(j?.job_type || "").trim())) return false;
-      if (experienceFilter && String(j?.experience || "").trim() !== experienceFilter) return false;
+      if (experienceFilter) {
+        const expStr = String(j?.experience || "").toLowerCase().trim();
+        const minExp = parseMinExperience(expStr);
+        if (experienceFilter === "fresher") {
+          const isFresher =
+            minExp === 0 ||
+            (minExp !== null && minExp <= 1) ||
+            expStr.includes("fresher") ||
+            expStr.includes("intern") ||
+            expStr.includes("entry") ||
+            expStr.includes("trainee") ||
+            expStr.includes("graduate");
+          if (!isFresher) return false;
+        } else if (experienceFilter === "junior") {
+          if (minExp === null || minExp < 1 || minExp >= 3) return false;
+        } else if (experienceFilter === "mid") {
+          if (minExp === null || minExp < 3 || minExp >= 5) return false;
+        } else if (experienceFilter === "senior") {
+          if (minExp === null || minExp < 5) return false;
+        }
+      }
       return true;
     });
   }, [baseJobs, keyword, jobTypeFilter, experienceFilter]);
@@ -774,11 +832,15 @@ const Jobs = () => {
                     <select
                       value={experienceFilter}
                       onChange={(e) => setExperienceFilter(e.target.value)}
-                      className="w-[145px] rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-gray-200 outline-none focus:border-emerald-500/40"
+                      className="min-w-[170px] rounded-lg border border-white/[0.12] bg-[#0E0E0E] px-3 py-2 text-sm text-gray-200 outline-none transition focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 cursor-pointer [&>option]:bg-[#141414] [&>option]:text-gray-200"
                     >
-                      <option value="">Any experience</option>
-                      {experienceOptions.map((exp) => (
-                        <option key={exp} value={exp}>{exp}</option>
+                      <option value="" className="bg-[#141414] text-gray-200">
+                        Any experience ({baseJobs.length})
+                      </option>
+                      {experienceOptions.map((opt) => (
+                        <option key={opt.id} value={opt.id} className="bg-[#141414] text-gray-200">
+                          {opt.label}
+                        </option>
                       ))}
                     </select>
                   )}

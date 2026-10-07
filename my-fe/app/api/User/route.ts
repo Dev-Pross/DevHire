@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         if (!resume_url) throw new Error("resume_url not provided");
         await prisma.user.update({
           where: { id: resumeUserId },
-          data: { resume_url, user_data: Prisma.DbNull },
+          data: { resume_url },
         });
         return new Response(JSON.stringify({ success: true, message: "resume updated" }), {
           status: 200,

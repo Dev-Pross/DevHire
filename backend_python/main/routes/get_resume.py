@@ -63,10 +63,16 @@ def tailor_resume(request: TailorRequest):
             media="application/pdf"
         )
     except Exception as e:
-        logging.error(f"Error in apply_jobs_route: {e}")
+        logging.error(f"Error in tailor route: {e}")
+        user_msg = getattr(e, "user_message", None)
+        if not user_msg and hasattr(e, "__cause__") and hasattr(e.__cause__, "user_message"):
+            user_msg = e.__cause__.user_message
+        if not user_msg:
+            # Check if inner error message has known toast string
+            user_msg = "Something went wrong. Please retry."
         raise HTTPException(
             status_code=500, 
-            detail=f"Error processing job applications: {str(e)}"
+            detail=user_msg
         )
     
 @router.get('/tailor/get-templates', response_model=List[TemplatesResponse])

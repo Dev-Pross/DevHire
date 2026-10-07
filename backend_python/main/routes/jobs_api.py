@@ -207,18 +207,38 @@ async def _resume_existing_active_session(job_id: str, previous_status: str):
         "message": f"Reattached to {previous_status} job. Worker resume signal pending"
     }
 
+def _resolve_user(user_id: str) -> Optional[Dict[str, Any]]:
+    """Safely find a user in DB by email or UUID without triggering Postgres UUID syntax errors."""
+    if not supabase:
+        return None
+    try:
+        user_res = supabase.table("User").select("id, tier, \"isConnected\"").eq("email", user_id).execute()
+        if user_res.data:
+            return user_res.data[0]
+    except Exception:
+        pass
+
+    try:
+        uuid.UUID(str(user_id))
+        user_res = supabase.table("User").select("id, tier, \"isConnected\"").eq("id", user_id).execute()
+        if user_res.data:
+            return user_res.data[0]
+    except (ValueError, TypeError, Exception):
+        pass
+
+    return None
+
+
 @router.get("/active")
 async def get_active_session(user_id: str, workflow_type: Optional[str] = None):
     """
     Returns the most recent workflow session for a given user.
     """
-    user_res = supabase.table("User").select("id").eq("email", user_id).execute()
-    if not user_res.data:
-        user_res = supabase.table("User").select("id").eq("id", user_id).execute()
-        if not user_res.data:
-            return {"job_id": None, "status": "none"}
+    user_row = _resolve_user(user_id)
+    if not user_row:
+        return {"job_id": None, "status": "none"}
             
-    internal_user_id = str(user_res.data[0]["id"])
+    internal_user_id = str(user_row["id"])
     
     query = supabase.table("workflow_sessions").select("id, status, workflow_type, output_data, last_active_at").eq("user_id", internal_user_id)
     if workflow_type:
@@ -230,6 +250,21 @@ async def get_active_session(user_id: str, workflow_type: Optional[str] = None):
         return {"job_id": None, "status": "none"}
         
     session = res.data[0]
+    
+    if session.get("status") in ["pending", "running", "in_progress"]:
+        job_id_str = str(session["id"])
+        if not _is_worker_heartbeat_fresh(job_id_str):
+            last_ts = _parse_iso_timestamp(session.get("last_active_at"))
+            # If heartbeat is gone and there's no DB activity for > 60s, it's dead
+            if last_ts is None or (time.time() - last_ts) > 60:
+                print(f"🧹 /active: Auto-failing stale dead job {job_id_str}")
+                supabase.table("workflow_sessions").update({
+                    "status": "failed",
+                    "output_data": {"error": "Job timed out or worker crashed unexpectedly."}
+                }).eq("id", job_id_str).execute()
+                session["status"] = "failed"
+                session["output_data"] = {"error": "Job timed out or worker crashed unexpectedly."}
+                
     return {
         "job_id": session["id"],
         "status": session["status"],
@@ -248,20 +283,10 @@ async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
     if req.workflow_type not in ('fetch_jobs', 'apply_jobs'):
         raise HTTPException(status_code=400, detail="Invalid workflow_type")
         
-    # Retrieve actual user id from user email
-    # Assuming user_id provided is email, as frontend seems to use email in places.
-    # Let's check DB to get internal UUID. Or if req.user_id is already UUID?
-    # In earlier implementations, user_id from frontend (Progress_user) was email.
+    user_row = _resolve_user(req.user_id)
+    if not user_row:
+        raise HTTPException(status_code=404, detail=f"User {req.user_id} not found in DB")
     
-    # We will search users by email OR id if it's already a UUID.
-    user_res = supabase.table("User").select("id, tier, \"isConnected\"").eq("email", req.user_id).execute()
-    if not user_res.data:
-        # Check if it was passed by UUID directly
-        user_res = supabase.table("User").select("id, tier, \"isConnected\"").eq("id", req.user_id).execute()
-        if not user_res.data:
-            raise HTTPException(status_code=404, detail=f"User {req.user_id} not found in DB")
-    
-    user_row = cast(Dict[str, Any], user_res.data[0])
     internal_user_id = str(user_row["id"])
     tier = str(user_row.get("tier", "FREE"))
     is_connected = bool(user_row.get("isConnected", False))
@@ -494,6 +519,19 @@ def get_job_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
 
     job_data = res.data[0]
+    
+    if job_data.get("status") in ["pending", "running", "in_progress"]:
+        if not _is_worker_heartbeat_fresh(job_id):
+            last_ts = _parse_iso_timestamp(job_data.get("last_active_at"))
+            if last_ts is None or (time.time() - last_ts) > 60:
+                print(f"🧹 /status: Auto-failing stale dead job {job_id}")
+                supabase.table("workflow_sessions").update({
+                    "status": "failed",
+                    "output_data": {"error": "Job timed out or worker crashed unexpectedly."}
+                }).eq("id", job_id).execute()
+                job_data["status"] = "failed"
+                job_data["output_data"] = {"error": "Job timed out or worker crashed unexpectedly."}
+
     return {
         "job_id": job_id,
         "status": job_data["status"],

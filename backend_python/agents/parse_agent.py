@@ -1,58 +1,75 @@
-from config import GOOGLE_API, GROQ_API
+from config import GROQ_API
+from agents.llm_gateway import gemini_gateway, GatewayError
 import requests
-import fitz
+import pymupdf as fitz
 import io
 import re
 import json
 import os
 from .pdf_utils import extract_pdf_text_from_url
-from google import genai
-from google.genai import types
 from pdf2image import convert_from_bytes
 import pytesseract
 from pydantic import BaseModel
 from typing import List, Optional, Any, Dict
 
 class LocationSchema(BaseModel):
-    city: Optional[str]
-    state: Optional[str]
-    country: Optional[str]
-    full_location: Optional[str]
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    full_location: Optional[str] = None
 
 class UserContactSchema(BaseModel):
-    first: Optional[str]
-    last: Optional[str]
-    email: Optional[str]
-    phone: Optional[str]
+    first: Optional[str] = None
+    last: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
+class EducationItemSchema(BaseModel):
+    school: Optional[str] = None
+    degree: Optional[str] = None
+    discipline: Optional[str] = None
+    start_year: Optional[str] = None
+    end_year: Optional[str] = None
+
+class SocialLinksSchema(BaseModel):
+    linkedin_url: Optional[str] = None
+    github_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    twitter_url: Optional[str] = None
+
+class ExperienceItemSchema(BaseModel):
+    title: Optional[str] = None
+    company: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    description: Optional[str] = None
 
 class UserProfileSchema(BaseModel):
-    titles: List[str]
-    keywords: List[str]
-    candidate_name: Optional[str]
-    location: Optional[LocationSchema]
-    user: Optional[UserContactSchema]
-    general_experience_years: Optional[float]
-    known_tech_experience_years: Optional[float]
-    unknown_tech_experience_years: Optional[float]
-    current_ctc: Optional[str]
-    expected_ctc: Optional[str]
-    notice_period: Optional[str]
-    tech_stacks: List[str]
-    tools: List[str]
-    sure_skills: List[str]
-    additional_skills: List[str]
+    titles: List[str] = []
+    keywords: List[str] = []
+    candidate_name: Optional[str] = None
+    location: Optional[LocationSchema] = None
+    user: Optional[UserContactSchema] = None
+    links: Optional[SocialLinksSchema] = None
+    education: List[EducationItemSchema] = []
+    experience_details: List[ExperienceItemSchema] = []
+    certifications: List[str] = []
+    general_experience_years: Optional[float] = None
+    known_tech_experience_years: Optional[float] = None
+    unknown_tech_experience_years: Optional[float] = None
+    current_ctc: Optional[str] = None
+    expected_ctc: Optional[str] = None
+    notice_period: Optional[str] = None
+    tech_stacks: List[str] = []
+    tools: List[str] = []
+    sure_skills: List[str] = []
+    additional_skills: List[str] = []
 
 
 class TitleCandidatesSchema(BaseModel):
     titles: List[str]
 
 
-client  = genai.Client(api_key= GOOGLE_API)
-model = 'gemini-2.5-flash-lite'
-# client = Groq(
-#     api_key=GROQ_API,
-# )
-# model="llama-3.3-70b-versatile"
 
 
 TITLE_LIMIT = 5
@@ -367,21 +384,13 @@ Resume text:
 """
 
     try:
-        raw = client.models.generate_content(
-            model=model,
+        parsed = gemini_gateway.generate(
             contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.05,
-                response_mime_type="application/json",
-                response_schema=TitleCandidatesSchema,
-            ),
-        ).text
-
-        if not raw:
-            return []
-
-        parsed = json.loads(raw)
-        candidates = parsed.get("titles", []) if isinstance(parsed, dict) else []
+            task="parse",
+            schema=TitleCandidatesSchema,
+            temperature=0.05,
+        )
+        candidates = parsed.titles if hasattr(parsed, "titles") else (parsed.get("titles", []) if isinstance(parsed, dict) else [])
         normalized = [normalize_title(t) for t in candidates]
         return [t for t in normalize_list(normalized, max_items=TITLE_LIMIT) if title_looks_valid(t)]
     except Exception:
@@ -497,6 +506,10 @@ PROFILE EXTRACTION RULES:
 - `additional_skills`: include at most 5 skills weakly implied by context; do not copy all skills here.
 - `keywords`, `tech_stacks`, and `tools` should be deduplicated, concise, and evidence-backed.
 - `candidate_name` must use underscores instead of spaces.
+- `links`: Extract valid URLs for `linkedin_url`, `github_url`, `portfolio_url`, `twitter_url` found in the resume header or text.
+- `education`: Extract all degrees/colleges with `school`, `degree`, `discipline`, `start_year`, `end_year`.
+- `experience_details`: Extract past roles with `title`, `company`, `start_date`, `end_date`, `description`.
+- `certifications`: Extract all professional certifications listed.
 - Experience fields represent years only (float), not categorical flags.
 
 ANALYSIS PROCESS (perform internally, do not output these steps):
@@ -512,23 +525,20 @@ def main(url):
             resume_text = (parse_pdf(url))
             contents = f"Resume Content for Analysis:\n{resume_text}"                       
             
-            response = client.models.generate_content(
-                model=model,
+            parsed_obj = gemini_gateway.generate(
                 contents=contents,
-                config=types.GenerateContentConfig(
-                    temperature=0.05,
-                    system_instruction=system_instruction,
-                    response_mime_type="application/json",
-                    response_schema=UserProfileSchema
-                )
-            ).text
-            
-            try:
-                parsed_json = json.loads(response)
-            except Exception as e:
-                # Fallback if markdown blocking occurs
-                clean = response.replace('```json', '').replace('```', '').strip()
-                parsed_json = json.loads(clean)
+                task="parse",
+                schema=UserProfileSchema,
+                system_instruction=system_instruction,
+                temperature=0.05,
+            )
+
+            if hasattr(parsed_obj, "model_dump"):
+                parsed_json = parsed_obj.model_dump()
+            elif isinstance(parsed_obj, dict):
+                parsed_json = parsed_obj
+            else:
+                parsed_json = json.loads(str(parsed_obj))
 
             return normalize_profile(parsed_json, resume_text)
 

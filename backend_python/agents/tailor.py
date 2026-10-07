@@ -18,11 +18,9 @@ import re
 import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-import fitz
+import pymupdf as fitz
 import requests                       # PyMuPDF / HTTP
-from google import genai
-from google.genai import types
-from config import GOOGLE_API
+from agents.llm_gateway import gemini_gateway, GatewayError
 from pydantic import BaseModel, Field, ConfigDict
 from jinja2 import Environment, FileSystemLoader
 
@@ -237,17 +235,6 @@ class ResumeFacts(BaseModel):
     achievements: List[AchievementFact] = Field(default_factory=list)
 
 
-# ╭── Gemini setup ───────────────────────────────────────────────╮
-if not GOOGLE_API:
-    raise ValueError("Set GOOGLE_API env var")
-client = genai.Client(api_key=GOOGLE_API)
-model_1 = 'gemini-2.5-flash'
-model_2 = 'gemini-2.5-flash-lite'
-model_3 = "gemini-3.1-flash-lite"  # UNVERIFIED id — kept out of MODELS until confirmed valid
-# Ordered fallback list for retries. Only verified ids: a bad id 400s on every
-# attempt and (since the error filter below now also catches it) burns the whole
-# retry budget. Re-add model_3 here once confirmed against the live Gemini catalog.
-MODELS = [model_1, model_2]
 # client = Groq(
 #     api_key=GROQ_API,
 # )
@@ -405,67 +392,29 @@ class TruncatedOutputError(Exception):
 
 def ask_gemini(payload: str, jobs: List[str], *, schema=Format, mode: str = "synthesize", template: int = 0):
     prompt = build_prompt(payload, jobs, mode, template)
-    # Start with first model and move through MODELS on specific failures
-    model_idx = 0
-    choose_model = MODELS[model_idx]
-    for attempt, delay in zip(range(1, 6), (0, 5, 10, 5, 10)):
-        try:
-            log.info("Gemini - (%s) attempt %d/5", choose_model, attempt)
-            # txt = client.chat.completions.create(
-            #     messages=[
-            #         {
-            #             "role": "system",
-            #             "content": "no preamble just give the proper Latex code without any explainations, your response should start with ```latex and end with ```."
-            #             "***Code shouldn't have any syntax errors proper tailored latex code should be provide.***"
-            #         },
-            #         {
-            #             "role": "user",
-            #             "content": prompt,
-            #         }
-            #     ],
-            #     model=model,
-            # )
-            res = client.models.generate_content(
-                model=choose_model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.2,
-                    response_mime_type="application/json",
-                    response_schema= schema,
-                    # Model max (Gemini 2.5 Flash = 65536). One call must be able to
-                    # hold all N resumes; an unset/low cap truncates the structured
-                    # JSON -> .parsed is None -> the whole batch falls back to the
-                    # untailored original PDF. Billed on actual output, so the high
-                    # ceiling costs nothing unless used.
-                    max_output_tokens=65536,
-                )
-            ).parsed
+    task_name = "single_tailor" if (mode == "synthesize" and len(jobs) == 1) else ("tailor" if mode == "synthesize" else "parse")
+    
+    try:
+        log.info("LLM Gateway request (task=%s, mode=%s, jobs=%d)", task_name, mode, len(jobs))
+        res = gemini_gateway.generate(
+            contents=prompt,
+            task=task_name,
+            schema=schema,
+            temperature=0.2,
+            max_output_tokens=65536,
+        )
 
-            if res is None:
-                # Truncated / unparseable. Don't retry the identical over-budget prompt —
-                # surface immediately so tailor_jobs splits the batch instead.
-                raise TruncatedOutputError("Gemini returned no parseable structured output (likely truncated)")
+        if res is None:
+            raise TruncatedOutputError("LLM Gateway returned no parseable structured output (likely truncated)")
 
+        if hasattr(res, "model_dump_json"):
             log.debug("Gemini preview: %s", res.model_dump_json(indent=2)[:300].replace("\n", " ↩ "))
-            return res
-        except TruncatedOutputError:
-            raise
-        except Exception as e:
-            # Switch model on quota/availability/invalid-model errors. INVALID_ARGUMENT
-            # / 400 / NOT_FOUND catch a bad model id so it doesn't burn every retry slot.
-            if any(code in str(e) for code in ("404", "429", "503", "400", "INVALID_ARGUMENT", "NOT_FOUND")):
-                if model_idx < len(MODELS) - 1:
-                    model_idx += 1
-                    choose_model = MODELS[model_idx]
-                    log.warning("Switching model due to error (%s) → %s", e, choose_model)
-                else:
-                    log.warning("Already on last fallback model (%s); will retry", choose_model)
-            else:
-                log.error("Gemini error: %s", str(e))
-            # Jittered backoff so concurrent free-tier workers don't thundering-herd the quota.
-            time.sleep(delay + random.uniform(0, 1.0))
-            continue
-    raise RuntimeError("Gemini failed after retries")
+        return res
+    except TruncatedOutputError:
+        raise
+    except Exception as e:
+        log.error("LLM Gateway error in ask_gemini: %s", str(e))
+        raise RuntimeError(f"LLM Gateway failed: {e}")
 
 
 def extract_facts(original_txt: str) -> "ResumeFacts":

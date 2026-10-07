@@ -9,6 +9,7 @@ SUPABASE_URL = os.getenv("PROJECT_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_API")
 DB_URL = os.getenv("DATABASE_URL")
 GOOGLE_API = os.getenv("GOOGLE_API")
+GEMINI_API_KEYS = os.getenv("GEMINI_API_KEYS", "")
 GROQ_API = os.getenv("GROQ_API")
 
 LINKEDIN_ID = os.getenv("LINKEDIN_ID")

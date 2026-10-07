@@ -2,7 +2,8 @@ import logging
 import os
 from pathlib import Path
 
-import fitz
+import pymupdf as fitz
+from agents.pdf_utils import extract_pdf_text_from_url
 from pdf2image import convert_from_bytes
 import pytesseract
 import requests
@@ -2013,51 +2014,12 @@ _SAMPLE4 = r"""
 
 # ╭─────────────────────────  Helper  ─────────────────────────╮
 
-def pdf_to_text(r):
-    pdf_bytes = r.content
-
-    docs = fitz.open(stream=pdf_bytes, filetype="pdf")
-    text = ""
-    pages = len(docs)
-
-    for page_num in range(pages):
-        page = docs.load_page(page_num)
-        page_text = page.get_text().strip()
-        if page_text:
-            text += page_text
-        else:
-            # Fallback to OCR using pdf2image + pytesseract on page bytes
-            # Convert only the page to image
-            images = convert_from_bytes(pdf_bytes)
-            if images:
-                text_from_image = pytesseract.image_to_string(images[0])
-                if(text_from_image):
-                    text += text_from_image
-                    log.info("data fetched from resume using **tesseract**")
-                else:
-                    log.warning(f"unable to fetch the text from resume {page_num + 1}")
-            else:
-                log.error(f"unable to convert the image from byte fallback method failed!")
-    # if len(page_text)< 500 or text.count('') > (len(text) / 2):
-    #   raise ValueError("invalid pdf")
-    log.info("data fetched from resume")
-
-
-    docs.close()
-    return text
-
 def extract_resume_text(url: str):
     try:
-        r = requests.get(url=url, timeout=60)
-        r.raise_for_status()
-
-        content_type = r.headers.get("Content-Type","").lower()
-
-        if "pdf" in content_type or url.lower.endswith("pdf"):
-            return pdf_to_text(r)
-        raise ValueError("Unsupported resume format")
-    except requests.HTTPError as e:
-        log.error(f"invalid url: {e}")
+        return extract_pdf_text_from_url(url)
+    except Exception as e:
+        log.error(f"invalid url or pdf extraction failed: {e}")
+        return ""
 
 def build_prompt(user_data: str):
     global SYSTEM_INSTRUCTION, _TAMPLATE

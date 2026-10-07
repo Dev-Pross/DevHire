@@ -11,7 +11,8 @@ LinkedIn Easy-Apply AUTO-APPLIER - ENHANCED VERSION
 import asyncio, json, logging, base64, mimetypes, re, os
 import asyncio, json, logging, base64, mimetypes, re, os, random, math
 from pathlib import Path
-import fitz
+import pymupdf as fitz
+from agents.pdf_utils import extract_pdf_text_from_url
 from playwright.async_api import (
     FilePayload,
     async_playwright,
@@ -24,7 +25,7 @@ from config import LINKEDIN_CONTEXT_OPTIONS
 from pdf2image import convert_from_bytes
 import pytesseract
 from playwright_stealth.stealth import Stealth
-from config import GOOGLE_API, GROQ_API
+from config import GROQ_API
 from groq import Groq
 import requests
 from config import LINKEDIN_ID, LINKEDIN_PASSWORD
@@ -32,9 +33,11 @@ from config import LINKEDIN_ID, LINKEDIN_PASSWORD
 client = Groq(
     api_key=GROQ_API,
 )
-model="openai/gpt-oss-120b"
+model = os.getenv("GROQ_SCOUT_MODEL", "qwen/qwen3.8-27b")
 
-HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() != "false"
+HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() == "true"
+ENABLE_RESUME_TAILORING = True  # Set to True to re-enable Gemini resume tailoring
+
 
 # ────────────────────────── CONSTANTS ──────────────────────────
 
@@ -62,6 +65,10 @@ MY_CURRENT_CITY = "Hyderabad, Andhra Pradesh"
 MY_CURRENT_STATE = "Andhra Pradesh"
 MY_CURRENT_COUNTRY = "India"
 MY_FULL_LOCATION = f"{MY_CURRENT_CITY}, {MY_CURRENT_COUNTRY}"
+MY_LINKEDIN_URL = ""
+MY_GITHUB_URL = ""
+MY_PORTFOLIO_URL = ""
+MY_EDUCATION = []
 
 # Known technologies database
 KNOWN_TECHNOLOGIES = [
@@ -110,6 +117,7 @@ class EasyApplyAgent:
         self._scouted_unknowns = []
         self.active_modal_sel = ".artdeco-modal"
         self._current_resume_payload = None
+        self._education_has_unmatched_field = False
         self.page.on("filechooser", self._handle_file_chooser)
 
     async def _handle_file_chooser(self, file_chooser):
@@ -474,10 +482,12 @@ class EasyApplyAgent:
 
             # Look for suggestion dropdown
             suggestion_selectors = [
+                'div.basic-typeahead__triggered-content div[role="option"]',
                 '.basic-typeahead__triggered-content li',
+                '[role="listbox"] [role="option"]',
+                '[role="listbox"] li',
                 '.typeahead-results li',
                 '.typeahead-dropdown li',
-                '[role="listbox"] li',
                 '[role="option"]',
                 '.dropdown-menu li',
                 '.suggestions li',
@@ -488,7 +498,7 @@ class EasyApplyAgent:
             for selector in suggestion_selectors:
                 try:
                     # Wait for suggestions to appear
-                    await self.page.wait_for_selector(selector, timeout=3000)
+                    await self.page.wait_for_selector(selector, timeout=2500)
                     suggestions = await self.page.locator(selector).all()
                     
                     if suggestions:
@@ -502,7 +512,7 @@ class EasyApplyAgent:
                         # Scroll suggestion into view if needed
                         await first_suggestion.scroll_into_view_if_needed()
                         await first_suggestion.click()
-                        await asyncio.sleep(1.0)
+                        await asyncio.sleep(0.8)
                         
                         # Verify the selection worked
                         final_value = await input_element.input_value()
@@ -515,12 +525,26 @@ class EasyApplyAgent:
                     continue
 
             if not suggestion_found:
+                # Keyboard typeahead selection fallback (ArrowDown + Enter)
+                try:
+                    await input_element.press("ArrowDown")
+                    await asyncio.sleep(0.3)
+                    await input_element.press("Enter")
+                    await asyncio.sleep(0.5)
+                    final_value = await input_element.input_value()
+                    if final_value and len(final_value.strip()) > 2:
+                        suggestion_found = True
+                        log.info(f"Keyboard selected typeahead suggestion: {final_value}")
+                except Exception:
+                    pass
+
+            if not suggestion_found:
                 # If no suggestions found, just press Tab to move to next field
                 log.info("No suggestions dropdown found, pressing Tab to continue")
                 await self.page.keyboard.press("Tab")
                 await asyncio.sleep(0.5)
 
-            # REMOVED: No external clicking that could trigger save dialog
+            return suggestion_found
 
             return True
 
@@ -657,6 +681,16 @@ class EasyApplyAgent:
         ]):
             return "Negotiable"
 
+        # Marketing / Policy / Follow Checkboxes
+        if any(word in q for word in [
+            "follow ", "stay up to date", "newsletter",
+            "future opportunities", "similar jobs", "terms of service",
+            "privacy policy", "terms and conditions", "i agree",
+            "consent to", "receive updates", "communication",
+            "sms", "text message"
+        ]):
+            return "Yes"
+
         # Serving/On Notice Period Yes/No
         if any(word in q for word in ["serving your notice", "serving notice", "serving a notice", "on notice period", "on notice"]):
             return "No"
@@ -668,12 +702,44 @@ class EasyApplyAgent:
         ]):
             return "Immediate"
             
-        # URL / Links
-        if any(word in q for word in [
-            "linkedin", "github", "portfolio", "website", "url", "link",
-            "profile"
-        ]):
-            return "https://www.linkedin.com/in/"
+        # URL / Social Links
+        if any(word in q for word in ["github", "git profile", "github url"]):
+            return MY_GITHUB_URL or "https://github.com"
+        if any(word in q for word in ["portfolio", "personal website", "personal site", "blog", "portfolio url"]):
+            return MY_PORTFOLIO_URL or "https://budumurusaran.vercel.app"
+        if any(word in q for word in ["linkedin", "linkedin profile", "linkedin url"]):
+            return MY_LINKEDIN_URL or "https://www.linkedin.com/in/budumurusaran"
+        if any(word in q for word in ["website", "url", "link", "profile link"]):
+            return MY_PORTFOLIO_URL or MY_LINKEDIN_URL or "https://www.linkedin.com"
+
+        # Fresher & Early-Career Questions
+        if any(word in q for word in ["are you a fresher", "fresher", "recent graduate", "is this your first job", "entry level candidate"]):
+            if float(MY_GENERAL_EXPERIENCE or 0.0) <= 1.5:
+                return "Yes"
+            else:
+                return "No"
+
+        # Education questions
+        if any(word in q for word in ["school", "university", "college", "institution"]):
+            if MY_EDUCATION and isinstance(MY_EDUCATION, list) and len(MY_EDUCATION) > 0:
+                first_edu = MY_EDUCATION[0]
+                if isinstance(first_edu, dict) and first_edu.get("school"):
+                    return first_edu["school"]
+            return "MVGR College of Engineering"
+
+        if any(word in q for word in ["degree", "graduation", "highest level of education", "education level"]):
+            if MY_EDUCATION and isinstance(MY_EDUCATION, list) and len(MY_EDUCATION) > 0:
+                first_edu = MY_EDUCATION[0]
+                if isinstance(first_edu, dict) and first_edu.get("degree"):
+                    return first_edu["degree"]
+            return "Bachelor's Degree"
+
+        if any(word in q for word in ["discipline", "major", "field of study", "branch", "specialization"]):
+            if MY_EDUCATION and isinstance(MY_EDUCATION, list) and len(MY_EDUCATION) > 0:
+                first_edu = MY_EDUCATION[0]
+                if isinstance(first_edu, dict) and first_edu.get("discipline"):
+                    return first_edu["discipline"]
+            return "Computer Science & Engineering"
 
         # Location/Geography questions
         if any(word in q for word in [
@@ -682,11 +748,15 @@ class EasyApplyAgent:
             "which city", "your location", "residing", "domicile"
         ]):
             if any(word in q for word in ["city", "which city", "current city"]):
-                return MY_CURRENT_CITY
+                return MY_CURRENT_CITY or "Hyderabad"
             elif any(word in q for word in ["state", "province"]):
-                return MY_CURRENT_STATE
+                return MY_CURRENT_STATE or "Andhra Pradesh"
             else:
-                return MY_FULL_LOCATION
+                return MY_FULL_LOCATION or "Hyderabad, Andhra Pradesh"
+
+        # Zip/Postal code questions
+        if any(word in q for word in ["zip", "postal code", "pincode", "pin code"]):
+            return "500001"
 
         # Country questions
         if any(word in q for word in [
@@ -781,28 +851,14 @@ class EasyApplyAgent:
             else:
                 return f"{days} days"
 
-        # Authorization/Visa questions
+        # Authorization, Visa, and Background questions:
+        # Deliberately return None so Groq semantically evaluates candidate profile, location, and polarity
         if any(word in q for word in [
             "authorized", "authorised", "visa", "permit", "eligibility", "eligible",
             "legal", "legally", "work authorization", "work permit", "right to work",
-            "sponsor", "sponsorship"
+            "sponsor", "sponsorship", "convict", "felon", "criminal", "background check"
         ]):
-            # Detect if it's asking about a foreign country
-            foreign_country_pattern = r'\b(u\.s\.?|us|united states|u\.k\.?|uk|united kingdom|canada|australia|europe|eu|germany|new zealand|usa)\b'
-            mentions_foreign_country = bool(re.search(foreign_country_pattern, q))
-            mentions_my_country = MY_CURRENT_COUNTRY.lower() in q
-            
-            is_foreign = mentions_foreign_country and not mentions_my_country
-            
-            # Sponsorship vs Authorization
-            is_sponsorship_q = any(word in q for word in ["sponsor", "sponsorship", "require visa"])
-            
-            if is_foreign:
-                # If foreign job: Not authorized (usually), and DO require sponsorship
-                return "Yes" if is_sponsorship_q else "No"
-            else:
-                # If domestic job (or no country mentioned): Authorized, and NO sponsorship needed
-                return "No" if is_sponsorship_q else "Yes"
+            return None
 
         # Default answers - return None for unknown so Groq is triggered
         if field_type == "text":
@@ -881,6 +937,7 @@ class EasyApplyAgent:
                 lambda: element.get_attribute("aria-label"),
                 lambda: element.get_attribute("placeholder"),
                 lambda: self._get_label_text(element),
+                lambda: self._get_legend_or_fieldset_text(element),
                 lambda: self._get_parent_text(element)
             ]
 
@@ -905,6 +962,28 @@ class EasyApplyAgent:
             if await label_elem.is_visible():
                 return await label_elem.text_content()
         return ""
+
+    async def _get_legend_or_fieldset_text(self, element):
+        """Extract question text from enclosing fieldset legend or preceding heading/label"""
+        try:
+            return await element.evaluate("""
+                el => {
+                    const fieldset = el.closest('fieldset');
+                    if (fieldset) {
+                        const legend = fieldset.querySelector('legend');
+                        if (legend && legend.textContent.trim()) {
+                            return legend.textContent.trim();
+                        }
+                        let prev = fieldset.previousElementSibling;
+                        if (prev && prev.textContent.trim()) {
+                            return prev.textContent.trim();
+                        }
+                    }
+                    return '';
+                }
+            """)
+        except Exception:
+            return ""
 
     async def _get_parent_text(self, element):
         """Get text from parent elements"""
@@ -973,6 +1052,125 @@ class EasyApplyAgent:
         
         return False
 
+    async def _handle_stuck_education_cards(self) -> bool:
+        """
+        Detects if an education card in the active modal is incomplete/unmatched
+        (e.g., School*, Degree*, Discipline* showing 'Select an option' or 'This field is required'),
+        and clicks 'Delete education' plus the secondary confirmation popup ('Delete' / 'Confirm')
+        to unblock application submission.
+        """
+        try:
+            # 1. Look for 'Delete education' buttons
+            del_buttons = await self.page.locator(
+                f"{self.active_modal_sel} button:has-text('Delete education'), "
+                f"button:has-text('Delete education')"
+            ).all()
+
+            if not del_buttons:
+                return False
+
+            # Check if triggered by unmatched education flag or validation blockers
+            unmatched_flag = getattr(self, "_education_has_unmatched_field", False)
+
+            # Check if there are incomplete education fields or red required warnings
+            has_error_or_unselected = await self.page.evaluate("""
+                () => {
+                    const pageText = document.body.innerText || '';
+                    if (pageText.includes('This field is required')) return true;
+                    if (pageText.includes('Delete education')) {
+                        const selects = Array.from(document.querySelectorAll('select'));
+                        for (const s of selects) {
+                            const txt = (s.options[s.selectedIndex]?.text || '').toLowerCase();
+                            if (txt.includes('select an option') || s.value === '') return true;
+                            // If a school dropdown has any random college that is not MVGR
+                            const parentText = (s.closest('div')?.innerText || '').toLowerCase();
+                            if ((parentText.includes('school') || parentText.includes('institution') || parentText.includes('university') || parentText.includes('education')) && !txt.includes('mvgr')) return true;
+                        }
+                        const inputs = Array.from(document.querySelectorAll('input[type="text"]'));
+                        for (const i of inputs) {
+                            const txt = (i.value || '').toLowerCase();
+                            if (txt === '') continue;
+                            const parentText = (i.closest('div')?.innerText || '').toLowerCase();
+                            if ((parentText.includes('school') || parentText.includes('institution') || parentText.includes('university') || parentText.includes('education')) && !txt.includes('mvgr')) return true;
+                        }
+                    }
+                    return false;
+                }
+            """)
+
+            if not unmatched_flag and not has_error_or_unselected:
+                return False
+
+            log.info("🎓 Incomplete/unmatched education card detected. Scrolling to and clicking 'Delete education'...")
+            deleted_any = False
+
+            # Ensure the modal content is scrolled down so the Delete button is accessible
+            try:
+                await self.page.evaluate("""
+                    () => {
+                        const containers = document.querySelectorAll('.artdeco-modal__content, .jobs-easy-apply-modal, div[role="dialog"]');
+                        for (const c of containers) {
+                            c.scrollTop = c.scrollHeight;
+                        }
+                    }
+                """)
+                await asyncio.sleep(0.5)
+            except Exception:
+                pass
+
+            for btn in del_buttons:
+                try:
+                    await btn.scroll_into_view_if_needed()
+                    await asyncio.sleep(0.3)
+                    try:
+                        await btn.click(timeout=3000)
+                    except Exception:
+                        await btn.evaluate("el => el.click()")
+
+                    log.info("🗑️ Clicked 'Delete education' button")
+                    await asyncio.sleep(1.0)
+
+                    # 3. Handle secondary confirmation popup ("Are you sure you want to delete...?")
+                    confirm_selectors = [
+                        "div[role='dialog'] button:has-text('Delete')",
+                        "div[role='alertdialog'] button:has-text('Delete')",
+                        ".artdeco-modal button:has-text('Delete')",
+                        "button[data-control-name='delete_education']",
+                        "button:has-text('Confirm')",
+                        "button:has-text('Yes, delete')",
+                        "button:has-text('Discard')"
+                    ]
+
+                    for c_sel in confirm_selectors:
+                        try:
+                            c_btns = await self.page.locator(c_sel).all()
+                            for cb in c_btns:
+                                if await cb.is_visible():
+                                    cb_txt = (await cb.text_content() or "").strip()
+                                    if "delete education" not in cb_txt.lower():
+                                        await cb.click()
+                                        log.info(f"✅ Confirmed deletion popup by clicking: '{cb_txt}'")
+                                        await asyncio.sleep(1.0)
+                                        deleted_any = True
+                                        break
+                            if deleted_any:
+                                break
+                        except Exception:
+                            continue
+
+                except Exception as del_e:
+                    log.debug(f"Error clicking delete education button: {del_e}")
+
+            if deleted_any:
+                self._education_has_unmatched_field = False
+                log.info("✨ Education card successfully deleted and confirmed; form blockers removed.")
+                await asyncio.sleep(0.5)
+                return True
+
+        except Exception as e:
+            log.debug(f"Error in _handle_stuck_education_cards: {e}")
+        return False
+
     async def _ask_groq_batch(self, questions: list[str]) -> dict:
         """Batch ask Groq for unknown questions, cache them in Supabase"""
         if not questions:
@@ -987,11 +1185,35 @@ class EasyApplyAgent:
 You are an expert AI filling out a job application for this user.
 Answer the following questions based strictly on the user profile below.
 Return ONLY a valid JSON object mapping the exact question string to the answer string.
-For numeric questions (like years of experience), return a single number string (e.g. "2" not "2 years").
-For Yes/No questions, return "Yes" or "No".
-Explicitly extract matching keywords and technologies from the profile to answer specific experience questions.
-If the profile doesn't have the info, make a reasonable, professional guess.
-Do NOT ask to confirm user details or output conversational text. Output ONLY valid JSON.
+
+ANSWERING GUIDELINES:
+1. For numeric questions (years of experience, notice period), return a single number string (e.g. "2" not "2 years").
+2. For Yes/No or binary choice questions, return strictly "Yes" or "No".
+3. Work Authorization & Visa Sponsorship:
+   - Use the candidate's location and citizenship from the profile.
+   - For domestic authorization in candidate's home country/region: Answer "Yes" (Authorized) and "No" (Do not require sponsorship).
+   - If the question asks if the candidate requires visa sponsorship for an international role in a foreign country (e.g. US, UK, EU): Answer "Yes" (Requires sponsorship).
+4. Criminal Background & Disciplinary History:
+   - The candidate has a completely clean background with no criminal history, no felony or misdemeanor convictions, and no disciplinary actions.
+   - Pay critical attention to linguistic polarity and double negatives:
+     * "Have you been convicted of a crime / felony?": "No"
+     * "Do you certify that you have NO criminal record / are free of convictions?": "Yes"
+     * "Are you willing to undergo background checks and drug screenings?": "Yes"
+     * "Are you subject to any non-compete agreements?": "No"
+5. Skills & Experience:
+   - Explicitly extract matching keywords and technologies from the profile.
+   - If the profile doesn't have the info, make a reasonable, professional, advantageous guess.
+6. Fresher & Early Career Status:
+   - If candidate's general_experience_years <= 1.5, questions like "Are you a fresher?", "Are you a recent graduate?", or "Is this your first full-time role?" MUST strictly be answered "Yes".
+7. Social Profiles & Links:
+   - For GitHub, return the candidate's GitHub URL from profile.links or "https://github.com".
+   - For Portfolio/Website, return the candidate's portfolio URL from profile.links.
+   - For LinkedIn, return the candidate's LinkedIn URL from profile.links.
+8. Education & Degrees:
+   - For School/College: return candidate's education[0].school if available, else standard university name.
+   - For Degree: return candidate's education[0].degree (or "Bachelor's Degree").
+   - For Discipline/Major: return candidate's education[0].discipline (or "Computer Science").
+9. Do NOT ask to confirm user details or output conversational text. Output ONLY valid JSON.
 
 User Profile:
 {json.dumps(clean_profile, indent=2)}
@@ -1210,6 +1432,8 @@ Questions:
                         continue
                         
                 if attempt < 3:
+                    # If button wasn't clickable, check if stuck education card is blocking validation
+                    await self._handle_stuck_education_cards()
                     delay = float(attempt + 1)
                     log.info(f"⏳ Retry {attempt+1}/3: Waiting {delay}s for buttons to settle...")
                     await asyncio.sleep(delay)
@@ -1281,12 +1505,15 @@ Questions:
                     f"{self.active_modal_sel} input:not([type]), "
                     f"{self.active_modal_sel} textarea, "
                     f"{self.active_modal_sel} input[type='radio'], "
+                    f"{self.active_modal_sel} input[type='checkbox'], "
                     f"{self.active_modal_sel} [role='radio']"
                 ).all()
                 
                 unknowns_to_batch = []
                 for inp in all_inputs:
-                    if await inp.is_visible():
+                    inp_type = (await inp.get_attribute("type") or "").lower()
+                    is_choice = inp_type in ["radio", "checkbox"]
+                    if is_choice or await inp.is_visible():
                         q_text = await self._get_question_text(inp)
                         if q_text and q_text != "Unknown question":
                             # Prevent filenames (like resumes) from being treated as questions
@@ -1294,7 +1521,8 @@ Questions:
                             if ".pdf" in q_lower or ".doc" in q_lower:
                                 continue
                                 
-                            if self._get_smart_answer(q_text, "text") is None:
+                            f_type = "radio" if is_choice else "text"
+                            if self._get_smart_answer(q_text, f_type) is None:
                                 cached = self.user_profile.get("cached_answers", {})
                                 if self._find_in_cache(q_text, cached) is None and q_text not in unknowns_to_batch:
                                     unknowns_to_batch.append(q_text)
@@ -1323,39 +1551,122 @@ Questions:
                     if await root.is_hidden() or (await root.get_attribute("aria-disabled")) == "true":
                         continue
                     
+                    question = await self._get_question_text(root)
+                    is_edu_field = any(w in question.lower() for w in ["school", "university", "college", "institution", "education", "degree", "discipline", "major", "field of study", "academic"])
+
                     # Check if already has a REAL selection (not default)
                     if await root.evaluate("el => el.tagName === 'SELECT'"):
                         current_value = await root.input_value()
                         if current_value and current_value.strip() and current_value.strip() not in ["", "Select an option", "Please make a selection", "Choose"]:
-                            log.info(f"Dropdown already has REAL value: '{current_value}', skipping")
-                            continue
+                            if is_edu_field:
+                                # For school: if it's not the user's authentic school, treat it as bogus and trigger deletion
+                                if any(w in question.lower() for w in ["school", "university", "college", "institution", "education", "academic"]) and "mvgr" not in current_value.lower():
+                                    log.warning(f"⚠️ School dropdown has bogus college '{current_value}'. Triggering education deletion!")
+                                    self._education_has_unmatched_field = True
+                                else:
+                                    log.info(f"Education dropdown already has value: '{current_value}', skipping")
+                                    continue
+                            else:
+                                log.info(f"Dropdown already has REAL value: '{current_value}', skipping")
+                                continue
                     else:
                         current_text = (await root.text_content() or "").strip().lower()
                         if current_text not in ("", "select an option", "select", "choose", "please make a selection"):
-                            log.info(f"Combobox already has REAL selection: '{current_text}', skipping")
-                            continue
+                            if is_edu_field:
+                                if any(w in question.lower() for w in ["school", "university", "college", "institution", "education", "academic"]) and "mvgr" not in current_text:
+                                    log.warning(f"⚠️ Combobox has bogus college '{current_text}'. Triggering education deletion!")
+                                    self._education_has_unmatched_field = True
+                                else:
+                                    log.info(f"Education combobox already has value: '{current_text}', skipping")
+                                    continue
+                            else:
+                                log.info(f"Combobox already has REAL selection: '{current_text}', skipping")
+                                continue
 
-                    question = await self._get_question_text(root)
                     self.collected_questions.append({"type": "dropdown", "text": question})
                     smart_answer = self._get_cached_or_smart_answer(question, "select")
 
                     log.info(f"🔽 Processing dropdown: '{question}...' - Answer: '{smart_answer}'")
 
-                    # Evaluate if the smart_answer matches any option value/text
-                    options = await root.locator("option").all()
+                    # Fast atomic extraction of options
+                    is_native_select = await root.evaluate("el => el.tagName === 'SELECT'")
+                    options_data = []
+                    if is_native_select:
+                        options_data = await root.evaluate("""
+                            el => Array.from(el.options || []).map((o, idx) => ({
+                                index: idx,
+                                text: (o.text || '').trim().toLowerCase(),
+                                value: (o.value || '').trim().toLowerCase()
+                            }))
+                        """)
+                    else:
+                        combobox_options = (await root.locator("option").all())[:50]
+                        for i, opt in enumerate(combobox_options):
+                            txt = (await opt.text_content() or "").strip().lower()
+                            val = (await opt.get_attribute("value") or "").strip().lower()
+                            options_data.append({"index": i, "text": txt, "value": val})
+
                     match_found = False
-                    for i, option in enumerate(options):
-                        txt = (await option.text_content() or "").strip().lower()
-                        if smart_answer.lower() == txt:
-                            await root.select_option(index=i)
+                    smart_lower = (smart_answer or "").lower().strip()
+
+                    for opt in options_data:
+                        txt = opt["text"]
+                        val = opt["value"]
+                        if smart_lower == txt or smart_lower == val:
+                            await root.select_option(index=opt["index"])
                             log.info(f"✅ Selected matching option '{txt}'")
                             match_found = True
                             break
-                    
-                    # If no match found, select first or second option as fallback
-                    if not match_found and len(options) >= 1:
-                        await root.select_option(index=1)  #  index=1 to pick second option in list
-                        log.info(f"⚠️ No matching option found; selected default first option")
+                        elif smart_lower in txt or (len(txt) > 3 and txt in smart_lower):
+                            await root.select_option(index=opt["index"])
+                            log.info(f"✅ Selected partial matching option '{txt}'")
+                            match_found = True
+                            break
+
+                    # Education-specific intelligent fallback
+                    if not match_found and is_native_select and is_edu_field:
+                        q_lower = question.lower()
+                        if any(w in q_lower for w in ["degree", "highest level"]):
+                            for opt in options_data:
+                                txt = opt["text"]
+                                if any(d in txt for d in ["bachelor", "b.tech", "undergraduate", "associate", "graduate", "other", "not listed"]):
+                                    await root.select_option(index=opt["index"])
+                                    log.info(f"🎓 Selected fallback degree option '{txt}'")
+                                    match_found = True
+                                    break
+                        elif any(w in q_lower for w in ["discipline", "major", "field"]):
+                            for opt in options_data:
+                                txt = opt["text"]
+                                if any(disc in txt for disc in ["computer", "information", "engineering", "science", "software", "other", "not listed"]):
+                                    await root.select_option(index=opt["index"])
+                                    log.info(f"🎓 Selected fallback discipline option '{txt}'")
+                                    match_found = True
+                                    break
+                        elif any(w in q_lower for w in ["school", "university", "college", "institution", "education", "academic"]):
+                            for opt in options_data:
+                                txt = opt["text"]
+                                # STRICT: Only match the candidate's actual institution or unlisted/other! NEVER match generic words like "engineering" or "technology"!
+                                if any(s in txt for s in ["mvgr", "maharajah", "polytechnic", "other", "not listed", "unlisted"]):
+                                    await root.select_option(index=opt["index"])
+                                    log.info(f"🎓 Selected authentic school option '{txt}'")
+                                    match_found = True
+                                    break
+
+                    # If this is an education field and still no authentic match was found, flag it!
+                    if is_edu_field and not match_found:
+                        self._education_has_unmatched_field = True
+                        log.info(f"⚠️ Education field '{question}' has NO legitimate match. Will delete education block.")
+
+                    # Generic fallback: ONLY for NON-EDUCATION dropdowns! Avoid picking fake universities or degrees!
+                    if not match_found and len(options_data) > 1 and is_native_select and not is_edu_field:
+                        chosen_idx = 1
+                        for opt in options_data[1:]:
+                            txt = opt["text"]
+                            if txt and "select" not in txt and txt != "--":
+                                chosen_idx = opt["index"]
+                                break
+                        await root.select_option(index=chosen_idx)
+                        log.info(f"⚠️ No matching option found; selected non-empty fallback option index {chosen_idx}")
 
                     # ENHANCED country/residence detection
                     is_country_dropdown = any(keyword in question.lower() for keyword in [
@@ -1419,6 +1730,10 @@ Questions:
 
                 except Exception as e:
                     log.debug(f"Dropdown error: {e}")
+
+            # If an education dropdown could not be matched legitimately, delete the block immediately
+            if getattr(self, "_education_has_unmatched_field", False):
+                await self._handle_stuck_education_cards()
 
             # Handle follow-up country field
             if self._country_not_in_list:
@@ -1492,7 +1807,11 @@ Questions:
                             success = await self._handle_location_autocomplete(inp, MY_CURRENT_CITY)
                             if success:
                                 self._location_filled = True
-                        continue
+                                continue
+                            else:
+                                log.warning(f"⚠️ Location autocomplete failed for {question}. Falling back to standard text fill.")
+                        else:
+                            log.info(f"⚠️ Another location field '{question}' found. Using standard text fill.")
 
                     # Check for validation errors early
                     error_found = False
@@ -1557,6 +1876,8 @@ Questions:
                             # Try parsing as float first to handle decimals like 0.8
                             try:
                                 numeric = float(original_answer)
+                                if numeric >= 100000 and any(k in question.lower() for k in ["in lpa", "in lakh", "lpa"]):
+                                    numeric = numeric / 100000.0
                                 val = str(int(math.floor(numeric))) if numeric >= 0 else "0"
                             except ValueError:
                                 # It's not a direct number. Let's see if the field is numeric or expects a number
@@ -1624,158 +1945,279 @@ Questions:
                     log.error(f"Text input error for '{question}': {e}")
 
 
-            # Handle radio buttons
-            radios = await self.page.locator(f"{self.active_modal_sel} input[type='radio']").all()
-            seen_groups = set()
+            # ── Handle Radio Buttons (Semantic & Container Text) ───────────
+            try:
+                radios = await self.page.locator(f"{self.active_modal_sel} input[type='radio']").all()
+                seen_groups = set()
 
-            for radio in radios:
-                try:
-                    name = await radio.get_attribute("name") or ""
-                    if not name or name in seen_groups:
-                        continue
-                    seen_groups.add(name)
-
-                    group = self.page.locator(f'input[type="radio"][name="{name}"]')
-                    group_radios = await group.all()
-
-                    for r in group_radios:
-                        if not await r.is_visible(): continue
-                        question = await self._get_question_text(r)
-                        if question: break
-                    else:
-                        question = ""
-
-                    if question:
-                        # Check if any radio in the group is already checked
-                        any_checked = False
-                        for r in group_radios:
-                            if await r.is_checked():
-                                any_checked = True
-                                break
-                        if any_checked:
-                            log.info(f"Radio group for '{question}' already has a selection, skipping")
+                for radio in radios:
+                    try:
+                        name = await radio.get_attribute("name") or ""
+                        # If name attribute is missing, group by unique fieldset or parent id
+                        if not name:
+                            name = await radio.evaluate("el => el.closest('fieldset')?.getAttribute('aria-describedby') || el.closest('fieldset')?.id || ''")
+                        if not name or name in seen_groups:
                             continue
+                        seen_groups.add(name)
 
-                        smart_answer = self._get_cached_or_smart_answer(question, "radio").lower()
-                        log.info(f"🔘 Processing radio: '{question}' - Answer: '{smart_answer}'")
-                        
-                        match_found = False
+                        group = self.page.locator(f'input[type="radio"][name="{name}"]') if name else self.page.locator("input[type='radio']")
+                        group_radios = await group.all()
+
+                        # Extract question prompt from radios or enclosing fieldset
+                        question = ""
                         for r in group_radios:
-                            value_attr = (await r.get_attribute("value") or "").lower()
-                            rid = await r.get_attribute("id") or ""
-                            lbl = self.page.locator(f'label[for="{rid}"]').first
-                            lbl_txt = (await lbl.text_content() or "").lower() if await lbl.count() else ""
-
-                            if smart_answer in value_attr or smart_answer in lbl_txt or (smart_answer == "yes" and "true" in value_attr):
-                                if await lbl.count():
-                                    await lbl.click()
-                                else:
-                                    await r.check()
-                                log.info(f"✅ Selected radio button matching '{smart_answer}'")
-                                match_found = True
+                            q_cand = await self._get_question_text(r)
+                            if q_cand and q_cand != "Unknown question":
+                                question = q_cand
                                 break
-                        
-                        if not match_found:
-                            log.warning(f"⚠️ Could not find exact match for '{smart_answer}', falling back...")
-                            # Fallback if no match is found
-                            fallback_success = False
+
+                        if not question and len(group_radios) > 0:
+                            question = await self._get_legend_or_fieldset_text(group_radios[0])
+
+                        if question:
+                            # Check if any radio in the group is already checked
+                            any_checked = any([await r.is_checked() for r in group_radios])
+                            if any_checked:
+                                log.info(f"Radio group for '{question}' already has a selection, skipping")
+                                continue
+
+                            smart_answer = self._get_cached_or_smart_answer(question, "radio").lower()
+                            log.info(f"🔘 Processing radio: '{question}' - Answer: '{smart_answer}'")
+                            
+                            async def _select_radio_option(target_r, target_lbl):
+                                clicked = False
+                                if await target_lbl.count() and await target_lbl.is_visible():
+                                    try:
+                                        await target_lbl.click(timeout=1500)
+                                        clicked = await target_r.is_checked()
+                                    except Exception:
+                                        pass
+                                if not clicked:
+                                    try:
+                                        # Click the option row container that holds the click listener
+                                        await target_r.evaluate("""el => {
+                                            let row = el.closest('div');
+                                            while (row && row.textContent.trim().length === 0 && row.parentElement && row.parentElement.tagName !== 'FIELDSET') {
+                                                row = row.parentElement;
+                                            }
+                                            if (row) row.click();
+                                            else el.click();
+                                        }""")
+                                        await asyncio.sleep(0.2)
+                                        clicked = await target_r.is_checked()
+                                    except Exception:
+                                        pass
+                                if not clicked:
+                                    try:
+                                        await target_r.check(force=True)
+                                    except Exception:
+                                        await target_r.dispatch_event("click")
+                                await target_r.dispatch_event("input")
+                                await target_r.dispatch_event("change")
+                                await asyncio.sleep(0.3)
+
+                            match_found = False
                             for r in group_radios:
                                 value_attr = (await r.get_attribute("value") or "").lower()
                                 rid = await r.get_attribute("id") or ""
                                 lbl = self.page.locator(f'label[for="{rid}"]').first
-                                lbl_txt = (await lbl.text_content() or "").lower() if await lbl.count() else ""
-                                if any(x in (value_attr + lbl_txt) for x in ("yes", "true", "y", "1")):
-                                    if await lbl.count():
-                                        await lbl.click()
-                                    else:
-                                        await r.check()
-                                    log.warning("✅ Fallback to Yes/True")
-                                    fallback_success = True
+                                lbl_txt = (await lbl.text_content() or "").strip().lower() if await lbl.count() else ""
+
+                                # If label text is empty, extract text from the option row container
+                                if not lbl_txt:
+                                    row_text = await r.evaluate("""el => {
+                                        let row = el.closest('div');
+                                        while (row && row.textContent.trim().length === 0 && row.parentElement && row.parentElement.tagName !== 'FIELDSET') {
+                                            row = row.parentElement;
+                                        }
+                                        return row ? row.textContent.trim() : '';
+                                    }""")
+                                    lbl_txt = (row_text or "").strip().lower()
+
+                                is_match = False
+                                if smart_answer in [lbl_txt, value_attr]:
+                                    is_match = True
+                                elif smart_answer == "yes" and (lbl_txt == "yes" or lbl_txt.startswith("yes") or "true" in value_attr or "agree" in lbl_txt):
+                                    is_match = True
+                                elif smart_answer == "no" and (lbl_txt == "no" or lbl_txt.startswith("no") or "false" in value_attr or "disagree" in lbl_txt):
+                                    is_match = True
+                                elif smart_answer in lbl_txt or smart_answer in value_attr:
+                                    is_match = True
+
+                                if is_match:
+                                    await _select_radio_option(r, lbl)
+                                    log.info(f"✅ Selected radio button matching '{smart_answer}' (Option: '{lbl_txt}')")
+                                    match_found = True
                                     break
-                                    
-                            if not fallback_success and len(group_radios) > 0:
-                                log.warning("⚠️ No Yes/True found, selecting the first option as a last resort")
-                                r = group_radios[0]
-                                rid = await r.get_attribute("id") or ""
-                                lbl = self.page.locator(f'label[for="{rid}"]').first
-                                if await lbl.count():
-                                    await lbl.click()
-                                else:
-                                    await r.check()
+                            
+                            if not match_found:
+                                log.warning(f"⚠️ Could not find exact match for '{smart_answer}', falling back...")
+                                fallback_success = False
+                                for r in group_radios:
+                                    value_attr = (await r.get_attribute("value") or "").lower()
+                                    rid = await r.get_attribute("id") or ""
+                                    lbl = self.page.locator(f'label[for="{rid}"]').first
+                                    lbl_txt = (await lbl.text_content() or "").strip().lower() if await lbl.count() else ""
+                                    if not lbl_txt:
+                                        row_text = await r.evaluate("""el => {
+                                            let row = el.closest('div');
+                                            while (row && row.textContent.trim().length === 0 && row.parentElement && row.parentElement.tagName !== 'FIELDSET') {
+                                                row = row.parentElement;
+                                            }
+                                            return row ? row.textContent.trim() : '';
+                                        }""")
+                                        lbl_txt = (row_text or "").strip().lower()
 
-                except Exception as e:
-                    log.debug(f"Radio error: {e}")
+                                    if any(x in (value_attr + " " + lbl_txt) for x in ("yes", "true", "y", "1")):
+                                        await _select_radio_option(r, lbl)
+                                        log.warning(f"✅ Fallback radio to Yes/True (Option: '{lbl_txt}')")
+                                        fallback_success = True
+                                        break
+                                        
+                                if not fallback_success and len(group_radios) > 0:
+                                    log.warning("⚠️ No Yes/True found, selecting the first option as a last resort")
+                                    r = group_radios[0]
+                                    rid = await r.get_attribute("id") or ""
+                                    lbl = self.page.locator(f'label[for="{rid}"]').first
+                                    await _select_radio_option(r, lbl)
 
-            # Handle ARIA custom radio buttons (LinkedIn's new UI)
+                    except Exception as e:
+                        log.debug(f"Radio error: {e}")
+            except Exception as e:
+                log.debug(f"Radio scan error: {e}")
+
+            # ── Handle ARIA Radiogroups (role='radiogroup') ───────────────
             try:
                 radio_groups = await self.page.locator(f"{self.active_modal_sel} [role='radiogroup']").all()
                 for group in radio_groups:
                     try:
-                        aria_radios = await group.locator("[role='radio']").all()
-                        if not aria_radios: continue
+                        # Support both native inputs and ARIA custom radios inside radiogroup
+                        aria_radios = await group.locator("input[type='radio'], [role='radio']").all()
+                        if not aria_radios:
+                            continue
                         
-                        # Check if any ARIA radio is already checked
                         any_checked = False
                         for r in aria_radios:
-                            if (await r.get_attribute("aria-checked")) == "true":
+                            is_ch = await r.is_checked() if (await r.get_attribute("type")) == "radio" else (await r.get_attribute("aria-checked")) == "true"
+                            if is_ch:
                                 any_checked = True
                                 break
                         if any_checked:
-                            log.info("ARIA Radio group already has a selection, skipping")
                             continue
 
                         question = await self._get_question_text(aria_radios[0])
+                        if not question or question == "Unknown question":
+                            question = await self._get_legend_or_fieldset_text(aria_radios[0])
                         smart_answer = self._get_cached_or_smart_answer(question, "radio").lower() if question else "yes"
-                        log.info(f"🔘 Processing ARIA radio: '{question}' - Answer: '{smart_answer}'")
-                        
+
                         match_found = False
                         for r in aria_radios:
-                            txt = await r.evaluate('el => el.parentElement ? el.parentElement.textContent : el.textContent')
-                            txt = (txt or "").lower()
+                            txt = await r.evaluate("""el => {
+                                let row = el.closest('div');
+                                while (row && row.textContent.trim().length === 0 && row.parentElement && row.parentElement.tagName !== 'FIELDSET') {
+                                    row = row.parentElement;
+                                }
+                                return row ? row.textContent.trim() : (el.parentElement ? el.parentElement.textContent.trim() : el.textContent.trim());
+                            }""")
+                            txt = (txt or "").strip().lower()
                             value_attr = (await r.get_attribute("value") or "").lower()
                             
-                            if smart_answer in value_attr or smart_answer in txt or (smart_answer == "yes" and "true" in value_attr):
+                            is_match = False
+                            if smart_answer in [txt, value_attr]:
+                                is_match = True
+                            elif smart_answer == "yes" and (txt == "yes" or txt.startswith("yes") or "true" in value_attr or "agree" in txt):
+                                is_match = True
+                            elif smart_answer == "no" and (txt == "no" or txt.startswith("no") or "false" in value_attr or "disagree" in txt):
+                                is_match = True
+                            elif smart_answer in txt or smart_answer in value_attr:
+                                is_match = True
+
+                            if is_match:
                                 try:
-                                    await r.click(timeout=2000)
-                                except:
+                                    await r.click(timeout=1500)
+                                except Exception:
                                     await r.evaluate('el => el.click()')
-                                log.info(f"✅ Selected ARIA radio button matching '{smart_answer}'")
+                                log.info(f"✅ Selected ARIA radiogroup option matching '{smart_answer}' ('{txt}')")
                                 await asyncio.sleep(0.3)
                                 match_found = True
                                 break
                         
-                        if not match_found:
-                            fallback_success = False
-                            for r in aria_radios:
-                                txt = await r.evaluate('el => el.parentElement ? el.parentElement.textContent : el.textContent')
-                                txt = (txt or "").lower()
-                                value_attr = (await r.get_attribute("value") or "").lower()
-                                
-                                if any(x in (value_attr + txt) for x in ("yes", "true", "y", "1")):
-                                    try:
-                                        await r.click(timeout=2000)
-                                    except:
-                                        await r.evaluate('el => el.click()')
-                                    log.info(f"✅ Fallback ARIA radio button (Yes/True)")
-                                    await asyncio.sleep(0.3)
-                                    fallback_success = True
-                                    break
-                                    
-                            if not fallback_success and len(aria_radios) > 0:
-                                log.warning("⚠️ No Yes/True found, selecting the first ARIA option as a last resort")
-                                r = aria_radios[0]
-                                try:
-                                    await r.click(timeout=2000)
-                                except:
-                                    await r.evaluate('el => el.click()')
-                                await asyncio.sleep(0.3)
+                        if not match_found and len(aria_radios) > 0:
+                            r = aria_radios[0]
+                            try:
+                                await r.click(timeout=1500)
+                            except Exception:
+                                await r.evaluate('el => el.click()')
+                            await asyncio.sleep(0.3)
                     except Exception as e:
                         log.debug(f"ARIA radio group error: {e}")
             except Exception as e:
                 log.debug(f"ARIA radio finding error: {e}")
 
+            # ── Handle Checkboxes (Agreements, Consents & Declarations) ──────
+            try:
+                checkboxes = await self.page.locator(f"{self.active_modal_sel} input[type='checkbox']").all()
+                for cb in checkboxes:
+                    try:
+                        if await cb.is_checked():
+                            continue
+
+                        cb_id = await cb.get_attribute("id") or ""
+                        cb_lbl = self.page.locator(f'label[for="{cb_id}"]').first if cb_id else None
+                        cb_text = (await cb_lbl.text_content() or "").strip() if cb_lbl and await cb_lbl.count() else ""
+                        
+                        if not cb_text:
+                            cb_text = await cb.evaluate("""el => {
+                                let row = el.closest('div');
+                                while (row && row.textContent.trim().length === 0 && row.parentElement) {
+                                    row = row.parentElement;
+                                }
+                                return row ? row.textContent.trim() : '';
+                            }""")
+                        if not cb_text:
+                            cb_text = await cb.get_attribute("aria-label") or ""
+
+                        cb_lower = (cb_text or "").lower()
+
+                        # Skip optional "follow company" checkboxes
+                        if "follow" in cb_lower and "company" in cb_lower:
+                            continue
+
+                        # Check if required or a standard legal/terms consent declaration
+                        is_required = (
+                            (await cb.get_attribute("required")) is not None or
+                            (await cb.get_attribute("aria-required")) == "true" or
+                            "*" in cb_lower or
+                            any(w in cb_lower for w in ["agree", "consent", "certify", "acknowledge", "terms", "policy", "authorized", "understand", "confirm"])
+                        )
+
+                        if is_required:
+                            checked = False
+                            if cb_lbl and await cb_lbl.count() and await cb_lbl.is_visible():
+                                try:
+                                    await cb_lbl.click(timeout=1500)
+                                    checked = await cb.is_checked()
+                                except Exception:
+                                    pass
+                            if not checked:
+                                try:
+                                    await cb.check(force=True)
+                                except Exception:
+                                    await cb.evaluate('el => el.click()')
+                            await cb.dispatch_event("input")
+                            await cb.dispatch_event("change")
+                            log.info(f"✅ Checked mandatory checkbox: '{cb_text[:60]}'")
+                            await asyncio.sleep(0.2)
+                    except Exception as e:
+                        log.debug(f"Checkbox item error: {e}")
+            except Exception as e:
+                log.debug(f"Checkbox scan error: {e}")
+
             # Check for save dialog before clicking buttons
             await self._handle_save_dialog()
+
+            # If education fields are incomplete/unmatched, delete block to clear validation blockers
+            await self._handle_stuck_education_cards()
 
             # Scroll modal bottom
             await self._scroll_modal_bottom()
@@ -1946,33 +2388,8 @@ async def safe_goto(page: Page, url: str, retries: int = 3) -> bool:
     log.error(f"❌ Failed to navigate to {url}")
     return False
 
-def extract_text_with_ocr_fallback(pdf_bytes: bytes):
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    text = ""
-    for page_num in range(len(doc)):
-        page = doc.load_page(page_num)
-        page_text = page.get_text()
-        # Ensure page_text is a string before calling strip()
-        if isinstance(page_text, str):
-            page_text = page_text
-        else:
-            page_text = str(page_text) if page_text else ""
-        
-        if not page_text.strip():
-            # Fallback to OCR if no text found
-            images = convert_from_bytes(pdf_bytes, first_page=page_num+1, last_page=page_num+1)
-            ocr_text = pytesseract.image_to_string(images[0])
-            text += ocr_text + "\n\n"
-        else:
-            text += page_text + "\n\n"
-    return text
-
 def parse_pdf(url : str):
-    response = requests.get(url)
-    if response.status_code != 200:
-        raise Exception(f"Failed to fetch: {response.status_code}")
-    pdf_bytes = response.content
-    extracted_text = extract_text_with_ocr_fallback(pdf_bytes)
+    extracted_text = extract_pdf_text_from_url(url)
     if not extracted_text.strip():
         print("Warning: no text extracted from PDF")
     else:
@@ -2040,7 +2457,7 @@ async def main(
 
 
 
-    global RESUME_FILENAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, MY_GENERAL_EXPERIENCE, MY_KNOWN_TECH_EXPERIENCE, MY_UNKNOWN_TECH_EXPERIENCE, MY_CURRENT_CTC, MY_EXPECTED_CTC, MY_NOTICE_PERIOD, MY_CURRENT_CITY, MY_CURRENT_STATE, MY_CURRENT_COUNTRY, MY_FULL_LOCATION ,KNOWN_TECHNOLOGIES
+    global RESUME_FILENAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, MY_GENERAL_EXPERIENCE, MY_KNOWN_TECH_EXPERIENCE, MY_UNKNOWN_TECH_EXPERIENCE, MY_CURRENT_CTC, MY_EXPECTED_CTC, MY_NOTICE_PERIOD, MY_CURRENT_CITY, MY_CURRENT_STATE, MY_CURRENT_COUNTRY, MY_FULL_LOCATION, KNOWN_TECHNOLOGIES, MY_LINKEDIN_URL, MY_GITHUB_URL, MY_PORTFOLIO_URL, MY_EDUCATION
     
     try:    
 
@@ -2108,6 +2525,18 @@ async def main(
                 parsed.get("sure_skills", []) + 
                 parsed.get("additional_skills", [])
             )
+
+        links = parsed.get("links", {}) or {}
+        if isinstance(links, dict):
+            if links.get("linkedin_url"):
+                MY_LINKEDIN_URL = links["linkedin_url"]
+            if links.get("github_url"):
+                MY_GITHUB_URL = links["github_url"]
+            if links.get("portfolio_url"):
+                MY_PORTFOLIO_URL = links["portfolio_url"]
+
+        if parsed.get("education") and isinstance(parsed.get("education"), list):
+            MY_EDUCATION = parsed["education"]
     
     except Exception as e:
         print(f"fetching details from resume failed in applier agent: {e}")
@@ -2126,7 +2555,7 @@ async def main(
             log_callback({"progress": 6, "status": "processing", "message": "Connecting to server..."})
         pw = await async_playwright().start()
         launch_kwargs = {
-            "headless": True,
+            "headless": HEADLESS,
             
             "args": [
                 '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
@@ -2445,7 +2874,7 @@ async def setup_and_login(progress_user, user_id, password, log_callback=None):
         log_callback({"progress": 6, "status": "processing", "message": "Connecting to server..."})
     pw = await async_playwright().start()
     launch_kwargs = {
-        "headless": True,
+        "headless": HEADLESS,
         "args": [
             '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions', '--disable-background-networking', '--disable-renderer-backgrounding', '--no-first-run', '--mute-audio', '--metrics-recording-only'
         ]
@@ -2665,6 +3094,26 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     # ── Producer function: Batched Tailoring (only the remaining jobs) ──
     async def tailor_producer():
         try:
+            # Check if tailoring is disabled (fast test / applier debugging mode)
+            if not ENABLE_RESUME_TAILORING:
+                log.info("⏩ Resume tailoring is disabled. Loading master resume binary...")
+                log_callback({"progress": 10, "status": "in_progress", "message": "Tailoring turned off. Applying with master resume..."})
+                import requests
+                try:
+                    resp = await asyncio.to_thread(requests.get, resume_url)
+                    default_base64_resume = base64.b64encode(resp.content).decode("utf-8") if resp.status_code == 200 else ""
+                except Exception as fe:
+                    print(f"[tailor] Failed to fetch default resume binary: {fe}")
+                    default_base64_resume = ""
+
+                tailored_batch = [
+                    {"job_url": j.get("job_url"), "resume_binary": default_base64_resume, "company_name": j.get("company_name")}
+                    for j in remaining
+                ]
+                await jobs_queue.put(tailored_batch)
+                await jobs_queue.put(None)
+                print(f"[tailor] Tailoring bypassed. Pushed all {len(remaining)} jobs with master resume.")
+                return
 
             from agents.tailor import process_batch, extract_facts, extract_resume_text
             user_data_str = json.dumps(user_profile) if user_profile else None
@@ -2720,14 +3169,15 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     browser_instance = None
 
     try:
-        # Phase 1: Setup browser and verify login to fail fast and save Gemini calls
-        pw_check, browser_check, context_check, page_check = await setup_and_login(email, l_email, l_pass, log_callback)
-        # Close check browser completely to save resources during tailoring
-        try:
-            await safe_close(browser_check)
-            await pw_check.stop()
-        except:
-            pass
+        # Phase 1: Setup browser and verify login to fail fast (only needed when compiling with Gemini)
+        if ENABLE_RESUME_TAILORING:
+            pw_check, browser_check, context_check, page_check = await setup_and_login(email, l_email, l_pass, log_callback)
+            # Close check browser completely to save resources during tailoring
+            try:
+                await safe_close(browser_check)
+                await pw_check.stop()
+            except:
+                pass
 
         # Phase 2: Launch Producer (tailoring task) in background
         producer_task = asyncio.create_task(tailor_producer())
