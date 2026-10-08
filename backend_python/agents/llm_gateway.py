@@ -114,6 +114,32 @@ def extract_and_parse_json(raw_text: str, schema: Optional[Type[BaseModel]] = No
     return parsed
 
 
+def make_strict_json_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively converts a JSON schema for Groq/OpenAI Strict Mode.
+    Ensures additionalProperties=False on all objects and all properties are required.
+    """
+    import copy
+    s = copy.deepcopy(schema)
+
+    def _fix_node(node: Any):
+        if not isinstance(node, dict):
+            return
+        if node.get("type") == "object" or "properties" in node:
+            node["additionalProperties"] = False
+            if "properties" in node:
+                node["required"] = list(node["properties"].keys())
+        for v in node.values():
+            if isinstance(v, dict):
+                _fix_node(v)
+            elif isinstance(v, list):
+                for item in v:
+                    if isinstance(item, dict):
+                        _fix_node(item)
+
+    _fix_node(s)
+    return s
+
+
 # ═══════════════════════════════════════════════════════════════
 # LLM GATEWAY CLASS
 # ═══════════════════════════════════════════════════════════════
@@ -306,7 +332,19 @@ class LLMGateway:
             request_kwargs["max_tokens"] = max_output_tokens
 
         if schema:
-            request_kwargs["response_format"] = {"type": "json_object"}
+            if hasattr(schema, "model_json_schema"):
+                strict_schema = make_strict_json_schema(schema.model_json_schema())
+                schema_name = getattr(schema, "__name__", "response_format").lower()
+                request_kwargs["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": schema_name,
+                        "strict": True,
+                        "schema": strict_schema,
+                    },
+                }
+            else:
+                request_kwargs["response_format"] = {"type": "json_object"}
 
         try:
             log.info("[LLM Gateway] [Groq] Trying model: %s", model)
@@ -440,30 +478,18 @@ class LLMGateway:
         max_output_tokens: Optional[int] = None,
     ) -> Any:
         """Unified entry point for all agent LLM calls."""
-        # 1. Single Tailoring: Opportunistic Groq -> Gemini Flash Failover
+        # 1. Single Tailoring: Pure Groq with strict structured outputs (1 single call)
         if task == "single_tailor":
-            if self.groq_client:
-                groq_model = self.cascades["single_tailor"][0]
-                try:
-                    return self._call_groq(
-                        prompt=str(contents),
-                        model=groq_model,
-                        schema=schema,
-                        system_instruction=system_instruction,
-                        temperature=temperature,
-                        max_output_tokens=max_output_tokens or 8192,
-                    )
-                except GatewayError as g_err:
-                    log.warning("🔄 [LLM Gateway] Single-tailor Groq failed (%s), falling back to Gemini cascade...", g_err.code)
-
-            # Fallback directly to high-capacity Gemini Flash cascade
-            return self._call_gemini(
-                contents=contents,
-                task="tailor",
+            if not self.groq_client:
+                raise GatewayError("CONFIG_ERROR", "Groq client is not configured for single_tailor task.")
+            groq_model = self.cascades["single_tailor"][0]
+            return self._call_groq(
+                prompt=str(contents),
+                model=groq_model,
                 schema=schema,
                 system_instruction=system_instruction,
                 temperature=temperature,
-                max_output_tokens=max_output_tokens or 65536,
+                max_output_tokens=max_output_tokens or 8192,
             )
 
         # 2. Scout Mode: Form questions on Groq Qwen 27B -> Gemini Fallback

@@ -754,10 +754,11 @@ def compile_tex(tex: str) -> bytes | None:
 # ╭── Batch processor ────────────────────────────────────────────╮
 def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | None = None, user_data: str | None = None, template: int | None = 0, facts: "ResumeFacts | None" = None) -> List[Dict[str, Any]]:
     global _TEMPLATE
-    log.info("template from request - %d ", template if template >=0  else "not yet received")
-    log.info("Processing %d jobs", len(jobs))
-    if template >= 0:
-        _TEMPLATE = template
+    t_val = template if (template is not None and isinstance(template, int)) else 0
+    log.info("template from request - %d ", t_val)
+    log.info("Processing %d jobs", len(jobs) if jobs else 0)
+    if t_val >= 0:
+        _TEMPLATE = t_val
     original_txt = ""
     original_pdf = b""
     if resume_url:
@@ -766,10 +767,6 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
         except Exception as e:
             log.error("Failed to download original PDF: %s", str(e))
             raise
-        # resume_url is the authoritative tailoring source: always extract the
-        # full PDF text. user_data (a thin parsed profile) is only a fallback if
-        # extraction fails — otherwise resumes come out incomplete (no projects,
-        # no experience bullets, which the JSON profile does not contain).
         try:
             original_txt = extract_resume_text(resume_url)
         except Exception as e:
@@ -780,25 +777,16 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
             else:
                 raise
     else:
-        original_txt = user_data
+        original_txt = user_data or ""
+
     try:
-        # PASS 1 — fact extraction (JD-independent, one call per resume). The apply
-        # pipeline hoists this and passes `facts` so it isn't repeated per batch.
-        if facts is None:
-            facts = extract_facts(original_txt)
-        facts_json = facts.model_dump_json(by_alias=True)
-        # PASS 2 — synthesis: one Gemini call for the whole batch when it fits the
-        # output budget; splits and retries on truncation. Per-job isolation — a single
-        # failed job is absent from the result and falls back to its original PDF below.
-        # Pass 2 sees ONLY the facts, never the resume prose, so it cannot copy bullets.
-        gemini_ans = tailor_jobs(facts_json, [j["job_description"] for j in jobs], template=template)
-        # Identity fields are authoritative from the extracted facts — never trust Pass-2
-        # regeneration for them. Deep-copy so escape_pydantic doesn't mutate the shared
-        # `facts` (which would double-escape across batches in the apply pipeline).
-        gemini_ans.static_profile = facts.static_profile.model_copy(deep=True)
+        # Single-pass tailoring directly from raw PDF text:
+        # 1 job (from /tailor) -> routes to Groq (single_tailor) with strict structured outputs
+        # 2-20 jobs (from apply batch) -> routes to Gemini (tailor) with structured outputs
+        gemini_ans = tailor_jobs(original_txt, [j["job_description"] for j in jobs], template=t_val)
         escape_pydantic(gemini_ans)
     except Exception as e:
-        log.error("Gemini failed: %s", str(e))
+        log.error("Tailoring LLM call failed: %s", str(e))
         # Fallback: treat as all "no changes"
         gemini_ans = "NO_CHANGES_NEEDED"
     out = []

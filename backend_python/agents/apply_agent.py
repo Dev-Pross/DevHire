@@ -3115,20 +3115,10 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
                 print(f"[tailor] Tailoring bypassed. Pushed all {len(remaining)} jobs with master resume.")
                 return
 
-            from agents.tailor import process_batch, extract_facts, extract_resume_text
+            from agents.tailor import process_batch, extract_resume_text
             user_data_str = json.dumps(user_profile) if user_profile else None
-            # PASS 1 (atomic-fact extraction) is JD-independent — run it ONCE for the whole
-            # run instead of once per batch, then thread `facts` into every process_batch.
-            # Keeps the run at +1 Gemini call total. If it fails, fall back to facts=None
-            # and let each batch self-extract (back-compatible).
-            facts = None
-            try:
-                original_txt = await asyncio.to_thread(extract_resume_text, resume_url)
-                facts = await asyncio.to_thread(extract_facts, original_txt)
-            except Exception as e:
-                print(f"[tailor] PASS 1 hoist failed ({e}); each batch will self-extract")
             
-            # Fetch original untailored resume binary to bypass Gemini tailoring during applier testing
+            # Fetch original untailored resume binary as fallback during tailoring
             import requests
             try:
                 resp = await asyncio.to_thread(requests.get, resume_url)
@@ -3136,10 +3126,9 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
             except Exception as fe:
                 print(f"[tailor] Failed to fetch default resume binary: {fe}")
                 default_base64_resume = ""
-            # 15 jobs per batch = one Gemini call (RPM-cheap on free tier). process_batch
-            # -> tailor_jobs sends all 15 in one structured-output call (max_output_tokens
-            # is the model max), and only splits into smaller calls if that truncates.
-            batch_size = 15
+            # 20 jobs per batch = one Gemini call (RPM-cheap on free tier). process_batch
+            # -> tailor_jobs sends up to 20 in one structured-output call.
+            batch_size = 20
             remaining_count = len(remaining)
             for i in range(0, remaining_count, batch_size):
                 batch_jobs = remaining[i:i+batch_size]
@@ -3151,7 +3140,7 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
                 # remaining batches. On failure, enqueue the jobs with default resume_binary
                 # so the consumer still processes them.
                 try:
-                    tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0, facts)
+                    tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0)
                 except Exception as be:
                     print(f"[tailor] Batch {(i//batch_size)+1} failed ({be}); enqueueing with default resume")
                     tailored_batch = [
