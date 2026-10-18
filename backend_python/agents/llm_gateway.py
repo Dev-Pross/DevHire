@@ -29,13 +29,13 @@ if not log.handlers:
 # ═══════════════════════════════════════════════════════════════
 
 USER_SAFE_MESSAGES = {
-    "RATE_LIMITED": "AI busy. Try again shortly.",
-    "ALL_EXHAUSTED": "Service busy. Please retry later.",
-    "SCHEMA_MISMATCH": "Formatting error. Please re-try.",
-    "BAD_REQUEST": "Invalid input. Please check resume.",
-    "TIMEOUT": "Request timed out. Please retry.",
+    "RATE_LIMITED": "AI service is busy. Loaded your original resume.",
+    "ALL_EXHAUSTED": "AI service is busy. Loaded your original resume.",
+    "SCHEMA_MISMATCH": "Couldn't tailor this role. Loaded your original resume.",
+    "BAD_REQUEST": "Couldn't tailor this role. Loaded your original resume.",
+    "TIMEOUT": "AI timed out. Loaded your original resume.",
     "AUTH_FAILED": "Service configuration error.",
-    "UNEXPECTED": "Something went wrong. Please retry.",
+    "UNEXPECTED": "AI service is busy. Loaded your original resume.",
 }
 
 
@@ -155,7 +155,7 @@ class LLMGateway:
 
         # 2. Load Groq Key
         self.groq_api_key: str = os.getenv("GROQ_API", "").strip()
-        self.groq_client: Optional[Groq] = Groq(api_key=self.groq_api_key) if self.groq_api_key else None
+        self.groq_client: Optional[Groq] = Groq(api_key=self.groq_api_key, max_retries=0) if self.groq_api_key else None
 
         # 3. Model Cascades per Workload
         self.cascades: Dict[str, List[str]] = {
@@ -190,7 +190,13 @@ class LLMGateway:
                 ],
             ),
             "scout": [os.getenv("GROQ_SCOUT_MODEL", "qwen/qwen3.8-27b").strip()],
-            "single_tailor": [os.getenv("GROQ_TAILOR_MODEL", "openai/gpt-oss-120b").strip()],
+            "single_tailor": self._load_model_list(
+                "GROQ_TAILOR_MODELS",
+                [
+                    os.getenv("GROQ_TAILOR_MODEL", "openai/gpt-oss-120b").strip(),
+                    os.getenv("GROQ_FALLBACK_MODEL", "qwen/qwen3.8-27b").strip(),
+                ],
+            ),
             "default": [
                 "gemini-3.5-flash-lite",
                 "gemini-3.1-flash-lite",
@@ -329,7 +335,7 @@ class LLMGateway:
             "temperature": temperature,
         }
         if max_output_tokens:
-            request_kwargs["max_tokens"] = max_output_tokens
+            request_kwargs["max_tokens"] = min(max_output_tokens, 8192)
 
         if schema:
             if hasattr(schema, "model_json_schema"):
@@ -478,19 +484,26 @@ class LLMGateway:
         max_output_tokens: Optional[int] = None,
     ) -> Any:
         """Unified entry point for all agent LLM calls."""
-        # 1. Single Tailoring: Pure Groq with strict structured outputs (1 single call)
+        # 1. Single Tailoring: Pure Groq with strict structured outputs (with intra-Groq fallback)
         if task == "single_tailor":
             if not self.groq_client:
                 raise GatewayError("CONFIG_ERROR", "Groq client is not configured for single_tailor task.")
-            groq_model = self.cascades["single_tailor"][0]
-            return self._call_groq(
-                prompt=str(contents),
-                model=groq_model,
-                schema=schema,
-                system_instruction=system_instruction,
-                temperature=temperature,
-                max_output_tokens=max_output_tokens or 8192,
-            )
+            models_to_try = self.cascades.get("single_tailor", ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"])
+            last_err = None
+            for model in models_to_try:
+                try:
+                    return self._call_groq(
+                        prompt=str(contents),
+                        model=model,
+                        schema=schema,
+                        system_instruction=system_instruction,
+                        temperature=temperature,
+                        max_output_tokens=max_output_tokens or 8192,
+                    )
+                except GatewayError as g_err:
+                    last_err = g_err
+                    log.warning("🔄 [LLM Gateway] Single tailor Groq model %s failed (%s), falling back...", model, g_err.code)
+            raise last_err or GatewayError("ALL_EXHAUSTED", "All single_tailor Groq models failed.")
 
         # 2. Scout Mode: Form questions on Groq Qwen 27B -> Gemini Fallback
         if task == "scout":

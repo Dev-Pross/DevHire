@@ -39,6 +39,8 @@ class TailorResponses(BaseModel):
     success: bool
     payload: List[str]
     media: str
+    is_fallback: bool = False
+    message: Optional[str] = None
 
 router = APIRouter()
 
@@ -57,10 +59,14 @@ def tailor_resume(request: TailorRequest):
             logging.info("resume generated")
         # Extract just the base64 strings from the returned list for payload
         base64_list = [item["resume_binary"] for item in resume]
+        is_fb = any(item.get("is_fallback") for item in resume) if resume else False
+        msg = next((item.get("message") for item in resume if item.get("message")), None) if resume else None
         return TailorResponses(
             success=True,
             payload=base64_list,
-            media="application/pdf"
+            media="application/pdf",
+            is_fallback=is_fb,
+            message=msg
         )
     except Exception as e:
         logging.error(f"Error in tailor route: {e}")

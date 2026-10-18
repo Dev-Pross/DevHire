@@ -79,8 +79,19 @@ const Tailor_resume = () => {
         const blob = new Blob([bytes], { type: data.media });
         const url = URL.createObjectURL(blob);
         setTailoredUrl(url);
+
+        if (data.is_fallback) {
+          toast(data.message || "AI service is busy. Loaded your original resume.", {
+            icon: "⚠️",
+            duration: 5000,
+          });
+        } else {
+          toast.success("Resume tailored successfully!");
+        }
       } else {
-        toast.error("Something went wrong from server");
+        setLocalLoading(false);
+        const errorMsg = data.detail || data.message || "Something went wrong from server";
+        toast.error(errorMsg);
       }
     } catch (e: any) {
       console.log(e);

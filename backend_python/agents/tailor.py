@@ -195,6 +195,54 @@ class Format(BaseModel):
     tailored_jobs: List[TailoredJob]
 
 
+# --- Simplified Wire Schema for Single-Job Tailoring (Solution B) ---
+class SkillCategorySimple(BaseModel):
+    category: str
+    skills: List[str]
+
+class TailoredJobSimple(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    job_index: int = 1
+    role: str = Field(..., alias="Role")
+    professional_summary: str
+    skills: List[SkillCategorySimple]
+    projects: List[Project]
+    experience: List[Experience]
+    achievements: List[Achievement] = Field(default_factory=list)
+
+class FormatSimple(BaseModel):
+    static_profile: StaticProfile
+    tailored_jobs: List[TailoredJobSimple] = Field(..., max_length=1)
+
+def hydrate_format(simple: FormatSimple) -> Format:
+    """Hydrates flat string skills into the full SkillCategory & SkillValue models required by Jinja."""
+    hydrated_jobs = []
+    for tj in simple.tailored_jobs:
+        hydrated_skills = []
+        for cat in tj.skills:
+            vals = []
+            for idx, skill_name in enumerate(cat.skills):
+                level = "Expert" if idx < 3 else ("Advanced" if idx < 6 else "Intermediate")
+                score = round(max(0.70, 0.95 - (idx * 0.05)), 2)
+                vals.append(SkillValue(name=skill_name, level=level, score=score))
+            hydrated_skills.append(SkillCategory(category=cat.category, values=vals))
+
+        hydrated_jobs.append(TailoredJob(
+            job_index=tj.job_index or 1,
+            Role=tj.role,
+            professional_summary=tj.professional_summary,
+            skills=hydrated_skills,
+            projects=tj.projects,
+            experience=tj.experience,
+            achievements=tj.achievements
+        ))
+
+    return Format(
+        static_profile=simple.static_profile,
+        tailored_jobs=hydrated_jobs
+    )
+
+
 # --- PASS 1: atomic-fact extraction schema ---
 # Pass 1 reads the raw resume once (JD-independent) and decomposes it into atomic
 # FACTS — fragments, deliberately NOT bullet sentences — so Pass 2 must COMPOSE
@@ -394,18 +442,23 @@ def ask_gemini(payload: str, jobs: List[str], *, schema=Format, mode: str = "syn
     prompt = build_prompt(payload, jobs, mode, template)
     task_name = "single_tailor" if (mode == "synthesize" and len(jobs) == 1) else ("tailor" if mode == "synthesize" else "parse")
     
+    wire_schema = FormatSimple if (task_name == "single_tailor" and schema is Format) else schema
+
     try:
         log.info("LLM Gateway request (task=%s, mode=%s, jobs=%d)", task_name, mode, len(jobs))
         res = gemini_gateway.generate(
             contents=prompt,
             task=task_name,
-            schema=schema,
+            schema=wire_schema,
             temperature=0.2,
             max_output_tokens=65536,
         )
 
         if res is None:
             raise TruncatedOutputError("LLM Gateway returned no parseable structured output (likely truncated)")
+
+        if isinstance(res, FormatSimple):
+            res = hydrate_format(res)
 
         if hasattr(res, "model_dump_json"):
             log.debug("Gemini preview: %s", res.model_dump_json(indent=2)[:300].replace("\n", " ↩ "))
@@ -779,6 +832,7 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
     else:
         original_txt = user_data or ""
 
+    fallback_message: Optional[str] = None
     try:
         # Single-pass tailoring directly from raw PDF text:
         # 1 job (from /tailor) -> routes to Groq (single_tailor) with strict structured outputs
@@ -787,7 +841,10 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
         escape_pydantic(gemini_ans)
     except Exception as e:
         log.error("Tailoring LLM call failed: %s", str(e))
-        # Fallback: treat as all "no changes"
+        user_msg = getattr(e, "user_message", None)
+        if not user_msg and hasattr(e, "__cause__") and hasattr(e.__cause__, "user_message"):
+            user_msg = e.__cause__.user_message
+        fallback_message = user_msg or "AI service is busy. Loaded your original resume."
         gemini_ans = "NO_CHANGES_NEEDED"
     out = []
     for i, job in enumerate(jobs):
@@ -814,10 +871,16 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
                     else:
                         log.warning("Failed to generate PDF")
                     log.warning("Job %d: fallback to original PDF", i)
+                    if not fallback_message:
+                        fallback_message = "Couldn't tailor this role. Loaded your original resume."
+
+            is_fb = bool(gemini_ans == "NO_CHANGES_NEEDED" or (original_pdf and pdf == original_pdf))
             out.append({
                 "job_url": job["job_url"],
                 "resume_binary": base64.b64encode(pdf).decode(),
                 "company_name": job.get("company_name"),
+                "is_fallback": is_fb,
+                "message": fallback_message if is_fb else None,
             })
         except Exception as e:
             import traceback
@@ -827,6 +890,8 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
                 "job_url": job["job_url"],
                 "resume_binary": base64.b64encode(original_pdf).decode(),
                 "company_name": job.get("company_name"),
+                "is_fallback": True,
+                "message": fallback_message or "AI service is busy. Loaded your original resume.",
             })
     return out
 # ╰───────────────────────────────────────────────────────────────╯
