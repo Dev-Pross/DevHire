@@ -365,7 +365,12 @@ SYNTHESIZE_INSTRUCTIONS = r"""
        - starts with a strong action verb; one line, ~{max_words_per_bullet} words max;
        - states only what the facts support — surface a metric only if the fact carries one.
        Tailor emphasis and ordering to each JD: the same facts should yield visibly different bullets for a backend JD vs a data JD.
-    6. ALL ENTRIES (sourcing, not rendering): Rank EVERY experience entry and EVERY project entry by relevance to this JD. You MUST include ALL projects and ALL experience entries. NEVER drop an entire project or experience block. If `experience` facts is empty, output `experience: []`.
+    6. EXACT ENTRY INTEGRITY & STRICT SEPARATION (NO DUPLICATION):
+       - You MUST include each unique experience entry and each unique project entry from <EXTRACTED_FACTS> exactly ONCE.
+       - NEVER duplicate, clone, or loop an experience or project entry to fill bullet budgets.
+       - STRICT SEPARATION: Projects belong exclusively in `projects[]`. Work experience belongs exclusively in `experience[]`. NEVER list projects inside `experience[]`, and never list work experience inside `projects[]`.
+       - The count of `experience` items in `tailored_jobs` MUST strictly equal the count of `experience` items in <EXTRACTED_FACTS>.
+       - If `experience` in facts is empty, output `experience: []`.
     7. SUMMARY: Write `professional_summary` for each JD from the facts to foreground the strengths that match that JD's core requirements. Max 430 characters, 2-3 sentences, metric-driven and punchy.
     8. CONTENT BUDGET (STRICT):
        - Total bullet budget across ALL experience + project entries: {max_total_bullets}.
@@ -375,8 +380,8 @@ SYNTHESIZE_INSTRUCTIONS = r"""
        - professional_summary: max {max_summary_chars} characters.
        - DISTRIBUTE BASED ON ENTRY COUNT:
          * If total entries (experience + projects) >= 5: keep bullets concise (~10 words each). Rank entries by JD relevance. Give top-ranked entries {max_per_entry} bullets, lower-ranked entries {min_per_entry} bullets.
-         * If total entries <= 3: elaborate each bullet with richer technical depth ({max_words_per_bullet} to {max_words_expanded} words each). Use {max_per_entry} or more bullets per entry. Expand professional_summary to near {max_summary_chars} characters. The goal is a complete, balanced page with no empty space — but ONLY using facts from EXTRACTED_FACTS, never invented detail.
-       - Do NOT try to estimate page fit or self-trim. The rendering system handles page fitting. Your job: fill the budget completely and distribute evenly.
+         * If candidate has fewer total entries, distribute the budget across the EXISTING unique entries by giving them up to {max_per_entry} bullets each. NEVER invent, duplicate, or clone entries to satisfy total bullet counts.
+       - Do NOT try to estimate page fit or self-trim. The rendering system handles page fitting. Your job: fill the budget completely across unique entries and distribute evenly.
 
     --- SKILLS / ACHIEVEMENTS ---
 
@@ -391,10 +396,10 @@ SYNTHESIZE_INSTRUCTIONS = r"""
     --- ROLE TITLE & BULLET ANTI-REPETITION (CRITICAL) ---
 
     12. TARGET ROLE TITLE (`Role`): Identify the target job title from the job description (e.g. "Senior Backend Engineer", "Technical Business Analyst"). If the job description does not specify an explicit role title or is generic (e.g. says "general", "**MAKE GENERAL RESUME**", or lacks an explicit job title), NEVER output "General". Instead, retain the candidate's existing primary professional title from their experience facts.
-    13. BULLET ANTI-REPETITION:
+    13. BULLET ANTI-REPETITION & MANDATORY PUNCTUATION:
         - NEVER robotically prepend or repeat the target job title as a prefix at the start of bullet points (e.g. NEVER start bullets with "Worked as Technical Business Analyst..." or "As a Technical Business Analyst...").
         - Each bullet MUST start with a diverse, impactful action verb (e.g. "Architected", "Engineered", "Optimized", "Streamlined", "Automated"), leading with technical actions, tools, and quantifiable results.
-        - Each bullet must be a single complete sentence ending with exactly one period. Do NOT output double periods or trailing ellipses.
+        - Every bullet MUST be a single complete sentence ending with exactly one period ('.'). NEVER omit the trailing period. Do NOT output double periods or trailing ellipses.
 
     --- STATIC vs TAILORED FIELDS ---
 
@@ -735,32 +740,59 @@ def _tighten_latex(tex: str, tier: int, template: int) -> str:
 
 def sanitize_tailored_job(static_profile, tj):
     """Sanitizes tailored job fields:
-    1. Fixes double periods and punctuation on experience & project bullets.
-    2. Strictly deduplicates achievements against certifications.
-    3. Prevents role from being 'General' or empty.
+    1. Deduplicates experience entries so no job is repeated.
+    2. Deduplicates project entries by name.
+    3. Normalizes punctuation on experience & project bullets (ensures exactly one trailing period).
+    4. Strictly deduplicates achievements against certifications.
+    5. Prevents role from being 'General' or empty.
     """
-    for exp in (getattr(tj, "experience", None) or []):
-        cleaned_pts = []
-        for pt in (getattr(exp, "points", None) or []):
-            if isinstance(pt, str):
-                s = pt.strip()
-                while s.endswith("."):
-                    s = s[:-1].strip()
-                if s:
-                    cleaned_pts.append(s + ".")
-        exp.points = cleaned_pts
-
+    # 1. Deduplicate & normalize project entries first
+    seen_proj_keys = set()
+    clean_projs = []
     for proj in (getattr(tj, "projects", None) or []):
+        name = (getattr(proj, "name", "") or "").strip().lower()
+        if not name or name in seen_proj_keys:
+            continue
+        seen_proj_keys.add(name)
+
         cleaned_pts = []
         for pt in (getattr(proj, "points", None) or []):
             if isinstance(pt, str):
-                s = pt.strip()
-                while s.endswith("."):
-                    s = s[:-1].strip()
+                s = pt.rstrip(" \t\r\n.,;:-")
                 if s:
                     cleaned_pts.append(s + ".")
         proj.points = cleaned_pts
+        clean_projs.append(proj)
+    tj.projects = clean_projs
 
+    # 2. Deduplicate & normalize experience entries (and remove any project leaked into experience)
+    seen_exp_keys = set()
+    clean_exps = []
+    for exp in (getattr(tj, "experience", None) or []):
+        company = (getattr(exp, "company", "") or "").strip().lower()
+        title = (getattr(exp, "title", "") or "").strip().lower()
+        date = (getattr(exp, "date", "") or "").strip().lower()
+
+        # Guard against cross-contamination: skip if this entry is actually a project
+        if (company and company in seen_proj_keys) or (title and title in seen_proj_keys):
+            continue
+
+        exp_key = (company, title, date)
+        if exp_key in seen_exp_keys:
+            continue
+        seen_exp_keys.add(exp_key)
+
+        cleaned_pts = []
+        for pt in (getattr(exp, "points", None) or []):
+            if isinstance(pt, str):
+                s = pt.rstrip(" \t\r\n.,;:-")
+                if s:
+                    cleaned_pts.append(s + ".")
+        exp.points = cleaned_pts
+        clean_exps.append(exp)
+    tj.experience = clean_exps
+
+    # 3. Deduplicate achievements against static certifications
     cert_names = [
         getattr(c, "name", "").strip().lower()
         for c in (getattr(static_profile, "certifications", None) or [])
@@ -775,6 +807,7 @@ def sanitize_tailored_job(static_profile, tj):
                 clean_achs.append(ach)
         tj.achievements = clean_achs
 
+    # 4. Fallback for role title
     curr_role = getattr(tj, "role", "").strip()
     if not curr_role or curr_role.lower() in ("general", "**make general resume**"):
         exps = getattr(tj, "experience", None) or []
@@ -784,13 +817,14 @@ def sanitize_tailored_job(static_profile, tj):
             tj.role = "Software Engineer"
 
 
+
 def render_one_page(static_profile, tj, template: int = 0, has_experience: bool = False) -> bytes | None:
     """Render -> compile -> guarantee a SINGLE page (or 2 for experienced).
     
     Uses graduated spacing and font reductions instead of trimming content.
     """
     sanitize_tailored_job(static_profile, tj)
-    max_pages = 2 if has_experience and _calculate_yoe(getattr(tj, "experience", [])) >= 2 else 1
+    max_pages = 2 if has_experience and _calculate_yoe(getattr(tj, "experience", [])) >= 5 else 1
     
     pdf = None
     MAX_TIGHTEN_TIERS = 3
@@ -905,6 +939,9 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
         # 1 job (from /tailor) -> routes to Groq (single_tailor) with strict structured outputs
         # 2-20 jobs (from apply batch) -> routes to Gemini (tailor) with structured outputs
         gemini_ans = tailor_jobs(original_txt, [j["job_description"] for j in jobs], template=t_val)
+        if hasattr(gemini_ans, "tailored_jobs"):
+            for t_item in (gemini_ans.tailored_jobs or []):
+                sanitize_tailored_job(getattr(gemini_ans, "static_profile", None), t_item)
         escape_pydantic(gemini_ans)
     except Exception as e:
         log.error("Tailoring LLM call failed: %s", str(e))
