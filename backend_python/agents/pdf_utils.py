@@ -7,8 +7,10 @@ def extract_pdf_text_from_url(url: str) -> str:
     """Fetches a PDF from a URL and extracts text using PyMuPDF (fitz) with OCR fallback and hyperlink mapping."""
     r = requests.get(url, timeout=60)
     r.raise_for_status()
-    pdf_bytes = r.content
+    return extract_pdf_text_from_bytes(r.content)
 
+def extract_pdf_text_from_bytes(pdf_bytes: bytes) -> str:
+    """Extracts text from PDF bytes using PyMuPDF (fitz) with OCR fallback and hyperlink mapping."""
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     full_text = ""
     raw_url_regex = re.compile(r'https?://[^\s]+|www\.[^\s]+')

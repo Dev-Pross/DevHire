@@ -44,12 +44,52 @@ class TailorResponses(BaseModel):
 
 router = APIRouter()
 
+import hashlib
+import json
+from config import redis_client
+
+_REDIS_TTL_SECONDS = 7200  # 2 hours
+
+def _get_cached_tailor_response(cache_key: str) -> Optional[Dict[str, Any]]:
+    if not redis_client:
+        return None
+    try:
+        raw = redis_client.get(f"tailor:{cache_key}")
+        if raw:
+            return json.loads(raw)
+    except Exception as e:
+        log.warning("Redis cache get error: %s", e)
+    return None
+
+def _set_cached_tailor_response(cache_key: str, data: Dict[str, Any]) -> None:
+    if not redis_client:
+        return
+    try:
+        redis_client.setex(f"tailor:{cache_key}", _REDIS_TTL_SECONDS, json.dumps(data))
+    except Exception as e:
+        log.warning("Redis cache set error: %s", e)
+
 @router.post("/tailor",response_model=TailorResponses)
 def tailor_resume(request: TailorRequest):
     try:
+        if not request.resume_url and not request.user_data:
+            raise HTTPException(
+                status_code=400,
+                detail="No resume provided. Please upload a resume in Profile before tailoring."
+            )
+
         print(f"{request.template} - template from route")
-        resume_data = [{"job_url": "resume_", "job_description": request.job_desc or "**MAKE GENERAL RESUME**"}]
-        # logging.info("resumedata: %s",resume_data)
+        raw_desc = (request.job_desc or "").strip()
+        norm_jd = "**MAKE GENERAL RESUME**" if not raw_desc or raw_desc.lower() == "general" else raw_desc
+        
+        # Check deterministic Redis cache for identical inputs
+        cache_key = hashlib.sha256(f"{str(request.resume_url or '')}:{norm_jd}:{request.template}".encode("utf-8")).hexdigest()
+        cached = _get_cached_tailor_response(cache_key)
+        if cached:
+            log.info("🎯 Redis Cache HIT for tailoring request (hash=%s)", cache_key[:12])
+            return TailorResponses(**cached)
+
+        resume_data = [{"job_url": "resume_", "job_description": norm_jd}]
         resume = []
         if request.resume_url:
             resume = tailor_main(request.resume_url, resume_data, template=request.template)
@@ -61,13 +101,21 @@ def tailor_resume(request: TailorRequest):
         base64_list = [item["resume_binary"] for item in resume]
         is_fb = any(item.get("is_fallback") for item in resume) if resume else False
         msg = next((item.get("message") for item in resume if item.get("message")), None) if resume else None
-        return TailorResponses(
-            success=True,
-            payload=base64_list,
-            media="application/pdf",
-            is_fallback=is_fb,
-            message=msg
-        )
+
+        resp_dict = {
+            "success": True,
+            "payload": base64_list,
+            "media": "application/pdf",
+            "is_fallback": is_fb,
+            "message": msg
+        }
+        # Only cache valid non-fallback responses so temporary provider issues don't stick
+        if not is_fb and base64_list:
+            _set_cached_tailor_response(cache_key, resp_dict)
+
+        return TailorResponses(**resp_dict)
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Error in tailor route: {e}")
         user_msg = getattr(e, "user_message", None)

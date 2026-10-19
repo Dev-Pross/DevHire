@@ -11,7 +11,7 @@ Batch résumé-tailoring pipeline – COLORED-DEBUG v3
 import base64
 import json
 import logging
-from .pdf_utils import extract_pdf_text_from_url
+from .pdf_utils import extract_pdf_text_from_url, extract_pdf_text_from_bytes
 import os
 import random
 import re
@@ -297,6 +297,9 @@ def extract_resume_text(url: str) -> str:
     if "pdf" in ct or url.lower().endswith(".pdf"):
         return extract_pdf_text_from_url(url)
     raise ValueError("Unsupported resume format")
+
+def extract_resume_text_from_bytes(pdf_bytes: bytes) -> str:
+    return extract_pdf_text_from_bytes(pdf_bytes)
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Prompt builder ─────────────────────────────────────────────╮
@@ -330,7 +333,7 @@ EXTRACT_INSTRUCTIONS = r"""
     8. `project_line`: ONE neutral factual one-sentence descriptor per project (e.g. "Real-time data ingestion pipeline"). Describe the project; do NOT tailor or embellish.
     9. SKILLS: list ALL skills in `skills_raw`, flat and de-duplicated — no grouping, no scoring (that happens later).
     10. STATIC PROFILE: extract `fullname`, `location`, `phone`, and `email`/`linkedin`/`github`/`portfolio` (each as {href, text}), plus `education[]` and `certifications[]`, exactly as written.
-    11. ACHIEVEMENTS: each award/honor/recognition → { "name": <short title>, "raw": <neutral fact fragment> }. Hackathons go to `projects`, not here.
+    11. ACHIEVEMENTS: each competitive award, hackathon placement, rank distinction, scholarship, or company honor → { "name": <short title>, "raw": <neutral fact fragment> }. CRITICAL: NEVER extract certifications, licenses, or exam credentials (e.g. AWS, Oracle, Google Cloud, Coursera, Meta, Microsoft) into achievements. All credentials belong exclusively in `certifications[]`. If an item is a certification, it MUST NOT appear in achievements. Hackathons go to `projects`, not here.
 
 """
 
@@ -379,11 +382,23 @@ SYNTHESIZE_INSTRUCTIONS = r"""
 
     9. ALL SKILLS: Include ALL names from `skills_raw`, grouped into logical categories (e.g. "Languages", "Backend & AI", "Frontend", "Database & Infra", "Tools & Frameworks"). Do NOT cherry-pick only JD-relevant skills; within each category, order JD-relevant skills first. Do NOT rename or invent skills.
     10. SKILL SCORING (proficiency, NOT relevance): For every skill assign `level` ∈ {{"Beginner","Intermediate","Advanced","Expert"}} and `score` ∈ 0.1-1.0 reflecting PROFICIENCY ONLY (0.8-1.0 if used across multiple complex projects/core employment; 0.5-0.7 if mentioned once; default "Intermediate"/0.7 if ambiguous). Express JD-relevance through ordering (rule 9), never by lowering a score.
-    11. ACHIEVEMENTS: For each item in the facts' achievements, output {{ "name": <short title>, "description": <one concise sentence pitching its relevance for ATS, derived from `raw`> }}.
+    11. ACHIEVEMENTS DEDUPLICATION:
+        - Output achievements ONLY for distinct non-certification honors (hackathon wins, competitive coding ranks, awards, scholarships).
+        - NEVER output an achievement that duplicates any certification in `static_profile.certifications` (e.g. Oracle, AWS, OCI, Azure badges).
+        - If an achievement item duplicates a certification, or if no distinct honors exist, output `achievements: []`.
+        - For valid items, output {{ "name": <short title>, "description": <one concise sentence pitching its relevance for ATS, derived from `raw`> }}.
+
+    --- ROLE TITLE & BULLET ANTI-REPETITION (CRITICAL) ---
+
+    12. TARGET ROLE TITLE (`Role`): Identify the target job title from the job description (e.g. "Senior Backend Engineer", "Technical Business Analyst"). If the job description does not specify an explicit role title or is generic (e.g. says "general", "**MAKE GENERAL RESUME**", or lacks an explicit job title), NEVER output "General". Instead, retain the candidate's existing primary professional title from their experience facts.
+    13. BULLET ANTI-REPETITION:
+        - NEVER robotically prepend or repeat the target job title as a prefix at the start of bullet points (e.g. NEVER start bullets with "Worked as Technical Business Analyst..." or "As a Technical Business Analyst...").
+        - Each bullet MUST start with a diverse, impactful action verb (e.g. "Architected", "Engineered", "Optimized", "Streamlined", "Automated"), leading with technical actions, tools, and quantifiable results.
+        - Each bullet must be a single complete sentence ending with exactly one period. Do NOT output double periods or trailing ellipses.
 
     --- STATIC vs TAILORED FIELDS ---
 
-    12. COPY SKELETON FIELDS VERBATIM from the facts, identical across every job — do NOT rephrase or tailor them: `static_profile` (full name, contact, links, education, certifications); each experience's `title`/`company`/`location`/`date`; each project's `name`/`project_line`/`href`/`href_name`; and every skill NAME. Only the bullet arrays (`experience[].points`, `projects[].points`), `professional_summary`, and skill grouping/scoring are generated.
+    14. COPY SKELETON FIELDS VERBATIM from the facts, identical across every job — do NOT rephrase or tailor them: `static_profile` (full name, contact, links, education, certifications); each experience's `title`/`company`/`location`/`date`; each project's `name`/`project_line`/`href`/`href_name`; and every skill NAME. Only the bullet arrays (`experience[].points`, `projects[].points`), `professional_summary`, and skill grouping/scoring are generated.
 
 """
 
@@ -450,7 +465,7 @@ def ask_gemini(payload: str, jobs: List[str], *, schema=Format, mode: str = "syn
             contents=prompt,
             task=task_name,
             schema=wire_schema,
-            temperature=0.2,
+            temperature=0.0,
             max_output_tokens=65536,
         )
 
@@ -718,11 +733,63 @@ def _tighten_latex(tex: str, tier: int, template: int) -> str:
     return tex
 
 
+def sanitize_tailored_job(static_profile, tj):
+    """Sanitizes tailored job fields:
+    1. Fixes double periods and punctuation on experience & project bullets.
+    2. Strictly deduplicates achievements against certifications.
+    3. Prevents role from being 'General' or empty.
+    """
+    for exp in (getattr(tj, "experience", None) or []):
+        cleaned_pts = []
+        for pt in (getattr(exp, "points", None) or []):
+            if isinstance(pt, str):
+                s = pt.strip()
+                while s.endswith("."):
+                    s = s[:-1].strip()
+                if s:
+                    cleaned_pts.append(s + ".")
+        exp.points = cleaned_pts
+
+    for proj in (getattr(tj, "projects", None) or []):
+        cleaned_pts = []
+        for pt in (getattr(proj, "points", None) or []):
+            if isinstance(pt, str):
+                s = pt.strip()
+                while s.endswith("."):
+                    s = s[:-1].strip()
+                if s:
+                    cleaned_pts.append(s + ".")
+        proj.points = cleaned_pts
+
+    cert_names = [
+        getattr(c, "name", "").strip().lower()
+        for c in (getattr(static_profile, "certifications", None) or [])
+        if getattr(c, "name", None)
+    ]
+    if cert_names and getattr(tj, "achievements", None):
+        clean_achs = []
+        for ach in tj.achievements:
+            ach_name = getattr(ach, "name", "").strip().lower()
+            is_dup = any(ach_name in c or c in ach_name for c in cert_names)
+            if not is_dup:
+                clean_achs.append(ach)
+        tj.achievements = clean_achs
+
+    curr_role = getattr(tj, "role", "").strip()
+    if not curr_role or curr_role.lower() in ("general", "**make general resume**"):
+        exps = getattr(tj, "experience", None) or []
+        if exps and getattr(exps[0], "title", None):
+            tj.role = exps[0].title
+        else:
+            tj.role = "Software Engineer"
+
+
 def render_one_page(static_profile, tj, template: int = 0, has_experience: bool = False) -> bytes | None:
     """Render -> compile -> guarantee a SINGLE page (or 2 for experienced).
     
     Uses graduated spacing and font reductions instead of trimming content.
     """
+    sanitize_tailored_job(static_profile, tj)
     max_pages = 2 if has_experience and _calculate_yoe(getattr(tj, "experience", [])) >= 2 else 1
     
     pdf = None
@@ -821,7 +888,7 @@ def process_batch(resume_url: str | None = None, jobs: List[Dict[str, str]] | No
             log.error("Failed to download original PDF: %s", str(e))
             raise
         try:
-            original_txt = extract_resume_text(resume_url)
+            original_txt = extract_resume_text_from_bytes(original_pdf)
         except Exception as e:
             log.error("Failed to extract resume text: %s", str(e))
             if user_data:

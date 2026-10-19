@@ -193,8 +193,8 @@ class LLMGateway:
             "single_tailor": self._load_model_list(
                 "GROQ_TAILOR_MODELS",
                 [
-                    os.getenv("GROQ_TAILOR_MODEL", "openai/gpt-oss-120b").strip(),
-                    os.getenv("GROQ_FALLBACK_MODEL", "qwen/qwen3.8-27b").strip(),
+                    os.getenv("GROQ_TAILOR_MODEL", "qwen/qwen3.8-27b").strip(),
+                    os.getenv("GROQ_FALLBACK_MODEL", "openai/gpt-oss-120b").strip(),
                 ],
             ),
             "default": [
@@ -333,6 +333,7 @@ class LLMGateway:
             "model": model,
             "messages": messages,
             "temperature": temperature,
+            "seed": 42,
         }
         if max_output_tokens:
             request_kwargs["max_tokens"] = min(max_output_tokens, 8192)
