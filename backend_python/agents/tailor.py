@@ -50,8 +50,8 @@ TEMPLATE_BUDGETS = {
         "max_per_entry": 3,
         "min_per_entry": 2,
         "max_summary_chars": 350,
-        "min_words_per_bullet": 13,
-        "max_words_per_bullet": 18,
+        "min_words_per_bullet": 11,
+        "max_words_per_bullet": 28,
         "default_font_pt": 10,
         "min_font_pt": 9,
     },
@@ -60,8 +60,8 @@ TEMPLATE_BUDGETS = {
         "max_per_entry": 3,
         "min_per_entry": 2,
         "max_summary_chars": 280,
-        "min_words_per_bullet": 9,
-        "max_words_per_bullet": 13,
+        "min_words_per_bullet": 10,
+        "max_words_per_bullet": 26,
         "default_font_pt": 10,
         "min_font_pt": 9,
     },
@@ -70,8 +70,8 @@ TEMPLATE_BUDGETS = {
         "max_per_entry": 2,
         "min_per_entry": 2,
         "max_summary_chars": 250,
-        "min_words_per_bullet": 12,
-        "max_words_per_bullet": 17,
+        "min_words_per_bullet": 11,
+        "max_words_per_bullet": 26,
         "default_font_pt": 12,
         "min_font_pt": 11,
     },
@@ -81,7 +81,7 @@ TEMPLATE_BUDGETS = {
         "min_per_entry": 2,
         "max_summary_chars": 300,
         "min_words_per_bullet": 10,
-        "max_words_per_bullet": 13,
+        "max_words_per_bullet": 28,
         "default_font_pt": 10,
         "min_font_pt": 9,
     },
@@ -335,7 +335,7 @@ EXTRACT_INSTRUCTIONS = r"""
 
     --- STRUCTURE ---
     6. DATA SEPARATION: formal corporate employment (full-time, part-time, internship) → `experience`; academic/personal/hackathon/open-source builds → `projects`. If there is NO formal employment, `experience` MUST be `[]`. Never push projects into experience.
-    7. SKELETON FIELDS (extract exactly as written, these are static identity): experience `title`/`company`/`location`/`date`; project `name`/`href`/`href_name`. For `href_name`, extract the clean root domain (e.g. "github.com", "hirehawk.me", "buildflow.dev"), NEVER generic "link". If multiple links or preview URLs exist for a project, ALWAYS prioritize the candidate's custom root domain (e.g. "hirehawk.me") over temporary host hashes or subdomains (e.g. "dev-hire-znlr.vercel.app").
+    7. SKELETON FIELDS (extract exactly as written, these are static identity): experience `title`/`company`/`location`/`date`; project `name`/`href`/`href_name`. For `href_name`, extract the clean root domain (e.g. "github.com", "hirehawk.me", "buildflow.dev", "codeplaygames.tech"), NEVER generic labels like "link" or "Live Demo". If multiple links or preview URLs exist for a project, ALWAYS prioritize the candidate's custom root domain (e.g. "hirehawk.me") over temporary host hashes or subdomains (e.g. "dev-hire-znlr.vercel.app").
     8. `project_line`: ONE neutral factual one-sentence descriptor per project (e.g. "Real-time data ingestion pipeline"). Describe the project; do NOT tailor or embellish.
     9. SKILLS: list ALL skills in `skills_raw`, flat and de-duplicated — no grouping, no scoring (that happens later).
     10. STATIC PROFILE: extract `fullname`, `location`, `phone`, and `email`/`linkedin`/`github`/`portfolio` (each as {href, text}). Any additional professional or portfolio links (e.g. X/Twitter, personal blog, Kaggle, LeetCode) belong in `extra_links[]`. Also extract `education[]` and `certifications[]`, exactly as written.
@@ -368,7 +368,9 @@ SYNTHESIZE_INSTRUCTIONS = r"""
     5. COMPOSE EACH BULLET FROM FACTS: For every experience entry and every project entry, write bullets by composing that entry's `facts` into JD-tailored sentences. Each bullet:
        - draws on one or more facts of THE SAME entry (never another entry's facts);
        - LEADS with the technology, methodology, or outcome THIS JD emphasizes (chosen from that fact's `tech`/`metric`/`outcome`);
-       - FULL-LINE VISUAL FILL: Each bullet MUST be between {min_words_per_bullet} and {max_words_per_bullet} words (~65 to 82 characters). Bullets MUST fit cleanly on a single line without wrapping an orphaned trailing word onto a second line. Front-load the most impactful keyword from the JD within the first 5 words.
+       - HERO + COMPACT BULLET ARCHITECTURE (VISUAL HARMONY & ARCHITECTURAL DEPTH):
+         * BULLET 1 (THE HERO BULLET): Every project entry (and primary experience entry) MUST lead with a 2-line Hero Bullet of 22 to 28 words (~155 to 195 characters). This bullet MUST showcase the deepest architectural accomplishment, complex system mechanism (e.g. 7-tier transcript waterfall with Whisper/OCR fallbacks, real-time event-driven state sync, deterministic validation pipelines, proxy concurrency), and high-impact result. It must fill two lines cleanly (60% to 90% of line 2) with ZERO single-word orphan wraps.
+         * BULLETS 2 & 3 (COMPACT SUPPORTING BULLETS): Compact single-line bullets of 11 to 14 words (~75 to 95 characters) focusing on performance metrics, database integration, containerization, or production deployment. They must stay strictly on 1 line without wrapping.
        - ROLE-AWARE STACK BALANCING & CORE STACK PROJECT BINDING:
          * CORE STACK PROJECT BINDING: Whenever a primary frontend or backend technology required by the target Job Description (e.g. Node.js, TypeScript, React/Next.js, Python, PostgreSQL) is confirmed in the candidate's extracted facts (in skills or projects), it MUST be explicitly named and integrated into the architecture bullets of multi-stack projects (such as BuildFlow or CodePlay). NEVER leave critical JD stack requirements isolated solely to the Technical Skills section while project bullets only mention secondary tools!
          * FULL STACK / FRONTEND ROLES: When targeting a Full Stack Developer or Frontend Engineer role, at least HALF of the bullets across experience and multi-stack projects MUST foreground frontend engineering (React, Next.js, TypeScript, state management, client portals, UI component architecture, responsive design, API consumption). Never let backend or DevOps drown out frontend when applying for Full Stack!
@@ -396,26 +398,34 @@ SYNTHESIZE_INSTRUCTIONS = r"""
        - STRICT SEPARATION: Projects belong exclusively in `projects[]`. Work experience belongs exclusively in `experience[]`. NEVER list projects inside `experience[]`, and never list work experience inside `projects[]`.
        - The count of `experience` items in `tailored_jobs` MUST strictly equal the count of `experience` items in <EXTRACTED_FACTS>.
        - If `experience` in facts is empty, output `experience: []`.
-    7. PROFESSIONAL SUMMARY (CONVERSATIONAL & HUMAN): Write a natural, human-sounding `professional_summary` (max {max_summary_chars} characters, 2-3 sentences) foregrounding the candidate's core domain match for this JD:
-       - Sentence 1: Engineering identity and primary specialization (e.g. "Full-stack engineer with production experience in FastAPI microservices and distributed data pipelines").
-       - Sentence 2: Concrete technical depth directly aligned with this JD's stack and problem space.
-       - Sentence 3 (Optional): Proven scale or delivery impact from the candidate's facts.
+    7. PROFESSIONAL SUMMARY (CONVERSATIONAL, HUMAN & PHILOSOPHY-ALIGNED): Write a natural, human-sounding `professional_summary` (max {max_summary_chars} characters, 2-3 sentences) foregrounding the candidate's core domain match for this JD:
+       - Sentence 1: Engineering identity and primary specialization directly aligned with the JD's stack (e.g. "Full-stack engineer specializing in TypeScript, React, and Node.js production applications").
+       - Sentence 2: Concrete technical depth and architectural proof from candidate facts.
+       - Sentence 3 (Optional): JD Culture & Mindset Hook (CONDITIONAL): If the target JD emphasizes specific engineering values (e.g. AI-assisted development with deterministic validation, developer ownership, UX-first client platforms, resilient distributed systems), and candidate facts contain evidence of this philosophy (e.g. separating deterministic logic from AI, real-time client sync, multi-tier fallbacks), highlight that connection here. NEVER invent workflows absent from facts.
        CRITICAL: Forbid generic filler phrases like "Passionate and detail-oriented engineer looking to leverage...", "Results-driven professional with a proven track record...", or "Dynamic developer skilled in...". Make it sound like a senior engineer wrote their own elevator pitch.
     8. CONTENT BUDGET (STRICT):
        - Total bullet budget across ALL experience + project entries: {max_total_bullets}.
        - Every entry MUST have at least {min_per_entry} bullets. NEVER give any entry fewer.
        - No entry may exceed {max_per_entry} bullets.
-       - Each bullet MUST be between {min_words_per_bullet} and {max_words_per_bullet} words (~65 to 82 characters). Keep bullets strictly single-line. Fill the line width without wrapping a trailing word onto a second line.
+       - Structure bullets using the Hero + Compact pattern: Bullet 1 is 22-28 words (~155 to 195 characters, 2 lines); Bullets 2 & 3 are 11-14 words (~75 to 95 characters, 1 line). This ensures the document completely fills the single page with dense, high-signal engineering without 1-word orphan wraps or multi-page spillover.
        - professional_summary: max {max_summary_chars} characters.
        - DISTRIBUTE BASED ON ENTRY COUNT:
-         * If total entries (experience + projects) >= 5: keep bullets balanced (~10-13 words each). Rank entries by JD relevance. Give top-ranked entries {max_per_entry} bullets, lower-ranked entries {min_per_entry} bullets.
-         * If candidate has fewer total entries, distribute the budget across the EXISTING unique entries by giving them up to {max_per_entry} bullets each. NEVER invent, duplicate, or clone entries to satisfy total bullet counts.
+         * If total entries (experience + projects) >= 5: keep bullets balanced. Rank entries by JD relevance. Give top-ranked entries {max_per_entry} bullets, lower-ranked entries {min_per_entry} bullets.
+         * If candidate has fewer total entries (e.g. 0 corporate experience), distribute the budget across the EXISTING unique entries by giving them up to {max_per_entry} bullets each. NEVER invent, duplicate, or clone entries to satisfy total bullet counts.
        - Do NOT try to estimate page fit or self-trim. The rendering system handles page fitting. Your job: fill the budget completely across unique entries and distribute evenly.
 
     --- SKILLS / ACHIEVEMENTS ---
 
-    9. ALL SKILLS & ATS KEYWORD MIRRORING:
-       - Include ALL skills from `skills_raw`, grouped into distinct, logical categories without redundant suffixes: "Languages", "Frontend Development", "Backend & Distributed Systems", "Databases & Caching", "DevOps & Cloud". NEVER duplicate suffixes (e.g. NEVER output both "Backend & Infra" and "Database & Infra" - use "Databases & Caching"). Within each category, order JD-relevant skills first.
+    9. TARGETED SKILL PRUNING & STRICT TAXONOMY (AVOID KITCHEN-SINK SYNDROME):
+       - DO NOT dump every raw skill into the resume. Select strictly between 18 and 22 high-signal skills from `skills_raw` that directly support the target JD stack. Prune secondary, outdated, or unrelated tools so the candidate looks like a focused expert rather than an unfocused buzzword list.
+       - TIER 1 (MANDATORY): Every skill in candidate facts that matches a primary requirement in the target JD (e.g. TypeScript, React.js, Node.js, PostgreSQL, Docker).
+       - TIER 2 (DIRECT ENABLERS): Modern tools directly augmenting the target stack (e.g. Next.js, Prisma ORM, Redis, Tailwind CSS, Git). Drop unrelated or secondary tools (e.g. drop Kafka, NoSQL, or secondary LLM gateways when applying for a Full Stack TypeScript/React/Node.js role).
+       - STRICT CATEGORY TAXONOMY (4 DISTINCT CATEGORIES):
+         * "Languages": 3-5 core languages (e.g. TypeScript, JavaScript (ES6+), Python, SQL).
+         * "Frontend Development": 4-6 modern UI tools (e.g. React.js, Next.js, React Flow, Tailwind CSS, HTML5/CSS3). FORBIDDEN: NEVER place testing/automation tools like Playwright, Jest, Cypress or API tools like Postman here!
+         * "Backend & Distributed Systems": 5-7 core server/infra technologies (e.g. Node.js, Express.js, FastAPI, Redis, Server-Sent Events (SSE), Microservices, Docker, GCP Cloud Run).
+         * "Databases & Cloud": 4-6 database, ORM, and cloud tools (e.g. PostgreSQL, Prisma ORM, Supabase, Neon, AWS, OCI).
+       - Category names MUST NOT have redundant suffixes (e.g. NEVER output both "Backend & Infra" and "Database & Infra" - use "Databases & Cloud").
        - ZERO HALLUCINATION: You may NEVER invent or introduce technologies not grounded in the facts.
        - ATS EXACT-SPELLING MIRRORING: If a candidate fact proves experience with a technology (e.g., "React", "K8s", "Postgres", "AWS", "Golang", "Mongo"), and the target Job Description explicitly uses an alternate standard spelling or suffix (e.g., "React.js", "Kubernetes", "PostgreSQL", "Amazon Web Services", "Go", "MongoDB"), you MUST mirror the exact spelling/casing used in the JD across both the skills list and relevant bullet points. This prevents ATS keyword filters from auto-rejecting qualified candidates due to naming syntax.
        - DUAL KEYWORD COVERAGE: If the JD lists a specific nomenclature (e.g. "React.js") and candidate facts state the core name (e.g. "React"), you may include both forms in the skills category (e.g. "React / React.js") to ensure both ATS algorithmic parsers and human technical interviewers recognize the match.
@@ -606,6 +616,8 @@ def tailor_jobs(facts_json: str, jds: List[str], offset: int = 0, template: int 
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Parsing helpers ────────────────────────────────────────────╮
+import re
+
 def escape_latex(s: str) -> str:
     if not isinstance(s, str):
         return s
@@ -624,7 +636,11 @@ def escape_latex(s: str) -> str:
             # ligatures into "¡"/"¿"; \textless{}/\textgreater{} are kernel-robust
             # and need no package. Fixes e.g. "<50ms" rendering as "¡50ms".
             .replace("<", "\\textless{}")
-            .replace(">", "\\textgreater{}"))
+            .replace(">", "\\textgreater{}")
+            # Translate Unicode dashes and bullets to native LaTeX symbols
+            .replace("–", "--")
+            .replace("—", "---")
+            .replace("•", "\\textbullet{}"))
 
 from pydantic import BaseModel
 
@@ -640,6 +656,8 @@ def escape_pydantic(obj):
         for field_name in type(obj).model_fields.keys():
             if field_name not in ('href', 'link', 'job_url'):
                 val = getattr(obj, field_name)
+                if field_name == 'points' and isinstance(val, list):
+                    val = [re.sub(r'^[•\-\–\—\*\s]+', '', p).strip() for p in val if isinstance(p, str)]
                 setattr(obj, field_name, escape_pydantic(val))
     elif isinstance(obj, str):
         return escape_latex(obj)

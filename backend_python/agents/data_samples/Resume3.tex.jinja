@@ -53,7 +53,7 @@
 }
 
 % 4. Tighter Lists
-\setlist[itemize]{leftmargin=3.4cm, nosep, topsep=1.5pt, itemsep=1.5pt, parsep=0pt, partopsep=0pt}
+\setlist[itemize]{leftmargin=3.4cm, label=\small\textbullet, nosep, topsep=1.5pt, itemsep=1.5pt, parsep=0pt, partopsep=0pt}
 
 \begin{document}
 
@@ -99,7 +99,7 @@
 <BLOCK> if job.projects </BLOCK>
 \section{Projects}
 <BLOCK> for project in job.projects </BLOCK>
-\gridheader{}{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink} <BLOCK> endif </BLOCK>}{<< project.project_line >>}
+\gridheader{}{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink\ << project.href_name >>} <BLOCK> endif </BLOCK>}{<< project.project_line >>}
 \begin{itemize} \small
     <BLOCK> for point in project.points </BLOCK>
     \item << point >>
@@ -123,7 +123,7 @@
 \gridheader{}{<< cert.name >>}{}
 <BLOCK> if cert.link </BLOCK>
 \begin{itemize}[leftmargin=3.4cm, label={}, nosep] \small
-    \item \href{<< cert.link >>}{[Link]}
+    \item \href{<< cert.link >>}{{[Verify Badge]}}
 \end{itemize}
 <BLOCK> endif </BLOCK>
 <BLOCK> endfor </BLOCK>

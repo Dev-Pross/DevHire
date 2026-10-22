@@ -53,7 +53,7 @@
 <BLOCK> if job.experience </BLOCK>
 \section{Experience}
 <BLOCK> for exp in job.experience </BLOCK>
-\cventry{<< exp.date >>}{<< exp.title >>}{<< exp.company >>}{<< exp.location >>}{}{\begin{itemize}
+\cventry{<< exp.date >>}{<< exp.title >>}{<< exp.company >>}{<< exp.location >>}{}{\begin{itemize}[label=\small\textbullet, leftmargin=*]
     <BLOCK> for point in exp.points </BLOCK>\item << point >><BLOCK> endfor </BLOCK>
 \end{itemize}}
 <BLOCK> endfor </BLOCK>
@@ -63,7 +63,7 @@
 <BLOCK> if job.projects </BLOCK>
 \section{Projects}
 <BLOCK> for project in job.projects </BLOCK>
-\cventry{}{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink} <BLOCK> endif </BLOCK>}{<< project.project_line >>}{}{}{\begin{itemize}
+\cventry{}{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink} <BLOCK> endif </BLOCK>}{<< project.project_line >>}{}{}{\begin{itemize}[label=\small\textbullet, leftmargin=*]
     <BLOCK> for point in project.points </BLOCK>\item << point >><BLOCK> endfor </BLOCK>
 \end{itemize}}
 <BLOCK> endfor </BLOCK>

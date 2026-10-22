@@ -39,7 +39,7 @@
 % --- CUSTOM COMMANDS ---
 \newcommand{\resumeItem}[1]{
   \item\small{
-    {#1 \vspace{-2pt}}
+    {#1 \vspace{-1.5pt}}
   }
 }
 
@@ -47,7 +47,7 @@
     \item
     \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
       \small\textbf{#1} & #2 \\
-    \end{tabular*}\vspace{-7pt}
+    \end{tabular*}\vspace{-5pt}
 }
 
 \newcommand{\resumeSubheading}[4]{
@@ -55,13 +55,13 @@
     \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
       \textbf{#1} & #2 \\
       \textit{\small#3} & \textit{\small #4} \\
-    \end{tabular*}\vspace{-7pt}
+    \end{tabular*}\vspace{-5pt}
 }
 
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
 \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
-\newcommand{\resumeItemListStart}{\begin{itemize}}
-\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[label=\small\textbullet]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-3pt}}
 
 %-------------------------------------------
 %  RESUME STARTS HERE
@@ -160,7 +160,7 @@
 \section{Certifications}
 \resumeSubHeadingListStart
     <BLOCK> for cert in static_profile.certifications </BLOCK>
-    \resumeItem{\textbf{<<cert.name>>} <BLOCK> if cert.link </BLOCK> -- \href{<< cert.link >>}{[Verify Badge]} <BLOCK> endif </BLOCK>}
+    \resumeItem{\textbf{<<cert.name>>} <BLOCK> if cert.link </BLOCK> -- \href{<< cert.link >>}{{[Verify Badge]}} <BLOCK> endif </BLOCK>}
     <BLOCK> endfor </BLOCK>
 \resumeSubHeadingListEnd
 

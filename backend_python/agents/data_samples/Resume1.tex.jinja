@@ -127,7 +127,7 @@
     <BLOCK> if job.experience </BLOCK>
     <BLOCK> for exp in job.experience </BLOCK>
     \jobheader{<< exp.title >>}{<< exp.company >> <BLOCK> if exp.location </BLOCK> - << exp.location >><BLOCK> endif </BLOCK>}{<< exp.date >>}
-    \begin{itemize}[leftmargin=*, nosep, topsep=1pt, itemsep=1pt] \small
+    \begin{itemize}[leftmargin=*, label=\small\textbullet, nosep, topsep=1pt, itemsep=1pt] \small
         <BLOCK> for point in exp.points </BLOCK>
         \item << point >>
         <BLOCK> endfor </BLOCK>
@@ -139,7 +139,7 @@
     <BLOCK> if job.projects </BLOCK>
     <BLOCK> for project in job.projects </BLOCK>
     \jobheader{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink} <BLOCK> endif </BLOCK>}{<< project.project_line >>}{}
-    \begin{itemize}[leftmargin=*, nosep, topsep=1pt, itemsep=1pt] \small
+    \begin{itemize}[leftmargin=*, label=\small\textbullet, nosep, topsep=1pt, itemsep=1pt] \small
         <BLOCK> for point in project.points </BLOCK>
         \item << point >>
         <BLOCK> endfor </BLOCK>
