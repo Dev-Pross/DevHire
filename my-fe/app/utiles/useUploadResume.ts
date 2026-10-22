@@ -75,8 +75,11 @@ export function useResumeUpload(userId: string | undefined) {
     setUploadError(null);
     setUploadSuccess(null);
     setUploadedUrl(null);
+    if (uploading) return;
     const file = event.target.files?.[0];
     if (!file) return;
+
+    const toastId = toast.loading(`Uploading ${file.name}...`);
 
     // Delete old resume before uploading new one
     if (userId) {
@@ -111,8 +114,11 @@ export function useResumeUpload(userId: string | undefined) {
         sessionStorage.setItem("resume", urlData.signedUrl);
         window.dispatchEvent(new CustomEvent("resume-uploaded"));
       }
+      toast.success("Resume uploaded successfully!", { id: toastId });
     } catch (error: any) {
-      setUploadError(`Upload failed: ${error.message || error.toString()}`);
+      const msg = error.message || error.toString();
+      setUploadError(`Upload failed: ${msg}`);
+      toast.error(`Upload failed: ${msg}`, { id: toastId });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

@@ -82,7 +82,7 @@
 
     \href{<<static_profile.linkedin.href>>}{LinkedIn} \ $|$ \
     \href{<<static_profile.github.href>>}{GitHub} \ $|$ \
-    \href{<<static_profile.portfolio.href>>}{Portfolio}
+    \href{<<static_profile.portfolio.href>>}{Portfolio}<BLOCK> if static_profile.extra_links </BLOCK><BLOCK> for el in static_profile.extra_links </BLOCK> \ $|$ \ \href{<<el.href>>}{<<el.text>>}<BLOCK> endfor </BLOCK><BLOCK> endif </BLOCK>
 \end{center}
 
 %-----------PROFESSIONAL SUMMARY-----------

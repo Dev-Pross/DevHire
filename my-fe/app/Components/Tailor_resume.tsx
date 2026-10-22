@@ -23,16 +23,21 @@ const Tailor_resume = () => {
     { id: 3, name: "Template 3", preview: "/templete-3.png", description: "Minimalist Clean Template" },
   ];
 
-  const tailorButton = async () => {
-    if (!resume) return;
+  const tailorButton = async (overrideTemplate?: number) => {
+    if (!resume) {
+      toast.error("Please upload a resume first");
+      return;
+    }
     if (!description) {
       toast.error("Enter a job description to proceed");
       return;
     }
 
+    const templateToUse = typeof overrideTemplate === "number" ? overrideTemplate : selectedTemplate;
+
     // Tier checks
     if (user?.tier === "FREE") {
-      if (selectedTemplate !== 0) {
+      if (templateToUse !== 0) {
         setPopupMessage("Advanced templates are only available on the Pro tier. Upgrade to unlock all templates!");
         setShowPopup(true);
         return;
@@ -45,15 +50,15 @@ const Tailor_resume = () => {
     }
 
     // Deduct credit before processing if FREE
-    if (user?.tier === "FREE") {
+    if (user?.tier === "FREE" && user?.id) {
       try {
         await fetch("/api/User?action=deduct_credit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: user.id, type: "generation" })
         });
-        if (user.shared_generation_credits) {
-          user.shared_generation_credits -= 1;
+        if (typeof user.shared_generation_credits === "number") {
+          user.shared_generation_credits = Math.max(0, user.shared_generation_credits - 1);
         }
       } catch (err) {
         console.error("Failed to deduct credit:", err);
@@ -66,7 +71,7 @@ const Tailor_resume = () => {
       const response = await fetch(`${API_URL}/tailor`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job_desc: description, resume_url: resume, template: selectedTemplate }),
+        body: JSON.stringify({ job_desc: description, resume_url: resume, template: templateToUse }),
       });
       const data = await response.json();
       if (data.payload) {
@@ -94,8 +99,8 @@ const Tailor_resume = () => {
         toast.error(errorMsg);
       }
     } catch (e: any) {
-      console.log(e);
-      toast.error("Something went wrong, please retry later.");
+      console.error("Tailor error:", e);
+      toast.error(e?.message ? `Tailor failed: ${e.message}` : "Something went wrong, please retry later.");
       setLocalLoading(false);
     }
   };
@@ -134,7 +139,7 @@ const Tailor_resume = () => {
               placeholder="Paste job description here..."
             />
             <button
-              onClick={tailorButton}
+              onClick={() => tailorButton()}
               disabled={localLoading}
               className={`${localLoading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-emerald-600"} bg-emerald-500 transition-all w-12 h-12 md:w-14 md:h-14 text-black font-bold rounded-full flex items-center justify-center`}
               type="button"
@@ -165,11 +170,68 @@ const Tailor_resume = () => {
         ) : (
           tailoredUrl && (
             <div
-              className="w-full h-full md:h-[90%] border border-white/[0.08] rounded-xl flex flex-col gap-3 overflow-hidden"
+              className="w-full h-full md:h-[90%] border border-white/[0.08] rounded-xl flex flex-col overflow-hidden bg-black/20"
               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); return false; }}
               style={{ userSelect: "none", msUserSelect: "none" }}
             >
-              <iframe src={`${tailoredUrl}`} width="100%" height="100%" className="rounded-xl" title="Tailored Resume PDF" />
+              {/* Post-generation Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-white/[0.03] border-b border-white/[0.08]">
+                <div className="flex items-center gap-1.5 overflow-x-auto">
+                  <span className="text-xs text-gray-400 font-medium mr-1 hidden sm:inline">Template:</span>
+                  {resumeTemplates.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTemplate(template.id);
+                        tailorButton(template.id);
+                      }}
+                      className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${
+                        selectedTemplate === template.id
+                          ? "bg-emerald-500 text-black shadow-sm font-semibold"
+                          : "bg-white/[0.05] text-gray-300 hover:bg-white/[0.1] hover:text-white"
+                      }`}
+                    >
+                      {template.name}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-gray-300 hover:text-white text-xs rounded-lg transition-all disabled:opacity-50"
+                    title="Upload a new base resume"
+                  >
+                    {uploading ? (
+                      <svg className="animate-spin h-3.5 w-3.5 text-amber-400" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-emerald-400">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13" />
+                      </svg>
+                    )}
+                    <span>{uploading ? "Uploading..." : "Upload New"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTailoredUrl(null)}
+                    className="px-3 py-1 bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-gray-300 hover:text-white text-xs rounded-lg transition-all"
+                    title="Back to template previews"
+                  >
+                    Templates
+                  </button>
+                </div>
+              </div>
+
+              <div className="w-full flex-1 min-h-0">
+                <iframe src={`${tailoredUrl}`} width="100%" height="100%" className="rounded-b-xl border-none" title="Tailored Resume PDF" />
+              </div>
               <a
                 href={tailoredUrl}
                 download="tailored_resume.pdf"
@@ -185,18 +247,31 @@ const Tailor_resume = () => {
             {/* Resume file badge */}
             <div className="flex gap-3 justify-center items-center">
               <div className="flex items-center surface-card px-5 py-3 gap-3 w-full max-w-80">
-                <div className="bg-emerald-500/20 flex items-center justify-center w-10 h-10 rounded-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-emerald-400">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14 2v6h6" />
-                  </svg>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${uploading ? "bg-amber-500/20" : "bg-emerald-500/20"}`}>
+                  {uploading ? (
+                    <svg className="animate-spin h-5 w-5 text-amber-400" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-emerald-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 2v6h6" />
+                    </svg>
+                  )}
                 </div>
-                <a href={resume ? resume : ""} target="_blank" rel="noreferrer">
-                  <span className="text-white font-medium text-sm truncate hover:text-emerald-400 transition-colors">
-                    {resume ? "resume.pdf" : "No resume selected"}
-                  </span>
-                </a>
-                {resume ? (
+                {uploading ? (
+                  <span className="text-amber-300 font-medium text-sm animate-pulse">Uploading resume...</span>
+                ) : (
+                  <a href={resume ? resume : ""} target="_blank" rel="noreferrer">
+                    <span className="text-white font-medium text-sm truncate hover:text-emerald-400 transition-colors">
+                      {resume ? "resume.pdf" : "No resume selected"}
+                    </span>
+                  </a>
+                )}
+                {uploading ? (
+                  <span className="ml-auto text-amber-300 px-2 py-1 rounded-md bg-amber-900/40 text-xs border border-amber-500/20 animate-pulse">Uploading</span>
+                ) : resume ? (
                   <span className="ml-auto text-emerald-300 px-2 py-1 rounded-md bg-emerald-900/40 text-xs border border-emerald-500/20">Active</span>
                 ) : (
                   <button
@@ -215,11 +290,19 @@ const Tailor_resume = () => {
                   <div className="w-px h-10 bg-white/[0.08] hidden sm:block" />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-12 h-12 bg-white/[0.05] border border-white/[0.08] text-gray-300 rounded-xl flex items-center justify-center hover:bg-white/[0.08] hover:border-white/[0.15] transition-all"
+                    disabled={uploading}
+                    className="w-12 h-12 bg-white/[0.05] border border-white/[0.08] text-gray-300 rounded-xl flex items-center justify-center hover:bg-white/[0.08] hover:border-white/[0.15] transition-all disabled:opacity-50"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13" />
-                    </svg>
+                    {uploading ? (
+                      <svg className="animate-spin h-5 w-5 text-amber-400" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13" />
+                      </svg>
+                    )}
                   </button>
                 </>
               )}

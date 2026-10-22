@@ -92,6 +92,11 @@
     \contactitem{linkedin-in}{\href{<< static_profile.linkedin.href >>}{LinkedIn}}
     \contactitem{github}{\href{<< static_profile.github.href >>}{GitHub}}
     \contactitem{globe}{\href{<< static_profile.portfolio.href >>}{Portfolio}}
+    <BLOCK> if static_profile.extra_links </BLOCK>
+    <BLOCK> for el in static_profile.extra_links </BLOCK>
+    \contactitem{link}{\href{<< el.href >>}{<< el.text >>}}
+    <BLOCK> endfor </BLOCK>
+    <BLOCK> endif </BLOCK>
 
     \switchcolumn
     % --- RIGHT COLUMN ---

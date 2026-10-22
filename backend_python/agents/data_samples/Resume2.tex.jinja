@@ -24,6 +24,11 @@
 \homepage{<< static_profile.portfolio.text >>} 
 \social[linkedin]{<< static_profile.linkedin.text >>}
 \social[github]{<< static_profile.github.text >>}
+<BLOCK> if static_profile.extra_links </BLOCK>
+<BLOCK> for el in static_profile.extra_links </BLOCK>
+\extrainfo{\href{<< el.href >>}{<< el.text >>}}
+<BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
 
 \begin{document}
 

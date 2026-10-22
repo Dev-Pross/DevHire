@@ -16,6 +16,7 @@ import os
 import random
 import re
 import time
+from urllib.parse import urlparse
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import pymupdf as fitz
@@ -48,8 +49,9 @@ TEMPLATE_BUDGETS = {
         "max_total_bullets": 15,
         "max_per_entry": 3,
         "min_per_entry": 2,
-        "max_summary_chars": 300,
-        "max_words_per_bullet": 12,
+        "max_summary_chars": 350,
+        "min_words_per_bullet": 13,
+        "max_words_per_bullet": 18,
         "default_font_pt": 10,
         "min_font_pt": 9,
     },
@@ -57,8 +59,9 @@ TEMPLATE_BUDGETS = {
         "max_total_bullets": 12,
         "max_per_entry": 3,
         "min_per_entry": 2,
-        "max_summary_chars": 250,
-        "max_words_per_bullet": 10,
+        "max_summary_chars": 280,
+        "min_words_per_bullet": 9,
+        "max_words_per_bullet": 13,
         "default_font_pt": 10,
         "min_font_pt": 9,
     },
@@ -66,8 +69,9 @@ TEMPLATE_BUDGETS = {
         "max_total_bullets": 10,
         "max_per_entry": 2,
         "min_per_entry": 2,
-        "max_summary_chars": 200,
-        "max_words_per_bullet": 12,
+        "max_summary_chars": 250,
+        "min_words_per_bullet": 12,
+        "max_words_per_bullet": 17,
         "default_font_pt": 12,
         "min_font_pt": 11,
     },
@@ -75,8 +79,9 @@ TEMPLATE_BUDGETS = {
         "max_total_bullets": 14,
         "max_per_entry": 3,
         "min_per_entry": 2,
-        "max_summary_chars": 280,
-        "max_words_per_bullet": 12,
+        "max_summary_chars": 300,
+        "min_words_per_bullet": 10,
+        "max_words_per_bullet": 13,
         "default_font_pt": 10,
         "min_font_pt": 9,
     },
@@ -147,6 +152,7 @@ class StaticProfile(BaseModel):
     linkedin: LinkData
     github: LinkData
     portfolio: LinkData
+    extra_links: List[LinkData] = Field(default_factory=list, description="Additional professional links (e.g. X/Twitter, personal blog, Kaggle, LeetCode)")
     education: List[Education]
     certifications: List[Certification]
 
@@ -329,10 +335,10 @@ EXTRACT_INSTRUCTIONS = r"""
 
     --- STRUCTURE ---
     6. DATA SEPARATION: formal corporate employment (full-time, part-time, internship) → `experience`; academic/personal/hackathon/open-source builds → `projects`. If there is NO formal employment, `experience` MUST be `[]`. Never push projects into experience.
-    7. SKELETON FIELDS (extract exactly as written, these are static identity): experience `title`/`company`/`location`/`date`; project `name`/`href`/`href_name`.
+    7. SKELETON FIELDS (extract exactly as written, these are static identity): experience `title`/`company`/`location`/`date`; project `name`/`href`/`href_name`. For `href_name`, extract the clean root domain (e.g. "github.com", "hirehawk.me", "buildflow.dev"), NEVER generic "link". If multiple links or preview URLs exist for a project, ALWAYS prioritize the candidate's custom root domain (e.g. "hirehawk.me") over temporary host hashes or subdomains (e.g. "dev-hire-znlr.vercel.app").
     8. `project_line`: ONE neutral factual one-sentence descriptor per project (e.g. "Real-time data ingestion pipeline"). Describe the project; do NOT tailor or embellish.
     9. SKILLS: list ALL skills in `skills_raw`, flat and de-duplicated — no grouping, no scoring (that happens later).
-    10. STATIC PROFILE: extract `fullname`, `location`, `phone`, and `email`/`linkedin`/`github`/`portfolio` (each as {href, text}), plus `education[]` and `certifications[]`, exactly as written.
+    10. STATIC PROFILE: extract `fullname`, `location`, `phone`, and `email`/`linkedin`/`github`/`portfolio` (each as {href, text}). Any additional professional or portfolio links (e.g. X/Twitter, personal blog, Kaggle, LeetCode) belong in `extra_links[]`. Also extract `education[]` and `certifications[]`, exactly as written.
     11. ACHIEVEMENTS: each competitive award, hackathon placement, rank distinction, scholarship, or company honor → { "name": <short title>, "raw": <neutral fact fragment> }. CRITICAL: NEVER extract certifications, licenses, or exam credentials (e.g. AWS, Oracle, Google Cloud, Coursera, Meta, Microsoft) into achievements. All credentials belong exclusively in `certifications[]`. If an item is a certification, it MUST NOT appear in achievements. Hackathons go to `projects`, not here.
 
 """
@@ -362,8 +368,27 @@ SYNTHESIZE_INSTRUCTIONS = r"""
     5. COMPOSE EACH BULLET FROM FACTS: For every experience entry and every project entry, write bullets by composing that entry's `facts` into JD-tailored sentences. Each bullet:
        - draws on one or more facts of THE SAME entry (never another entry's facts);
        - LEADS with the technology, methodology, or outcome THIS JD emphasizes (chosen from that fact's `tech`/`metric`/`outcome`);
-       - starts with a strong action verb; one line, ~{max_words_per_bullet} words max;
+       - FULL-LINE VISUAL FILL: Each bullet MUST be between {min_words_per_bullet} and {max_words_per_bullet} words (~65 to 82 characters). Bullets MUST fit cleanly on a single line without wrapping an orphaned trailing word onto a second line. Front-load the most impactful keyword from the JD within the first 5 words.
+       - ROLE-AWARE STACK BALANCING & CORE STACK PROJECT BINDING:
+         * CORE STACK PROJECT BINDING: Whenever a primary frontend or backend technology required by the target Job Description (e.g. Node.js, TypeScript, React/Next.js, Python, PostgreSQL) is confirmed in the candidate's extracted facts (in skills or projects), it MUST be explicitly named and integrated into the architecture bullets of multi-stack projects (such as BuildFlow or CodePlay). NEVER leave critical JD stack requirements isolated solely to the Technical Skills section while project bullets only mention secondary tools!
+         * FULL STACK / FRONTEND ROLES: When targeting a Full Stack Developer or Frontend Engineer role, at least HALF of the bullets across experience and multi-stack projects MUST foreground frontend engineering (React, Next.js, TypeScript, state management, client portals, UI component architecture, responsive design, API consumption). Never let backend or DevOps drown out frontend when applying for Full Stack!
+         * EXPERIENCE EMPHASIS: In professional experience, highlight end-to-end full-stack delivery, client workflows, and production deployments alongside API integration.
+       - STRICT CAUSAL INTEGRITY (ZERO AI LOGIC BUGS): Every technical accomplishment must adhere to physical engineering causality. NEVER attribute an architectural outcome to an unrelated or inappropriate mechanism.
+         * Caching / Bulk-copy / Ingestion / Queues -> Improves latency, throughput, concurrency, or API inference cost. NEVER claim caching or bulk-copy provides "type-safe database access"!
+         * TypeScript / Prisma / Zod / Pydantic -> Delivers compile-time type safety, schema validation, and contract integrity.
+         * An engineer must immediately recognize that every claim makes architectural sense.
        - states only what the facts support — surface a metric only if the fact carries one.
+       - SENTENCE STRUCTURE VARIETY: Do NOT follow a rigid formula across bullets. Deliberately rotate across 4 sentence patterns:
+         * Pattern 1 (Impact-First): Quantifiable result or efficiency gain upfront, followed by technical action and tools (e.g. "Cut API response time 35% by rewriting query layer in FastAPI and caching with Redis").
+         * Pattern 2 (Context/Scale-First): Operational scale or problem statement, followed by the solution (e.g. "Handling 10K+ daily event webhooks, built a Celery-Redis queue with exponential backoff").
+         * Pattern 3 (Tech/Architecture-First): Concrete tool + architectural implementation + capability delivered (e.g. "Engineered LangGraph multi-agent pipeline with Pinecone vector search for semantic retrieval").
+         * Pattern 4 (Compound Feature): Technical feature build + secondary business or developer benefit (e.g. "Developed real-time monitoring dashboard in Next.js, eliminating manual status checks for 4 teams").
+       - AI BUZZWORD BLACKLIST: NEVER use formulaic AI clichés or corporate puffery.
+         * FORBIDDEN: "Leveraged", "Utilized", "Spearheaded", "Orchestrated", "Harnessed", "Pioneered", "Championed", "Results-driven", "Proven track record".
+         * PREFERRED: "Built", "Wrote", "Engineered", "Implemented", "Integrated", "Configured", "Refactored", "Deployed", "Migrated", "Resolved".
+       - PROFESSIONAL SYSTEMS REFRAMING: If candidate facts describe scrapers, bots, or raw automation scripts, reframe them using standard distributed systems terminology:
+         * "Scraper / Scraping" -> "Automated data extraction pipeline", "Distributed web crawler", or "Ingestion service". Focus on architecture (concurrency, proxy rotation, queue workers, failure recovery) rather than scraping target sites.
+         * "Bot / Auto-poster" -> "Automated notification/dispatch service", "Event-driven background worker", or "Webhook consumer".
        Tailor emphasis and ordering to each JD: the same facts should yield visibly different bullets for a backend JD vs a data JD.
     6. EXACT ENTRY INTEGRITY & STRICT SEPARATION (NO DUPLICATION):
        - You MUST include each unique experience entry and each unique project entry from <EXTRACTED_FACTS> exactly ONCE.
@@ -371,21 +396,29 @@ SYNTHESIZE_INSTRUCTIONS = r"""
        - STRICT SEPARATION: Projects belong exclusively in `projects[]`. Work experience belongs exclusively in `experience[]`. NEVER list projects inside `experience[]`, and never list work experience inside `projects[]`.
        - The count of `experience` items in `tailored_jobs` MUST strictly equal the count of `experience` items in <EXTRACTED_FACTS>.
        - If `experience` in facts is empty, output `experience: []`.
-    7. SUMMARY: Write `professional_summary` for each JD from the facts to foreground the strengths that match that JD's core requirements. Max 430 characters, 2-3 sentences, metric-driven and punchy.
+    7. PROFESSIONAL SUMMARY (CONVERSATIONAL & HUMAN): Write a natural, human-sounding `professional_summary` (max {max_summary_chars} characters, 2-3 sentences) foregrounding the candidate's core domain match for this JD:
+       - Sentence 1: Engineering identity and primary specialization (e.g. "Full-stack engineer with production experience in FastAPI microservices and distributed data pipelines").
+       - Sentence 2: Concrete technical depth directly aligned with this JD's stack and problem space.
+       - Sentence 3 (Optional): Proven scale or delivery impact from the candidate's facts.
+       CRITICAL: Forbid generic filler phrases like "Passionate and detail-oriented engineer looking to leverage...", "Results-driven professional with a proven track record...", or "Dynamic developer skilled in...". Make it sound like a senior engineer wrote their own elevator pitch.
     8. CONTENT BUDGET (STRICT):
        - Total bullet budget across ALL experience + project entries: {max_total_bullets}.
        - Every entry MUST have at least {min_per_entry} bullets. NEVER give any entry fewer.
        - No entry may exceed {max_per_entry} bullets.
-       - Each bullet MUST be at most {max_words_per_bullet} words. Keep bullets single-line. Front-load the most impactful keyword from the JD within the first 5 words.
+       - Each bullet MUST be between {min_words_per_bullet} and {max_words_per_bullet} words (~65 to 82 characters). Keep bullets strictly single-line. Fill the line width without wrapping a trailing word onto a second line.
        - professional_summary: max {max_summary_chars} characters.
        - DISTRIBUTE BASED ON ENTRY COUNT:
-         * If total entries (experience + projects) >= 5: keep bullets concise (~10 words each). Rank entries by JD relevance. Give top-ranked entries {max_per_entry} bullets, lower-ranked entries {min_per_entry} bullets.
+         * If total entries (experience + projects) >= 5: keep bullets balanced (~10-13 words each). Rank entries by JD relevance. Give top-ranked entries {max_per_entry} bullets, lower-ranked entries {min_per_entry} bullets.
          * If candidate has fewer total entries, distribute the budget across the EXISTING unique entries by giving them up to {max_per_entry} bullets each. NEVER invent, duplicate, or clone entries to satisfy total bullet counts.
        - Do NOT try to estimate page fit or self-trim. The rendering system handles page fitting. Your job: fill the budget completely across unique entries and distribute evenly.
 
     --- SKILLS / ACHIEVEMENTS ---
 
-    9. ALL SKILLS: Include ALL names from `skills_raw`, grouped into logical categories (e.g. "Languages", "Backend & AI", "Frontend", "Database & Infra", "Tools & Frameworks"). Do NOT cherry-pick only JD-relevant skills; within each category, order JD-relevant skills first. Do NOT rename or invent skills.
+    9. ALL SKILLS & ATS KEYWORD MIRRORING:
+       - Include ALL skills from `skills_raw`, grouped into distinct, logical categories without redundant suffixes: "Languages", "Frontend Development", "Backend & Distributed Systems", "Databases & Caching", "DevOps & Cloud". NEVER duplicate suffixes (e.g. NEVER output both "Backend & Infra" and "Database & Infra" - use "Databases & Caching"). Within each category, order JD-relevant skills first.
+       - ZERO HALLUCINATION: You may NEVER invent or introduce technologies not grounded in the facts.
+       - ATS EXACT-SPELLING MIRRORING: If a candidate fact proves experience with a technology (e.g., "React", "K8s", "Postgres", "AWS", "Golang", "Mongo"), and the target Job Description explicitly uses an alternate standard spelling or suffix (e.g., "React.js", "Kubernetes", "PostgreSQL", "Amazon Web Services", "Go", "MongoDB"), you MUST mirror the exact spelling/casing used in the JD across both the skills list and relevant bullet points. This prevents ATS keyword filters from auto-rejecting qualified candidates due to naming syntax.
+       - DUAL KEYWORD COVERAGE: If the JD lists a specific nomenclature (e.g. "React.js") and candidate facts state the core name (e.g. "React"), you may include both forms in the skills category (e.g. "React / React.js") to ensure both ATS algorithmic parsers and human technical interviewers recognize the match.
     10. SKILL SCORING (proficiency, NOT relevance): For every skill assign `level` ∈ {{"Beginner","Intermediate","Advanced","Expert"}} and `score` ∈ 0.1-1.0 reflecting PROFICIENCY ONLY (0.8-1.0 if used across multiple complex projects/core employment; 0.5-0.7 if mentioned once; default "Intermediate"/0.7 if ambiguous). Express JD-relevance through ordering (rule 9), never by lowering a score.
     11. ACHIEVEMENTS DEDUPLICATION:
         - Output achievements ONLY for distinct non-certification honors (hackathon wins, competitive coding ranks, awards, scholarships).
@@ -398,7 +431,7 @@ SYNTHESIZE_INSTRUCTIONS = r"""
     12. TARGET ROLE TITLE (`Role`): Identify the target job title from the job description (e.g. "Senior Backend Engineer", "Technical Business Analyst"). If the job description does not specify an explicit role title or is generic (e.g. says "general", "**MAKE GENERAL RESUME**", or lacks an explicit job title), NEVER output "General". Instead, retain the candidate's existing primary professional title from their experience facts.
     13. BULLET ANTI-REPETITION & MANDATORY PUNCTUATION:
         - NEVER robotically prepend or repeat the target job title as a prefix at the start of bullet points (e.g. NEVER start bullets with "Worked as Technical Business Analyst..." or "As a Technical Business Analyst...").
-        - Each bullet MUST start with a diverse, impactful action verb (e.g. "Architected", "Engineered", "Optimized", "Streamlined", "Automated"), leading with technical actions, tools, and quantifiable results.
+        - STRICT VERB ANTI-REPETITION (GLOBAL): NEVER reuse the same opening action verb across bullets anywhere in the resume. If one bullet starts with "Built", NO other bullet in the entire resume may start with "Built". Every bullet must open with a unique, authentic engineering verb (e.g. Developed, Architected, Engineered, Implemented, Deployed, Configured, Integrated, Streamlined, Authored, Refactored, Shipped, Automated, Provisioned, Accelerated).
         - Every bullet MUST be a single complete sentence ending with exactly one period ('.'). NEVER omit the trailing period. Do NOT output double periods or trailing ellipses.
 
     --- STATIC vs TAILORED FIELDS ---
@@ -430,6 +463,7 @@ def build_prompt(payload: str, jobs: List[str], mode: str = "synthesize", templa
         max_per_entry=budget["max_per_entry"],
         min_per_entry=budget["min_per_entry"],
         max_summary_chars=budget["max_summary_chars"],
+        min_words_per_bullet=budget.get("min_words_per_bullet", 8),
         max_words_per_bullet=budget["max_words_per_bullet"],
         max_words_expanded=budget["max_words_per_bullet"] + 4,
     )
@@ -470,7 +504,7 @@ def ask_gemini(payload: str, jobs: List[str], *, schema=Format, mode: str = "syn
             contents=prompt,
             task=task_name,
             schema=wire_schema,
-            temperature=0.0,
+            temperature=0.25,
             max_output_tokens=65536,
         )
 
@@ -745,6 +779,7 @@ def sanitize_tailored_job(static_profile, tj):
     3. Normalizes punctuation on experience & project bullets (ensures exactly one trailing period).
     4. Strictly deduplicates achievements against certifications.
     5. Prevents role from being 'General' or empty.
+    6. Ensures clean root domain for project href_name instead of generic 'link'.
     """
     # 1. Deduplicate & normalize project entries first
     seen_proj_keys = set()
@@ -754,6 +789,19 @@ def sanitize_tailored_job(static_profile, tj):
         if not name or name in seen_proj_keys:
             continue
         seen_proj_keys.add(name)
+
+        # Smart href_name: replace generic "link", full URL, or overly long path with clean root domain (e.g., "buildflow.dev")
+        curr_href = (getattr(proj, "href", "") or "").strip()
+        curr_name = (getattr(proj, "href_name", "") or "").strip()
+        if curr_href and (not curr_name or curr_name.lower() in ("link", "url", "demo", "project link", "website", "live") or len(curr_name) > 25 or "/" in curr_name or curr_name.startswith("http")):
+            try:
+                parsed = urlparse(curr_href)
+                domain = (parsed.netloc or "").strip().lower()
+                if domain.startswith("www."):
+                    domain = domain[4:]
+                proj.href_name = domain if domain else "demo"
+            except Exception:
+                proj.href_name = "demo"
 
         cleaned_pts = []
         for pt in (getattr(proj, "points", None) or []):
@@ -815,6 +863,33 @@ def sanitize_tailored_job(static_profile, tj):
             tj.role = exps[0].title
         else:
             tj.role = "Software Engineer"
+
+    # 5. Deduplicate static_profile extra_links against primary contact links and self
+    if static_profile and hasattr(static_profile, "extra_links"):
+        existing_urls = set()
+        existing_texts = {"portfolio", "github", "linkedin", "email"}
+        
+        for primary in (getattr(static_profile, "email", None),
+                        getattr(static_profile, "linkedin", None),
+                        getattr(static_profile, "github", None),
+                        getattr(static_profile, "portfolio", None)):
+            if primary and getattr(primary, "href", None):
+                existing_urls.add(primary.href.strip().lower().rstrip("/"))
+            if primary and getattr(primary, "text", None):
+                existing_texts.add(primary.text.strip().lower())
+                
+        clean_extra = []
+        for el in (getattr(static_profile, "extra_links", None) or []):
+            url = (getattr(el, "href", "") or "").strip().lower().rstrip("/")
+            txt = (getattr(el, "text", "") or "").strip().lower()
+            if not url and not txt:
+                continue
+            if url in existing_urls or txt in existing_texts:
+                continue
+            existing_urls.add(url)
+            existing_texts.add(txt)
+            clean_extra.append(el)
+        static_profile.extra_links = clean_extra
 
 
 

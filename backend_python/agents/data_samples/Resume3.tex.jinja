@@ -53,7 +53,7 @@
 }
 
 % 4. Tighter Lists
-\setlist[itemize]{leftmargin=3.4cm, nosep, topsep=2pt, itemsep=2pt}
+\setlist[itemize]{leftmargin=3.4cm, nosep, topsep=1.5pt, itemsep=1.5pt, parsep=0pt, partopsep=0pt}
 
 \begin{document}
 
@@ -68,7 +68,7 @@
     \faEnvelope \ \href{<< static_profile.email.href >>}{<< static_profile.email.text >>} \\ \vspace{3pt}
     \faLinkedin \ \href{<< static_profile.linkedin.href >>}{LinkedIn} \quad $|$ \quad
     \faGithub \ \href{<< static_profile.github.href >>}{GitHub} \quad $|$ \quad
-    \faGlobe \ \href{<< static_profile.portfolio.href >>}{Portfolio}
+    \faGlobe \ \href{<< static_profile.portfolio.href >>}{Portfolio}<BLOCK> if static_profile.extra_links </BLOCK><BLOCK> for el in static_profile.extra_links </BLOCK> \quad $|$ \quad \faLink \ \href{<< el.href >>}{<< el.text >>}<BLOCK> endfor </BLOCK><BLOCK> endif </BLOCK>
 \end{center}
 
 \vspace{5pt}
