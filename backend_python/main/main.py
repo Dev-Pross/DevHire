@@ -7,6 +7,7 @@ from main.routes.debug_routes import router as debug_router
 from main.routes.logout import logout_route
 from main.routes.portfolio_generator import router as portfolio
 from main.routes.get_resume import router as tailor
+from main.routes.tailor_v2 import router as tailor_v2
 from main.routes.jobs_api import router as jobs_api
 from main.routes.auth_api import router as auth_api
 
@@ -55,6 +56,7 @@ app.include_router(auth_api)
 # Retained stateless routes
 app.include_router(debug_router)
 app.include_router(tailor)
+app.include_router(tailor_v2)
 app.include_router(logout_route)
 app.include_router(portfolio)
 

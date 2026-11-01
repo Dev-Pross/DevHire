@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import url('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css');
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Cinzel:wght@600;700&display=swap');
 
 :root {
   --background: #0A0A0A;
@@ -173,4 +175,94 @@ body {
 @keyframes toast-exit {
   0% { transform: translateX(0) scale(1); opacity: 1; }
   100% { transform: translateX(100%) scale(0.95); opacity: 0; }
+}
+
+/* ============================================================
+   A4 RESUME PRINT ISOLATION STYLESHEET
+   Ensures window.print() prints ONLY #resume-a4-canvas cleanly
+   ============================================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide entire application shell and controls */
+  header, nav, .navbar, aside, footer, button, .print\:hidden {
+    display: none !important;
+  }
+
+  /* Reset layout containers so they don't clip or add dark backgrounds */
+  #__next, main, .surface-card, .glass-card {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* Unconstrain heights and overflows on ancestors */
+  #__next, main, [class*="min-h-0"], [class*="overflow-hidden"], [class*="overflow-y-auto"] {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+
+  /* Clean up surface card styling */
+  .surface-card {
+    border: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Render ONLY the resume canvas as a pure white A4 sheet */
+  #resume-a4-canvas {
+    display: block !important;
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 8mm 10mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #resume-a4-canvas * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #resume-a4-canvas a {
+    text-decoration: underline !important;
+    text-decoration-thickness: 0.5px !important;
+    text-underline-offset: 1.5px !important;
+    color: inherit !important;
+  }
+
+  /* Hide section tagging pills/buttons inside canvas */
+  #resume-a4-canvas button,
+  #resume-a4-canvas [class*="cursor-pointer"] {
+    display: none !important;
+  }
 }
