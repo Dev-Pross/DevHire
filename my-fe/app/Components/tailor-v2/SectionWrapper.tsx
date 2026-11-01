@@ -26,18 +26,27 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
       data-section-key={sectionKey}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`relative group transition-all duration-200 rounded p-1 -m-1 ${
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('a') || target.closest('button')) return;
+        onToggleTag(sectionKey, label);
+      }}
+      className={`relative group transition-all duration-200 rounded p-1.5 -m-1 cursor-pointer sm:cursor-default ${
         isTagged
-          ? "ring-1 ring-emerald-500/50 bg-emerald-500/[0.03]"
+          ? "ring-2 ring-emerald-500 bg-emerald-500/[0.04]"
           : isHovered
           ? "ring-1 ring-emerald-500/30 bg-emerald-500/[0.015]"
-          : ""
+          : "hover:ring-1 hover:ring-white/10"
       } ${isUpdated ? "animate-[pulse_1.5s_ease-in-out_2] ring-2 ring-emerald-400 bg-emerald-500/10" : ""}`}
     >
-      {/* Dedicated Floating Tag Button on Right Side */}
+      {/* Dedicated Floating Tag Button on Right Side (Always accessible on touch, hover on desktop) */}
       <div
-        className={`absolute top-0.5 right-1 z-20 transition-all duration-150 print:hidden ${
-          isHovered || isTagged ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+        className={`absolute top-1 right-1 z-20 transition-all duration-150 print:hidden ${
+          isTagged
+            ? "opacity-100 scale-100 pointer-events-auto"
+            : isHovered
+            ? "opacity-100 scale-100 pointer-events-auto"
+            : "opacity-85 sm:opacity-0 sm:pointer-events-none scale-95 sm:group-hover:opacity-100 sm:group-hover:scale-100 pointer-events-auto"
         }`}
       >
         <button

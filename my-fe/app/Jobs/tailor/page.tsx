@@ -9,11 +9,11 @@ const TailorResumeV2 = dynamic(
 
 export default function Page() {
   return (
-    <div className="h-screen flex flex-col bg-[#0A0A0A] overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-[#0A0A0A] overflow-hidden">
       <div className="shrink-0">
         <Navbar />
       </div>
-      <main className="flex-1 min-h-0 w-full">
+      <main className="flex-1 min-h-0 w-full overflow-hidden">
         <TailorResumeV2 />
       </main>
     </div>

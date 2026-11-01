@@ -189,7 +189,7 @@ def refund_revision_credit(session_id: str, max_revisions: int = MAX_REVISIONS) 
     return max(0, max_revisions - new_count)
 
 
-def update_session_json(session_id: str, updated_format_dict: dict) -> Tuple[bool, int]:
+def update_session_json(session_id: str, updated_format_dict: dict, updated_facts: Optional[dict] = None) -> Tuple[bool, int]:
     """
     Atomically stores the revised format JSON into the Redis hash and bumps the version.
     Returns (success, new_version).
@@ -200,8 +200,10 @@ def update_session_json(session_id: str, updated_format_dict: dict) -> Tuple[boo
     key = _session_key(session_id)
     pipe = redis_client.pipeline()
     pipe.hset(key, "tailored_json", json.dumps(updated_format_dict))
+    if updated_facts is not None:
+        pipe.hset(key, "resume_facts", json.dumps(updated_facts))
     pipe.hincrby(key, "version", 1)
     results = pipe.execute()
 
-    new_version = int(results[1]) if len(results) > 1 else 1
+    new_version = int(results[2]) if updated_facts is not None and len(results) > 2 else (int(results[1]) if len(results) > 1 else 1)
     return True, new_version

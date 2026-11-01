@@ -16,9 +16,11 @@ CRITICAL INVIOLABLE RULES:
 1. MANDATORY SECTION COVERAGE:
    - For EVERY entry in USER REVISION INSTRUCTIONS, you MUST output an entry in `updated_sections` matching that exact `section_key`. You MUST NEVER return an empty `updated_sections` list.
    - When `section_key` is "projects", you MUST return the COMPLETE array of all project objects, reordered and re-ranked according to the user's instructions and Job Description relevance.
+   - When `section_key` is "header", revised_json MUST be a valid JSON object string containing {"fullname": "...", "location": "...", "phone": "..."} (and optional links). User-requested changes to location, city, phone, name, or links MUST be strictly reflected in this object.
 
 2. FACTUAL ANCHORING & FROZEN ANCHORS:
    - Organization names, Job Titles, Degree Names, and Institutions are STRICTLY IMMUTABLE.
+   - Header contact fields (specifically location/city, phone, and links) ARE NOT frozen anchors and MUST be updated when explicitly requested by user revision instructions (e.g., relocating, changing city from Hyderabad to Visakhapatnam).
    - For collection edits ("projects"), you ARE EXPLICITLY REQUIRED TO RE-RANK AND REORDER the projects according to user instruction and JD alignment. Each project in the array must strictly preserve its "name", "project_line", and "href" while re-ranking the array order.
    - For individual item edits (e.g. experience.0, projects.0), you may ONLY modify bullet points.
    - You MUST NOT fabricate companies, degrees, dates, certifications, tools, or metrics that do not exist in the candidate's master history.
@@ -196,10 +198,36 @@ def merge_revised_sections(current_format: Format, updated_sections: Dict[str, A
             if isinstance(new_val, list):
                 job_dict["experience"] = new_val
 
-        elif key == "header" and isinstance(new_val, dict):
-            for k in ["fullname", "location", "phone"]:
-                if k in new_val:
-                    static_dict[k] = new_val[k]
+        elif key == "header":
+            parsed_header = _robust_parse_json(new_val)
+            if isinstance(parsed_header, dict):
+                field_mapping = {
+                    "fullname": ["fullname", "name", "candidate_name"],
+                    "location": ["location", "city", "address"],
+                    "phone": ["phone", "mobile", "contact_number"]
+                }
+                for target_k, candidates in field_mapping.items():
+                    for src_k in candidates:
+                        if src_k in parsed_header and parsed_header[src_k]:
+                            static_dict[target_k] = str(parsed_header[src_k]).strip()
+                            break
+                for link_k in ["email", "linkedin", "github", "portfolio"]:
+                    if link_k in parsed_header and isinstance(parsed_header[link_k], dict):
+                        static_dict[link_k] = parsed_header[link_k]
+            elif isinstance(parsed_header, str):
+                raw_text = parsed_header.strip()
+                tokens = [t.strip() for t in raw_text.replace("|", "\n").splitlines() if t.strip()]
+                if len(tokens) == 1 and not any(ch.isdigit() for ch in tokens[0]) and "@" not in tokens[0]:
+                    static_dict["location"] = tokens[0]
+                else:
+                    for token in tokens:
+                        if any(ch.isdigit() for ch in token) and ("+" in token or sum(c.isdigit() for c in token) >= 7):
+                            static_dict["phone"] = token
+                        elif any(sep in token for sep in [",", " - "]) or any(word in token.lower() for word in ["india", "usa", "state", "city", "visakhapatnam", "hyderabad", "bangalore", "chennai", "mumbai", "delhi", "pune"]):
+                            static_dict["location"] = token
+
+
+
 
         elif key.startswith("experience."):
             idx = int(key.split(".")[1])

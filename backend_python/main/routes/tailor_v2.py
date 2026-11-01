@@ -194,7 +194,12 @@ def revise_v2_resume(request: TailorV2ReviseRequest):
 
         # 7. Merge revisions into current format and persist updated JSON in Redis
         merged_format = merge_revised_sections(current_format, updated_sections)
-        _, new_version = update_session_json(session_id, merged_format.model_dump())
+        facts = session.get("resume_facts") or {}
+        new_loc = merged_format.static_profile.location
+        if new_loc and new_loc != facts.get("location"):
+            facts["location"] = new_loc
+
+        _, new_version = update_session_json(session_id, merged_format.model_dump(), updated_facts=facts)
 
         return TailorV2ReviseResponse(
             success=True,
