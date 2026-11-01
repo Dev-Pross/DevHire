@@ -72,8 +72,8 @@ TEMPLATE_BUDGETS = {
         "max_summary_chars": 250,
         "min_words_per_bullet": 11,
         "max_words_per_bullet": 26,
-        "default_font_pt": 12,
-        "min_font_pt": 11,
+        "default_font_pt": 10,
+        "min_font_pt": 9,
     },
     3: {
         "max_total_bullets": 14,
@@ -121,6 +121,25 @@ jinja_env = Environment(
     comment_start_string='<#',
     comment_end_string='#>'
 )
+def _clean_domain(url, default=""):
+    if not url:
+        return default
+    try:
+        raw = str(url).strip()
+        if not raw:
+            return default
+        if not raw.startswith(("http://", "https://")):
+            raw = f"https://{raw}"
+        parsed = urlparse(raw)
+        host = (parsed.netloc or "").lower()
+        if host.startswith("www."):
+            host = host[4:]
+        return host or default or url
+    except Exception:
+        return default or url
+
+jinja_env.filters['clean_domain'] = _clean_domain
+
 Resume0Template = jinja_env.get_template('data_samples/Resume0.tex.jinja')
 Resume1Template = jinja_env.get_template('data_samples/Resume1.tex.jinja')
 Resume2Template = jinja_env.get_template('data_samples/Resume2.tex.jinja')
@@ -140,6 +159,7 @@ class Education(BaseModel):
     grade: Optional[str] = None
 
 class Certification(BaseModel):
+    id: Optional[str] = None
     name: str
     issuing_organization: Optional[str] = None
     link: str
@@ -167,6 +187,7 @@ class SkillCategory(BaseModel):
     values: List[SkillValue]
 
 class Project(BaseModel):
+    id: Optional[str] = None
     name: str
     project_line: str
     href: str 
@@ -174,11 +195,13 @@ class Project(BaseModel):
     points: List[str]
 
 class Achievement(BaseModel):
+    id: Optional[str] = None
     name: str
     description: str
 
 class Experience(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
+    id: Optional[str] = None
     title: str = Field(..., alias="Title")
     company: str
     location: str
@@ -502,20 +525,21 @@ class TruncatedOutputError(Exception):
     over-budget prompt is futile — the caller (tailor_jobs) should split instead."""
 
 
-def ask_gemini(payload: str, jobs: List[str], *, schema=Format, mode: str = "synthesize", template: int = 0):
+def ask_gemini(payload: str, jobs: List[str], *, schema=Format, mode: str = "synthesize", template: int = 0, is_pro: bool = False):
     prompt = build_prompt(payload, jobs, mode, template)
     task_name = "single_tailor" if (mode == "synthesize" and len(jobs) == 1) else ("tailor" if mode == "synthesize" else "parse")
     
     wire_schema = FormatSimple if (task_name == "single_tailor" and schema is Format) else schema
 
     try:
-        log.info("LLM Gateway request (task=%s, mode=%s, jobs=%d)", task_name, mode, len(jobs))
+        log.info("LLM Gateway request (task=%s, mode=%s, jobs=%d, is_pro=%s)", task_name, mode, len(jobs), is_pro)
         res = gemini_gateway.generate(
             contents=prompt,
             task=task_name,
             schema=wire_schema,
             temperature=0.25,
             max_output_tokens=65536,
+            is_pro=is_pro,
         )
 
         if res is None:
@@ -545,10 +569,114 @@ def extract_facts(original_txt: str) -> "ResumeFacts":
     if not facts.experience and not facts.projects:
         log.warning("PASS 1 extracted 0 experience + 0 project entries from a non-empty resume")
     return facts
+
+
+def format_from_facts(facts: "ResumeFacts", role: str = "") -> Format:
+    """Constructs a production Format instance directly from parsed ResumeFacts without AI tailoring."""
+    experiences = []
+    for ef in (facts.experience or []):
+        pts = []
+        for af in ef.facts:
+            txt = af.action
+            if af.object:
+                txt += f" {af.object}"
+            if af.tech:
+                txt += f" using {', '.join(af.tech)}"
+            if af.metric:
+                txt += f", achieving {af.metric}"
+            pts.append(txt.capitalize() + ".")
+        experiences.append(Experience(
+            company=ef.company,
+            role=ef.role,
+            date=ef.date,
+            location=ef.location,
+            points=pts or ["Led key engineering initiatives and delivered high quality solutions."]
+        ))
+
+    projects = []
+    for pf in (facts.projects or []):
+        pts = []
+        for af in pf.facts:
+            txt = af.action
+            if af.object:
+                txt += f" {af.object}"
+            if af.tech:
+                txt += f" using {', '.join(af.tech)}"
+            if af.metric:
+                txt += f", achieving {af.metric}"
+            pts.append(txt.capitalize() + ".")
+        projects.append(Project(
+            name=pf.name,
+            project_line="Engineering Project",
+            href="",
+            href_name="",
+            points=pts or ["Designed and developed robust system architecture."]
+        ))
+
+    skills = []
+    if facts.skills_raw:
+        vals = [SkillValue(name=s, level="Expert", score=0.95) for s in facts.skills_raw[:15]]
+        skills.append(SkillCategory(category="Technical Skills", values=vals))
+
+    achievements = []
+    for ach in (facts.achievements or []):
+        achievements.append(Achievement(name=ach.name, description=ach.raw))
+
+    candidate_role = role or (experiences[0].role if experiences else "Software Engineer")
+    summary = f"Results-driven engineering professional with verified experience in {', '.join(facts.skills_raw[:4]) if facts.skills_raw else 'modern technologies'}. Proven track record of architecting scalable applications, collaborating in cross-functional teams, and delivering high-impact technical initiatives."
+
+    job = TailoredJob(
+        job_index=1,
+        Role=candidate_role,
+        professional_summary=summary,
+        skills=skills,
+        projects=projects,
+        experience=experiences,
+        achievements=achievements
+    )
+
+    return Format(
+        static_profile=facts.static_profile,
+        tailored_jobs=[job]
+    )
+
+
+def build_raw_fallback_format(raw_txt: str) -> Format:
+    """Builds a basic Format from raw resume text using pattern extraction when all LLMs are unreachable."""
+    lines = [line.strip() for line in raw_txt.splitlines() if line.strip()]
+    fullname = lines[0] if lines else "Candidate"
+    
+    email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', raw_txt)
+    email_str = email_match.group(0) if email_match else ""
+    
+    phone_match = re.search(r'(\+?\d[\d\s-]{8,15}\d)', raw_txt)
+    phone_str = phone_match.group(0).strip() if phone_match else ""
+
+    profile = StaticProfile(
+        fullname=fullname,
+        email=LinkData(href=f"mailto:{email_str}", text=email_str),
+        phone=phone_str,
+        location="Location Not Specified",
+        linkedin=LinkData(href="", text=""),
+        github=LinkData(href="", text=""),
+        portfolio=LinkData(href="", text=""),
+        education=[],
+        certifications=[]
+    )
+    job = TailoredJob(
+        job_index=1,
+        Role="Software Engineer",
+        professional_summary="Experienced engineer with strong foundation in software design, scalable system implementation, and modern development best practices.",
+        skills=[SkillCategory(category="Technical Skills", values=[SkillValue(name="Software Engineering", level="Expert", score=0.95)])],
+        projects=[],
+        experience=[],
+        achievements=[]
+    )
+    return Format(static_profile=profile, tailored_jobs=[job])
 # ╰───────────────────────────────────────────────────────────────╯
 
 # ╭── Adaptive batch tailoring ───────────────────────────────────╮
-def tailor_jobs(facts_json: str, jds: List[str], offset: int = 0, template: int = 0) -> Format:
+def tailor_jobs(facts_json: str, jds: List[str], offset: int = 0, template: int = 0, is_pro: bool = False) -> Format:
     """Tailor N job descriptions in ONE Gemini call when it fits the output budget.
 
     On truncation / short return / call failure, split the list and retry each
@@ -561,7 +689,7 @@ def tailor_jobs(facts_json: str, jds: List[str], offset: int = 0, template: int 
     """
     n = len(jds)
     try:
-        res = ask_gemini(facts_json, jds, template=template)
+        res = ask_gemini(facts_json, jds, template=template, is_pro=is_pro)
         got = list(res.tailored_jobs)
         if n == 1:
             # Single job is unambiguous: there is exactly one JD, so force the one
@@ -621,7 +749,7 @@ import re
 def escape_latex(s: str) -> str:
     if not isinstance(s, str):
         return s
-    return (s.replace("\\", "\\textbackslash ")
+    s = (s.replace("\\", "\\textbackslash ")
             .replace("&", "\\&")
             .replace("%", "\\%")
             .replace("$", "\\$")
@@ -641,6 +769,8 @@ def escape_latex(s: str) -> str:
             .replace("–", "--")
             .replace("—", "---")
             .replace("•", "\\textbullet{}"))
+    # Convert markdown bold **keyword** into LaTeX \textbf{keyword}
+    return re.sub(r"\*\*(.+?)\*\*", r"\\textbf{\1}", s)
 
 from pydantic import BaseModel
 
@@ -758,18 +888,33 @@ def _tighten_latex(tex: str, tier: int, template: int) -> str:
     
     elif template == 2:
         if tier >= 1:
-            tex = tex.replace("scale=0.75", "scale=0.82")          # tighter margins
+            tex = tex.replace("itemsep=0.5pt", "itemsep=0pt")
+            tex = tex.replace("topsep=0.5pt", "topsep=0pt")
+            tex = tex.replace("\\vspace{5pt}", "\\vspace{2.5pt}")
+            tex = tex.replace("\\vspace{3pt}", "\\vspace{1pt}")
+            tex = tex.replace("\\[3pt]", "\\[1.5pt]")
+            tex = tex.replace("\\[2.5pt]", "\\[1.5pt]")
+            tex = tex.replace("\\[2pt]", "\\[1pt]")
         if tier >= 2:
-            tex = tex.replace("\\[5pt]", "\\[2pt]")               # name spacing
+            tex = tex.replace("top=0.32in, bottom=0.30in", "top=0.25in, bottom=0.22in")
+            tex = tex.replace("left=0.4in, right=0.4in", "left=0.35in, right=0.35in")
+            tex = tex.replace("\\vspace{4pt}", "\\vspace{1pt}")
+            tex = tex.replace("\\vspace{2.5pt}", "\\vspace{1pt}")
+            tex = tex.replace("\\[3pt]", "\\[1pt]")
+            tex = tex.replace("\\[2.5pt]", "\\[1pt]")
     
     elif template == 3:
         if tier >= 1:
-            tex = tex.replace("itemsep=2pt", "itemsep=0pt")
-            tex = tex.replace("topsep=2pt", "topsep=0pt")
+            tex = tex.replace("itemsep=2.5pt", "itemsep=0.5pt")
+            tex = tex.replace("topsep=2.5pt", "topsep=0.5pt")
+            tex = tex.replace("\\vspace{11pt}", "\\vspace{6pt}")
+            tex = tex.replace("\\vspace{15pt}", "\\vspace{10pt}")
         if tier >= 2:
-            tex = tex.replace("\\vspace{8pt}", "\\vspace{4pt}")    # section/role
-            tex = tex.replace("\\vspace{5pt}", "\\vspace{2pt}")    # after header
-            tex = tex.replace("\\[5pt]", "\\[2pt]")               # name spacing
+            tex = tex.replace("top=1.2cm, bottom=1.2cm", "top=0.9cm, bottom=0.9cm")
+            tex = tex.replace("left=1.2cm, right=1.2cm", "left=0.9cm, right=0.9cm")
+            tex = tex.replace("\\vspace{20pt}", "\\vspace{10pt}")
+            tex = tex.replace("\\vspace{8pt}", "\\vspace{4pt}")
+            tex = tex.replace("\\[5pt]", "\\[2pt]")
     
     # Tier 3: Font step down (common for all templates)
     if tier >= 3:
@@ -780,14 +925,71 @@ def _tighten_latex(tex: str, tier: int, template: int) -> str:
         # We only drop font size once. Replace default_font with min_font in documentclass
         tex = re.sub(
             fr'\\documentclass\[(.*?)({default_font}pt)(.*?)\]', 
-            fr'\\documentclass[\1{min_font}pt\3]', 
+            fr'\\documentclass[\g<1>{min_font}pt\g<3>]', 
             tex
         )
-        # moderncv uses \renewcommand*{\namefont}{\fontsize{24}{28}
         if template == 2:
-             tex = tex.replace("\\fontsize{24}{28}", "\\fontsize{22}{26}")
+             tex = tex.replace("\\fontsize{20pt}{24pt}", "\\fontsize{17pt}{20pt}")
+             tex = tex.replace("\\fontsize{9.5pt}{12pt}", "\\fontsize{8.5pt}{10.5pt}")
+             tex = tex.replace("\\fontsize{9pt}{12pt}", "\\fontsize{8pt}{10pt}")
+             tex = tex.replace("\\fontsize{8.5pt}{11pt}", "\\fontsize{7.5pt}{9.5pt}")
              
     return tex
+
+
+
+def _slugify_id(prefix: str, text: str, index: int) -> str:
+    slug = re.sub(r'[^a-zA-Z0-9]+', '_', (text or '').strip().lower()).strip('_')
+    if not slug:
+        slug = f"item_{index}"
+    return f"{prefix}_{slug[:24]}"
+
+
+def rerank_sections_by_jd(format_obj: Format, jd_text: str) -> Format:
+    """Re-ranks projects, achievements, and certifications based on target JD keyword relevance scores."""
+    if not jd_text or not format_obj:
+        return format_obj
+
+    stop_words = {
+        'and', 'the', 'with', 'for', 'this', 'that', 'from', 'have', 'will', 'your', 'are', 'you',
+        'our', 'all', 'can', 'has', 'was', 'were', 'been', 'which', 'their', 'work', 'working',
+        'team', 'experience', 'knowledge', 'years', 'using', 'skills', 'role', 'candidate'
+    }
+    tokens = set(re.findall(r'[a-zA-Z0-9_+#.-]{3,}', jd_text.lower())) - stop_words
+
+    def score_text(txt: str) -> int:
+        if not txt:
+            return 0
+        txt_lower = txt.lower()
+        return sum(1 for tok in tokens if tok in txt_lower)
+
+    if hasattr(format_obj, "tailored_jobs") and format_obj.tailored_jobs:
+        job = format_obj.tailored_jobs[0]
+        # 1. Re-rank projects descending by relevance
+        if getattr(job, "projects", None):
+            job.projects.sort(
+                key=lambda p: (
+                    score_text(getattr(p, "name", "")) * 4 +
+                    score_text(getattr(p, "project_line", "")) * 2 +
+                    sum(score_text(pt) for pt in (getattr(p, "points", []) or []))
+                ),
+                reverse=True
+            )
+        # 2. Re-rank achievements descending by relevance
+        if getattr(job, "achievements", None):
+            job.achievements.sort(
+                key=lambda a: score_text(getattr(a, "name", "")) * 3 + score_text(getattr(a, "description", "")),
+                reverse=True
+            )
+
+    # 3. Re-rank static certifications descending by relevance
+    if hasattr(format_obj, "static_profile") and getattr(format_obj.static_profile, "certifications", None):
+        format_obj.static_profile.certifications.sort(
+            key=lambda c: score_text(getattr(c, "name", "")) * 3,
+            reverse=True
+        )
+
+    return format_obj
 
 
 def sanitize_tailored_job(static_profile, tj):
@@ -828,6 +1030,8 @@ def sanitize_tailored_job(static_profile, tj):
                 if s:
                     cleaned_pts.append(s + ".")
         proj.points = cleaned_pts
+        if not getattr(proj, "id", None):
+            proj.id = _slugify_id("proj", getattr(proj, "name", ""), len(clean_projs))
         clean_projs.append(proj)
     tj.projects = clean_projs
 
@@ -855,6 +1059,8 @@ def sanitize_tailored_job(static_profile, tj):
                 if s:
                     cleaned_pts.append(s + ".")
         exp.points = cleaned_pts
+        if not getattr(exp, "id", None):
+            exp.id = _slugify_id("exp", f"{getattr(exp, 'company', '')}_{getattr(exp, 'title', '')}", len(clean_exps))
         clean_exps.append(exp)
     tj.experience = clean_exps
 
@@ -870,8 +1076,15 @@ def sanitize_tailored_job(static_profile, tj):
             ach_name = getattr(ach, "name", "").strip().lower()
             is_dup = any(ach_name in c or c in ach_name for c in cert_names)
             if not is_dup:
+                if not getattr(ach, "id", None):
+                    ach.id = _slugify_id("ach", getattr(ach, "name", ""), len(clean_achs))
                 clean_achs.append(ach)
         tj.achievements = clean_achs
+
+    if static_profile and getattr(static_profile, "certifications", None):
+        for idx, cert in enumerate(static_profile.certifications):
+            if not getattr(cert, "id", None):
+                cert.id = _slugify_id("cert", getattr(cert, "name", ""), idx)
 
     # 4. Fallback for role title
     curr_role = getattr(tj, "role", "").strip()

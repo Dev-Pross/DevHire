@@ -29,6 +29,7 @@ if not log.handlers:
 # ═══════════════════════════════════════════════════════════════
 
 USER_SAFE_MESSAGES = {
+    "FREE_TIER_RATE_LIMIT": "Our AI services are receiving constant pressure and unable to tailor. Loaded your verified original resume content. Upgrade to Pro for high-speed dedicated AI.",
     "RATE_LIMITED": "AI service is busy. Loaded your original resume.",
     "ALL_EXHAUSTED": "AI service is busy. Loaded your original resume.",
     "SCHEMA_MISMATCH": "Couldn't tailor this role. Loaded your original resume.",
@@ -194,6 +195,13 @@ class LLMGateway:
                 "GROQ_TAILOR_MODELS",
                 [
                     os.getenv("GROQ_TAILOR_MODEL", "qwen/qwen3.8-27b").strip(),
+                    os.getenv("GROQ_FALLBACK_MODEL", "openai/gpt-oss-120b").strip(),
+                ],
+            ),
+            "tailor_chat": self._load_model_list(
+                "GROQ_CHAT_MODELS",
+                [
+                    os.getenv("GROQ_CHAT_MODEL", "qwen/qwen3.8-27b").strip(),
                     os.getenv("GROQ_FALLBACK_MODEL", "openai/gpt-oss-120b").strip(),
                 ],
             ),
@@ -483,13 +491,24 @@ class LLMGateway:
         system_instruction: Optional[str] = None,
         temperature: float = 0.2,
         max_output_tokens: Optional[int] = None,
+        is_pro: bool = False,
     ) -> Any:
         """Unified entry point for all agent LLM calls."""
-        # 1. Single Tailoring: Pure Groq with strict structured outputs (with intra-Groq fallback)
+        # 1. Single Tailoring: Pure Groq first with strict structured outputs, then Pro-only Gemini fallback
         if task == "single_tailor":
             if not self.groq_client:
+                if is_pro:
+                    return self._call_gemini(
+                        contents=contents,
+                        task="tailor",
+                        schema=schema,
+                        system_instruction=system_instruction,
+                        temperature=temperature,
+                        max_output_tokens=max_output_tokens,
+                    )
                 raise GatewayError("CONFIG_ERROR", "Groq client is not configured for single_tailor task.")
-            models_to_try = self.cascades.get("single_tailor", ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"])
+
+            models_to_try = self.cascades.get("single_tailor", ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"])
             last_err = None
             for model in models_to_try:
                 try:
@@ -504,9 +523,65 @@ class LLMGateway:
                 except GatewayError as g_err:
                     last_err = g_err
                     log.warning("🔄 [LLM Gateway] Single tailor Groq model %s failed (%s), falling back...", model, g_err.code)
-            raise last_err or GatewayError("ALL_EXHAUSTED", "All single_tailor Groq models failed.")
 
-        # 2. Scout Mode: Form questions on Groq Qwen 27B -> Gemini Fallback
+            # All Groq models failed
+            if is_pro:
+                log.info("💎 [LLM Gateway] User is PRO -> Cascading to Gemini pool for single_tailor...")
+                return self._call_gemini(
+                    contents=contents,
+                    task="tailor",
+                    schema=schema,
+                    system_instruction=system_instruction,
+                    temperature=temperature,
+                    max_output_tokens=max_output_tokens,
+                )
+            else:
+                log.warning("🛑 [LLM Gateway] User is FREE and single_tailor Groq failed. Denying Gemini fallback.")
+                raise GatewayError(
+                    code="FREE_TIER_RATE_LIMIT",
+                    raw_message=f"Groq exhausted for free user: {last_err.raw_message if last_err else 'Unknown'}",
+                    user_message=USER_SAFE_MESSAGES["FREE_TIER_RATE_LIMIT"]
+                )
+
+        # 2. Section Revision Mode (tailor_chat): Pure Groq first, then Pro-only Gemini fallback
+        if task == "tailor_chat":
+            models_to_try = self.cascades.get("tailor_chat", ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"])
+            last_err = None
+            if self.groq_client:
+                for model in models_to_try:
+                    try:
+                        return self._call_groq(
+                            prompt=str(contents),
+                            model=model,
+                            schema=schema,
+                            system_instruction=system_instruction,
+                            temperature=temperature,
+                            max_output_tokens=max_output_tokens or 8192,
+                        )
+                    except GatewayError as g_err:
+                        last_err = g_err
+                        log.warning("🔄 [LLM Gateway] tailor_chat Groq model %s failed (%s), falling back...", model, g_err.code)
+
+            # All Groq models failed or Groq not configured
+            if is_pro:
+                log.info("💎 [LLM Gateway] User is PRO -> Cascading to Gemini pool for tailor_chat...")
+                return self._call_gemini(
+                    contents=contents,
+                    task="tailor",
+                    schema=schema,
+                    system_instruction=system_instruction,
+                    temperature=temperature,
+                    max_output_tokens=max_output_tokens,
+                )
+            else:
+                log.warning("🛑 [LLM Gateway] User is FREE and tailor_chat Groq failed. Denying Gemini fallback.")
+                raise GatewayError(
+                    code="FREE_TIER_RATE_LIMIT",
+                    raw_message=f"Groq exhausted for free user: {last_err.raw_message if last_err else 'No Groq'}",
+                    user_message=USER_SAFE_MESSAGES["FREE_TIER_RATE_LIMIT"]
+                )
+
+        # 3. Scout Mode: Form questions on Groq Qwen 27B -> Gemini Fallback
         if task == "scout":
             if self.groq_client:
                 scout_model = self.cascades["scout"][0]
@@ -532,7 +607,7 @@ class LLMGateway:
                 max_output_tokens=max_output_tokens,
             )
 
-        # 3. All Other Tasks (tailor, parse, scraper, default): 4-Key Gemini Gateway
+        # 4. All Other Tasks (tailor, parse, scraper, default): 4-Key Gemini Gateway
         return self._call_gemini(
             contents=contents,
             task=task,

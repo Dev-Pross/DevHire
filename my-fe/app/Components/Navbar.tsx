@@ -44,7 +44,7 @@ const Navbar = () => {
 
   return (
     <div
-      className={`navbar sticky top-0 w-full z-50 transition-all duration-300 ${
+      className={`navbar sticky top-0 w-full z-50 transition-all duration-300 print:hidden ${
         scrolled
           ? "bg-black/80 backdrop-blur-xl border-b border-white/[0.06]"
           : "bg-transparent"

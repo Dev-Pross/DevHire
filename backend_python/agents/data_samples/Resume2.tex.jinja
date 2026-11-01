@@ -1,88 +1,165 @@
-\documentclass[12pt,a4paper,sans]{moderncv}
+\documentclass[10pt,a4paper]{article}
 
-\moderncvstyle{classic}
-\moderncvcolor{blue}
-\usepackage[scale=0.75]{geometry}
+\usepackage[left=0.4in, right=0.4in, top=0.32in, bottom=0.30in]{geometry}
 \usepackage[utf8]{inputenc}
-\usepackage{fontawesome5}
+\usepackage[T1]{fontenc}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
 
-% --- FIX IS HERE ---
-% {24} = Font Size
-% {28} = Line Height
-% This allows auto-wrapping with tight padding.
-\renewcommand*{\namefont}{\fontsize{24}{28}\mdseries\upshape\selectfont}
+\definecolor{cvblue}{RGB}{30, 101, 166}
+\definecolor{dividergray}{RGB}{209, 213, 219}
+\definecolor{textgray}{RGB}{75, 85, 99}
 
-% --- PERSONAL DATA ---
-% Put the full name here. LaTeX will automatically wrap it to the next line 
-% when it hits the margin, and the {40} above will keep the lines close.
-\firstname{<< static_profile.fullname >>\\[5pt]}
-\familyname{}
-\title{<< job.role >>} 
-\address{<< static_profile.location >>}{}
-\mobile{<< static_profile.phone >>}
-\email{<< static_profile.email.text >>}
-\homepage{<< static_profile.portfolio.text >>} 
-\social[linkedin]{<< static_profile.linkedin.text >>}
-\social[github]{<< static_profile.github.text >>}
-<BLOCK> if static_profile.extra_links </BLOCK>
-<BLOCK> for el in static_profile.extra_links </BLOCK>
-\extrainfo{\href{<< el.href >>}{<< el.text >>}}
-<BLOCK> endfor </BLOCK>
-<BLOCK> endif </BLOCK>
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+
+% Section formatting with clean blue title and underline
+\newcommand{\cvsection}[1]{%
+  \vspace{5pt}%
+  {\noindent\fontsize{10.5pt}{13pt}\selectfont\textbf{\textcolor{cvblue}{\uppercase{#1}}}}\\[-4pt]%
+  {\color{cvblue}\rule{\linewidth}{0.6pt}}\\[3.5pt]%
+}
 
 \begin{document}
+\enlargethispage{2\baselineskip}
 
-\makecvtitle
+% --- HEADER ---
+\begin{center}
+  {\fontsize{20pt}{24pt}\selectfont\textbf{\uppercase{<< static_profile.fullname >>}}}\\[3pt]
+  <BLOCK> if job.role </BLOCK>
+  {\fontsize{11pt}{14pt}\selectfont\textcolor{cvblue}{<< job.role >>}}\\[4pt]
+  <BLOCK> endif </BLOCK>
+  {\fontsize{9pt}{12pt}\selectfont
+    <BLOCK> if static_profile.location </BLOCK><< static_profile.location >> \textbar{} <BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.phone </BLOCK><< static_profile.phone >> \textbar{} <BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.email and static_profile.email.text </BLOCK>\href{<< static_profile.email.href >>}{\textcolor{cvblue}{<< static_profile.email.text >>}}<BLOCK> endif </BLOCK>
+  }\\[2pt]
+  {\fontsize{9pt}{12pt}\selectfont
+    <BLOCK> if static_profile.linkedin and static_profile.linkedin.href </BLOCK>\href{<< static_profile.linkedin.href >>}{\textcolor{cvblue}{LinkedIn}}<BLOCK> endif </BLOCK><BLOCK> if static_profile.github and static_profile.github.href </BLOCK>~|~\href{<< static_profile.github.href >>}{\textcolor{cvblue}{GitHub}}<BLOCK> endif </BLOCK><BLOCK> if static_profile.portfolio and static_profile.portfolio.href </BLOCK>~|~\href{<< static_profile.portfolio.href >>}{\textcolor{cvblue}{Portfolio}}<BLOCK> endif </BLOCK><BLOCK> if static_profile.extra_links </BLOCK><BLOCK> for el in static_profile.extra_links </BLOCK>~|~\href{<< el.href >>}{\textcolor{cvblue}{<< el.text >>}}<BLOCK> endfor </BLOCK><BLOCK> endif </BLOCK>
+  }
+\end{center}
+\vspace{-4pt}
 
-% --- Education ---
-\section{Education}
-<BLOCK> for edu in static_profile.education </BLOCK>
-\cventry{<< edu.date >>}{<< edu.degree >>}{<< edu.institution >>}{<< edu.location >>}{<BLOCK> if edu.grade </BLOCK>Grade: << edu.grade >><BLOCK> endif </BLOCK>}{}
-<BLOCK> endfor </BLOCK>
+% --- PROFESSIONAL SUMMARY ---
+<BLOCK> if job.professional_summary </BLOCK>
+\cvsection{Professional Summary}
+{\fontsize{9pt}{12pt}\selectfont << job.professional_summary >>}\par
+\vspace{2pt}
+<BLOCK> endif </BLOCK>
 
-% --- Skills ---
-% Using \cvitem ensures the category aligns neatly on the left
-\section{Technical Skills}
+% --- TECHNICAL SKILLS ---
+<BLOCK> if job.skills </BLOCK>
+\cvsection{Technical Skills}
 <BLOCK> for skill in job.skills </BLOCK>
-\cvitem{<< skill.category >>}{<BLOCK> for val in skill.values </BLOCK><< val.name >><BLOCK> if not loop.last </BLOCK>, <BLOCK> endif </BLOCK><BLOCK> endfor </BLOCK>}
+\noindent
+\begin{minipage}[t]{0.22\linewidth}
+  \raggedleft\fontsize{9pt}{11pt}\selectfont\textbf{<< skill.category >>}\hspace{6pt}
+\end{minipage}%
+\textcolor{dividergray}{\vrule width 0.8pt}%
+\hspace{7pt}%
+\begin{minipage}[t]{0.75\linewidth}
+  \raggedright\fontsize{9pt}{11pt}\selectfont
+  <BLOCK> for val in skill.values </BLOCK><< val.name >><BLOCK> if not loop.last </BLOCK>, <BLOCK> endif </BLOCK><BLOCK> endfor </BLOCK>
+\end{minipage}\\[2pt]
 <BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
 
-% --- Projects ---
-% \cventry args: {Year}{Title}{Subtitle/Stack}{Location}{}{Description}
-% --- Experience ---
+% --- EXPERIENCE ---
 <BLOCK> if job.experience </BLOCK>
-\section{Experience}
+\cvsection{Experience}
 <BLOCK> for exp in job.experience </BLOCK>
-\cventry{<< exp.date >>}{<< exp.title >>}{<< exp.company >>}{<< exp.location >>}{}{\begin{itemize}[label=\small\textbullet, leftmargin=*]
-    <BLOCK> for point in exp.points </BLOCK>\item << point >><BLOCK> endfor </BLOCK>
-\end{itemize}}
+\noindent
+\begin{minipage}[t]{0.18\linewidth}
+  \raggedleft\fontsize{8.5pt}{11pt}\selectfont\textcolor{textgray}{<< exp.date >>}\hspace{6pt}
+\end{minipage}%
+\textcolor{dividergray}{\vrule width 0.8pt}%
+\hspace{7pt}%
+\begin{minipage}[t]{0.79\linewidth}
+  \raggedright\fontsize{9.5pt}{12pt}\selectfont\textbf{<< exp.title >>}\\[0.5pt]
+  {\fontsize{8.5pt}{11pt}\selectfont\textit{<< exp.company >><BLOCK> if exp.location </BLOCK>, << exp.location >><BLOCK> endif </BLOCK>}}\\[-2pt]
+  \begin{itemize}[leftmargin=11pt, topsep=0.5pt, itemsep=0.5pt, parsep=0pt]
+    <BLOCK> for pt in exp.points </BLOCK>
+    \item {\fontsize{8.5pt}{11pt}\selectfont << pt >>}
+    <BLOCK> endfor </BLOCK>
+  \end{itemize}
+\end{minipage}\\[3pt]
 <BLOCK> endfor </BLOCK>
 <BLOCK> endif </BLOCK>
 
-% --- Projects ---
+% --- KEY PROJECTS ---
 <BLOCK> if job.projects </BLOCK>
-\section{Projects}
-<BLOCK> for project in job.projects </BLOCK>
-\cventry{}{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink} <BLOCK> endif </BLOCK>}{<< project.project_line >>}{}{}{\begin{itemize}[label=\small\textbullet, leftmargin=*]
-    <BLOCK> for point in project.points </BLOCK>\item << point >><BLOCK> endfor </BLOCK>
-\end{itemize}}
+\cvsection{Key Projects}
+<BLOCK> for proj in job.projects </BLOCK>
+\noindent
+\begin{minipage}[t]{0.18\linewidth}
+  \raggedleft\fontsize{8.5pt}{11pt}\selectfont\textcolor{textgray}{<< proj.date if proj.date else "Ongoing" >>}\hspace{6pt}
+\end{minipage}%
+\textcolor{dividergray}{\vrule width 0.8pt}%
+\hspace{7pt}%
+\begin{minipage}[t]{0.79\linewidth}
+  \raggedright
+  {\fontsize{9.5pt}{12pt}\selectfont\textbf{<< proj.name >>}
+  <BLOCK> if proj.project_line </BLOCK>\textit{ --- << proj.project_line >>}<BLOCK> endif </BLOCK>
+  <BLOCK> if proj.href </BLOCK>\hfill\href{<< proj.href >>}{\fontsize{8.5pt}{11pt}\selectfont\textcolor{cvblue}{Link}}<BLOCK> endif </BLOCK>}\\[-2pt]
+  \begin{itemize}[leftmargin=11pt, topsep=0.5pt, itemsep=0.5pt, parsep=0pt]
+    <BLOCK> for pt in proj.points </BLOCK>
+    \item {\fontsize{8.5pt}{11pt}\selectfont << pt >>}
+    <BLOCK> endfor </BLOCK>
+  \end{itemize}
+\end{minipage}\\[3pt]
 <BLOCK> endfor </BLOCK>
 <BLOCK> endif </BLOCK>
 
-
-
-
-% --- Certifications ---
-\section{Certifications}
-<BLOCK> for cert in static_profile.certifications </BLOCK>
-\cvlistitem{<< cert.name >><BLOCK> if cert.link </BLOCK> \href{<< cert.link >>}{[Link]}<BLOCK> endif </BLOCK>}
+% --- EDUCATION ---
+<BLOCK> if static_profile.education </BLOCK>
+\cvsection{Education}
+<BLOCK> for edu in static_profile.education </BLOCK>
+\noindent
+\begin{minipage}[t]{0.18\linewidth}
+  \raggedleft\fontsize{8.5pt}{11pt}\selectfont\textcolor{textgray}{<< edu.date >>}\hspace{6pt}
+\end{minipage}%
+\textcolor{dividergray}{\vrule width 0.8pt}%
+\hspace{7pt}%
+\begin{minipage}[t]{0.79\linewidth}
+  \raggedright\fontsize{9.5pt}{12pt}\selectfont\textbf{<< edu.degree >>}\\[0.5pt]
+  {\fontsize{8.5pt}{11pt}\selectfont << edu.institution >><BLOCK> if edu.location </BLOCK>, << edu.location >><BLOCK> endif </BLOCK>}
+  <BLOCK> if edu.grade </BLOCK>{\fontsize{8.5pt}{10.5pt}\selectfont \textbar{} Grade: << edu.grade >>}<BLOCK> endif </BLOCK>
+\end{minipage}\\[2.5pt]
 <BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
 
-% --- Achievements ---
+% --- CERTIFICATIONS ---
+<BLOCK> if static_profile.certifications </BLOCK>
+\cvsection{Certifications}
+<BLOCK> for cert in static_profile.certifications </BLOCK>
+\noindent
+\begin{minipage}[t]{0.18\linewidth}
+  \raggedleft\fontsize{8.5pt}{11pt}\selectfont\textbullet\hspace{6pt}
+\end{minipage}%
+\textcolor{dividergray}{\vrule width 0.8pt}%
+\hspace{7pt}%
+\begin{minipage}[t]{0.79\linewidth}
+  \raggedright\fontsize{8.5pt}{11pt}\selectfont\textbf{<< cert.name >>}
+  <BLOCK> if cert.link </BLOCK>\href{<< cert.link >>}{\textcolor{cvblue}{ [Link]}}<BLOCK> endif </BLOCK>
+\end{minipage}\\[2pt]
+<BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
+
+% --- ACHIEVEMENTS ---
 <BLOCK> if job.achievements </BLOCK>
-\section{Achievements}
+\cvsection{Achievements}
 <BLOCK> for ach in job.achievements </BLOCK>
-\cvitem{<< ach.name >>}{<< ach.description >>}
+\noindent
+\begin{minipage}[t]{0.18\linewidth}
+  \raggedleft\fontsize{8.5pt}{11pt}\selectfont\textbf{<< ach.name >>}\hspace{6pt}
+\end{minipage}%
+\textcolor{dividergray}{\vrule width 0.8pt}%
+\hspace{7pt}%
+\begin{minipage}[t]{0.79\linewidth}
+  \raggedright\fontsize{8.5pt}{11pt}\selectfont << ach.description >>
+\end{minipage}\\[2pt]
 <BLOCK> endfor </BLOCK>
 <BLOCK> endif </BLOCK>
 

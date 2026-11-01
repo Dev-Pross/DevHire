@@ -1,141 +1,139 @@
 \documentclass[a4paper,10pt]{article}
-\usepackage[left=1cm, top=1cm, right=1cm, bottom=1cm]{geometry}
-\usepackage{titlesec}
+\usepackage[left=1.2cm, top=1.2cm, right=1.2cm, bottom=1.2cm]{geometry}
+\usepackage[sfdefault]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
 \usepackage{xcolor}
-\usepackage{fontawesome5}
+\usepackage{ragged2e}
 
-% --- COLORS ---
 \definecolor{headerblue}{RGB}{0, 60, 120}
-\definecolor{labelgrey}{RGB}{80, 80, 80}
+\definecolor{labelgrey}{RGB}{75, 85, 99}
+\definecolor{namegrey}{RGB}{85, 95, 110}
 
-% --- SETTINGS ---
-\pagestyle{empty} % No page numbers
+\pagestyle{empty}
 \setlength{\parindent}{0pt}
-\setlength{\tabcolsep}{10pt} % Spacing between Date and Content columns
 
-% --- CUSTOM COMMANDS ---
-
-% 1. Section Heading (Uppercase, Bold, Blue, with Line)
-\titleformat{\section}
-{\Large\bfseries\color{headerblue}\uppercase}
-{}
-{0em}
-{}[\titlerule]
-\titlespacing{\section}{0pt}{8pt}{8pt}
-
-% 2. Main Header Command
-\newcommand{\gridheader}[3]{
-    \vspace{2pt}
-    \noindent
-    \begin{minipage}[t]{2.8cm}
-        \raggedleft \small \bfseries \color{labelgrey} #1
-    \end{minipage}%
-    \hspace{0.2cm}\textcolor{labelgrey}{\vline}\hspace{0.2cm}%
-    \begin{minipage}[t]{\dimexpr\linewidth-3.4cm\relax}
-        \textbf{\large #2} \hfill \textit{\small #3}
-    \end{minipage}
-    \par\vspace{1pt}
+% Section macro: black indicator bar on EVERY section with regular weight title
+\newcommand{\cvsection}[1]{%
+  \vspace{15pt}%
+  \noindent{\rule[0.2ex]{1.3cm}{2.6pt}\hspace{0.35cm}\large #1}\par\vspace{6pt}%
 }
 
-% 3. Simple Skill Row
-\newcommand{\skillrow}[2]{
+% Skill Row matching HTML preview (3.8cm category width + ragged2e + hyphenpenalty=10000 prevents text collisions)
+\newcommand{\skillrow}[2]{%
     \noindent
-    \begin{minipage}[t]{2.8cm}
-        \raggedleft \small \bfseries \color{labelgrey} #1
+    \begin{minipage}[t]{3.8cm}
+        \RaggedLeft \hyphenpenalty=10000 \small \textbf{#1}
     \end{minipage}%
-    \hspace{0.2cm}\textcolor{labelgrey}{\vline}\hspace{0.2cm}%
-    \begin{minipage}[t]{\dimexpr\linewidth-3.4cm\relax}
+    \hspace{0.4cm}%
+    \begin{minipage}[t]{\dimexpr\linewidth-4.2cm\relax}
         \small #2
-    \end{minipage}
-    \par\vspace{1pt}
+    \end{minipage}%
+    \par\vspace{4.5pt}%
 }
 
-% 4. Tighter Lists
-\setlist[itemize]{leftmargin=3.4cm, label=\small\textbullet, nosep, topsep=1.5pt, itemsep=1.5pt, parsep=0pt, partopsep=0pt}
+% General Bullet Lists
+\setlist[itemize]{leftmargin=0.22in, label=\small\textbullet, nosep, topsep=2.5pt, itemsep=2.5pt, parsep=0pt, partopsep=0pt}
 
 \begin{document}
 
-% --- HEADER ---
-\begin{center}
-    {\Huge \textbf{<< static_profile.fullname >> \\[5pt]}}  \vspace{1pt}
-    {\Large \color{headerblue} << job.role >>} \\ \vspace{8pt}
-    
-    \small
-    \faMapMarker* << static_profile.location >> \quad $|$ \quad
-    \faPhone* << static_profile.phone >> \quad $|$ \quad
-    \faEnvelope \ \href{<< static_profile.email.href >>}{<< static_profile.email.text >>} \\ \vspace{3pt}
-    \faLinkedin \ \href{<< static_profile.linkedin.href >>}{LinkedIn} \quad $|$ \quad
-    \faGithub \ \href{<< static_profile.github.href >>}{GitHub} \quad $|$ \quad
-    \faGlobe \ \href{<< static_profile.portfolio.href >>}{Portfolio}<BLOCK> if static_profile.extra_links </BLOCK><BLOCK> for el in static_profile.extra_links </BLOCK> \quad $|$ \quad \faLink \ \href{<< el.href >>}{<< el.text >>}<BLOCK> endfor </BLOCK><BLOCK> endif </BLOCK>
-\end{center}
+% --- HEADER (2-Column Split matching HTML Preview) ---
+\noindent
+\begin{minipage}[t]{0.58\textwidth}
+    \raggedright
+    {\fontsize{20pt}{23pt}\selectfont\color{namegrey}\uppercase{<< static_profile.fullname >>}} \\[5pt]
+    <BLOCK> if job.role </BLOCK>
+    {\fontsize{10.5pt}{13pt}\selectfont \textit{<< job.role >>}}
+    <BLOCK> endif </BLOCK>
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.40\textwidth}
+    \raggedleft \small \itshape \color{labelgrey}
+    <BLOCK> if static_profile.location </BLOCK><< static_profile.location >> \\ <BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.phone </BLOCK><< static_profile.phone >> \\ <BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.email and static_profile.email.text </BLOCK>\href{<< static_profile.email.href >>}{\textcolor{black}{\textbf{<< static_profile.email.text >>}}} \\ <BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.linkedin and static_profile.linkedin.href </BLOCK>\href{<< static_profile.linkedin.href >>}{linkedin.com} \\ <BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.github and static_profile.github.href </BLOCK>\href{<< static_profile.github.href >>}{github.com} \\ <BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.portfolio and static_profile.portfolio.href </BLOCK>\href{<< static_profile.portfolio.href >>}{<< static_profile.portfolio.href | clean_domain('portfolio') >>} \\ <BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.extra_links </BLOCK>
+      <BLOCK> for el in static_profile.extra_links </BLOCK>
+        \href{<< el.href >>}{<< el.href | clean_domain(el.text) >>}<BLOCK> if not loop.last </BLOCK> \\ <BLOCK> endif </BLOCK>
+      <BLOCK> endfor </BLOCK>
+    <BLOCK> endif </BLOCK>
+\end{minipage}
 
-\vspace{5pt}
+\vspace{20pt}
 
-\section{Professional Summary}
-\begin{itemize}[leftmargin=0pt, label={}]
-        \item << job.professional_summary >>
-\end{itemize}
-% --- SKILLS ---
-\section{Technical Skills}
+% --- PROFESSIONAL SUMMARY ---
+<BLOCK> if job.professional_summary </BLOCK>
+\cvsection{Professional Summary}
+{\small << job.professional_summary >>}\par\vspace{3pt}
+<BLOCK> endif </BLOCK>
+
+% --- TECHNICAL SKILLS ---
+<BLOCK> if job.skills </BLOCK>
+\cvsection{Technical Skills}
 <BLOCK> for skill in job.skills </BLOCK>
 \skillrow{<< skill.category >>}{<BLOCK> for val in skill.values </BLOCK><< val.name >><BLOCK> if not loop.last </BLOCK>, <BLOCK> endif </BLOCK><BLOCK> endfor </BLOCK>}
 <BLOCK> endfor </BLOCK>
+\vspace{2pt}
+<BLOCK> endif </BLOCK>
 
-% --- PROJECTS ---
+% --- EXPERIENCE ---
 <BLOCK> if job.experience </BLOCK>
-\section{Experience}
+\cvsection{Experience}
 <BLOCK> for exp in job.experience </BLOCK>
-\gridheader{<< exp.date >>}{<< exp.title >>}{<< exp.company >> <BLOCK> if exp.location </BLOCK> - << exp.location >><BLOCK> endif </BLOCK>}
+\noindent\textbf{<< exp.title >>} \ $|$ \ \textit{<< exp.company >><BLOCK> if exp.location </BLOCK> -- << exp.location >><BLOCK> endif </BLOCK>} \hfill \small\color{labelgrey}<< exp.date >>\color{black}
 \begin{itemize} \small
     <BLOCK> for point in exp.points </BLOCK>
     \item << point >>
     <BLOCK> endfor </BLOCK>
 \end{itemize}
+\vspace{8pt}
 <BLOCK> endfor </BLOCK>
 <BLOCK> endif </BLOCK>
 
+% --- PROJECTS ---
 <BLOCK> if job.projects </BLOCK>
-\section{Projects}
+\cvsection{Projects}
 <BLOCK> for project in job.projects </BLOCK>
-\gridheader{}{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink\ << project.href_name >>} <BLOCK> endif </BLOCK>}{<< project.project_line >>}
+\noindent\textbf{<< project.name >>}<BLOCK> if project.project_line </BLOCK> \ / \ \textit{<< project.project_line >>}<BLOCK> endif </BLOCK> \hfill <BLOCK> if project.href </BLOCK>\href{<< project.href >>}{\small\color{labelgrey}\underline{<< project.href | clean_domain(project.href_name if project.href_name else 'demo') >>}}\color{black}<BLOCK> endif </BLOCK>
 \begin{itemize} \small
     <BLOCK> for point in project.points </BLOCK>
     \item << point >>
     <BLOCK> endfor </BLOCK>
 \end{itemize}
+\vspace{11pt}
 <BLOCK> endfor </BLOCK>
 <BLOCK> endif </BLOCK>
 
 % --- EDUCATION ---
-\section{Education}
+<BLOCK> if static_profile.education </BLOCK>
+\cvsection{Education}
 <BLOCK> for edu in static_profile.education </BLOCK>
-\gridheader{<< edu.date >>}{<< edu.degree >>}{<< edu.institution >>}
-\begin{itemize}[leftmargin=3.4cm, label={}, nosep] \small
-    \item << edu.location >> <BLOCK> if edu.grade </BLOCK> $|$ Grade/GPA: << edu.grade >><BLOCK> endif </BLOCK>
-\end{itemize}
+\noindent\textbf{<< edu.degree >>} \hfill \small\color{labelgrey}<< edu.date >>\color{black} \\
+\small\color{labelgrey}<< edu.institution >><BLOCK> if edu.location </BLOCK> \ $|$ \ << edu.location >><BLOCK> endif </BLOCK><BLOCK> if edu.grade </BLOCK> \ $|$ \ Grade: << edu.grade >><BLOCK> endif </BLOCK>\color{black}
+\vspace{8pt}
 <BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
 
 % --- CERTIFICATIONS ---
-\section{Certifications}
+<BLOCK> if static_profile.certifications </BLOCK>
+\cvsection{Certifications}
 <BLOCK> for cert in static_profile.certifications </BLOCK>
-\gridheader{}{<< cert.name >>}{}
-<BLOCK> if cert.link </BLOCK>
-\begin{itemize}[leftmargin=3.4cm, label={}, nosep] \small
-    \item \href{<< cert.link >>}{{[Verify Badge]}}
-\end{itemize}
-<BLOCK> endif </BLOCK>
+\noindent\textbf{<< cert.name >>} <BLOCK> if cert.link </BLOCK>\hfill \href{<< cert.link >>}{\small\color{labelgrey}\underline{[Verify Badge]}}\color{black}<BLOCK> endif </BLOCK> \\
+\vspace{5pt}
 <BLOCK> endfor </BLOCK>
+<BLOCK> endif </BLOCK>
 
 % --- ACHIEVEMENTS ---
 <BLOCK> if job.achievements </BLOCK>
-\section{Achievements}
+\cvsection{Achievements}
 <BLOCK> for ach in job.achievements </BLOCK>
-\gridheader{}{<< ach.name >>}{}
-\begin{itemize}[leftmargin=3.4cm, label={}, nosep] \small
-    \item << ach.description >>
-\end{itemize}
+\noindent\textbf{<< ach.name >>}: \small << ach.description >> \\
+\vspace{4pt}
 <BLOCK> endfor </BLOCK>
 <BLOCK> endif </BLOCK>
+
 \end{document}

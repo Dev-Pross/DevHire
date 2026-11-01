@@ -1,6 +1,5 @@
 \documentclass[a4paper,10pt]{article}
-% FIX 1: Aggressive margins to maximize space (0.6cm)
-\usepackage[left=0.6cm,top=0.6cm,right=0.6cm,bottom=0.6cm,nohead,nofoot]{geometry}
+\usepackage[left=0.8cm,top=0.9cm,right=0.8cm,bottom=0.9cm,nohead,nofoot]{geometry}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{mathpazo} % Palatino Font
@@ -22,39 +21,30 @@
 
 % --- COMMANDS ---
 
-% Compact Section Header
-\newcommand{\resumesection}[1]{
-    \vspace{8pt} % Reduced from 12pt
-    {\large \textsc{\textbf{#1}}} \\[-3pt]
-    {\color{mainred}\rule{2cm}{2pt}}
-    \vspace{4pt} % Reduced from 8pt
+% Compact Section Header with non-colliding rule
+\newcommand{\resumesection}[1]{%
+    \vspace{10pt}%
+    {\large \textsc{\textbf{#1}}}\par\vspace{3pt}%
+    {\color{mainred}\rule{2cm}{2pt}}\par\vspace{6pt}%
 }
 
 % Compact Skill Bar
-\newcommand{\skill}[3]{
+\newcommand{\skill}[3]{%
     \noindent
     \begin{tabular*}{\linewidth}{@{}l@{\extracolsep{\fill}}r@{}}
         \textbf{\small #1} & {\footnotesize #2} \\
     \end{tabular*}%
-    \\[-3pt]
-    {\color{mainred}\rule{#3\linewidth}{3pt}}
-    \vspace{3pt}
+    \\[-3pt]%
+    {\color{mainred}\rule{#3\linewidth}{3pt}}\par\vspace{4.5pt}%
 }
 
 % Compact Job Header
-\newcommand{\jobheader}[3]{
+\newcommand{\jobheader}[3]{%
     \noindent
     {\textbf{#1}} \\
     {\small \textit{#2}} \hfill 
-    \colorbox{mainred}{\makebox[2.5cm][c]{\color{white}\bfseries\footnotesize #3}}
-    \vspace{2pt}
-}
-
-% Contact Item
-\newcommand{\contactitem}[2]{
-    \vspace{2pt}
-    \noindent
-    \makebox[0.4cm][c]{\color{mainred}\faIcon{#1}} \hspace{2pt} \small #2 
+    \colorbox{mainred}{\makebox[2.5cm][c]{\color{white}\bfseries\footnotesize #3}}%
+    \par\vspace{2pt}%
 }
 
 \begin{document}
@@ -81,20 +71,33 @@
     <BLOCK> endfor </BLOCK>
     <BLOCK> endfor </BLOCK>
 
-    \vspace{2cm} % Flexible Spacer
+    \vspace{0.7cm}
 
     % --- CONTACT ---
     \resumesection{CONTACT}
-    
-    \contactitem{map-marker-alt}{<< static_profile.location >>}
-    \contactitem{phone-alt}{<< static_profile.phone >>}
-    \contactitem{envelope}{\href{<< static_profile.email.href >>}{<< static_profile.email.text >>}}
-    \contactitem{linkedin-in}{\href{<< static_profile.linkedin.href >>}{LinkedIn}}
-    \contactitem{github}{\href{<< static_profile.github.href >>}{GitHub}}
-    \contactitem{globe}{\href{<< static_profile.portfolio.href >>}{Portfolio}}
+    \small
+    <BLOCK> if static_profile.location </BLOCK>{\color{gray}<< static_profile.location >>}\par\vspace{2.5pt}<BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.phone </BLOCK>{\color{gray}<< static_profile.phone >>}\par\vspace{2.5pt}<BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.email and static_profile.email.text </BLOCK>\href{<< static_profile.email.href >>}{\color{mainred}<< static_profile.email.text >>}\par\vspace{2.5pt}<BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.linkedin and static_profile.linkedin.href </BLOCK>\href{<< static_profile.linkedin.href >>}{\color{mainred}LinkedIn}\par\vspace{2.5pt}<BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.github and static_profile.github.href </BLOCK>\href{<< static_profile.github.href >>}{\color{mainred}GitHub}\par\vspace{2.5pt}<BLOCK> endif </BLOCK>
+    <BLOCK> if static_profile.portfolio and static_profile.portfolio.href </BLOCK>\href{<< static_profile.portfolio.href >>}{\color{mainred}Portfolio}\par\vspace{2.5pt}<BLOCK> endif </BLOCK>
     <BLOCK> if static_profile.extra_links </BLOCK>
     <BLOCK> for el in static_profile.extra_links </BLOCK>
-    \contactitem{link}{\href{<< el.href >>}{<< el.text >>}}
+    \href{<< el.href >>}{\color{mainred}<< el.text >>}\par\vspace{2.5pt}
+    <BLOCK> endfor </BLOCK>
+    <BLOCK> endif </BLOCK>
+
+    \vspace{0.7cm}
+
+    % --- EDUCATION ---
+    <BLOCK> if static_profile.education </BLOCK>
+    \resumesection{EDUCATION}
+    <BLOCK> for edu in static_profile.education </BLOCK>
+    \noindent\textbf{\small << edu.degree >>} \\
+    {\footnotesize\color{gray}<< edu.institution >>} \\
+    {\scriptsize\color{gray}<< edu.date >><BLOCK> if edu.grade </BLOCK> \ $|$ \ << edu.grade >><BLOCK> endif </BLOCK>}
+    \vspace{6pt}
     <BLOCK> endfor </BLOCK>
     <BLOCK> endif </BLOCK>
 
@@ -114,65 +117,58 @@
         \end{minipage}
     }
     
-    \vspace{8pt}
+    \vspace{10pt}
 
     % --- PROFILE ---
+    <BLOCK> if job.professional_summary </BLOCK>
     \resumesection{PROFILE}
-    \small % Slightly smaller text for body
+    \small
     << job.professional_summary >>
+    \vspace{6pt}
+    <BLOCK> endif </BLOCK>
 
-    % --- EXPERIENCE / PROJECTS ---
-    \resumesection{WORK EXPERIENCE}
-
+    % --- WORK EXPERIENCE / KEY PROJECTS ---
     <BLOCK> if job.experience </BLOCK>
+    \resumesection{WORK EXPERIENCE}
     <BLOCK> for exp in job.experience </BLOCK>
     \jobheader{<< exp.title >>}{<< exp.company >> <BLOCK> if exp.location </BLOCK> - << exp.location >><BLOCK> endif </BLOCK>}{<< exp.date >>}
-    \begin{itemize}[leftmargin=*, label=\small\textbullet, nosep, topsep=1pt, itemsep=1pt] \small
+    \begin{itemize}[leftmargin=*, label=\small\textbullet, nosep, topsep=1.5pt, itemsep=2pt] \small
         <BLOCK> for point in exp.points </BLOCK>
         \item << point >>
         <BLOCK> endfor </BLOCK>
     \end{itemize}
-    \vspace{6pt}
+    \vspace{8pt}
     <BLOCK> endfor </BLOCK>
     <BLOCK> endif </BLOCK>
 
     <BLOCK> if job.projects </BLOCK>
+    \resumesection{KEY PROJECTS}
     <BLOCK> for project in job.projects </BLOCK>
-    \jobheader{<< project.name >> <BLOCK> if project.href </BLOCK> \href{<< project.href >>}{\faLink} <BLOCK> endif </BLOCK>}{<< project.project_line >>}{}
-    \begin{itemize}[leftmargin=*, label=\small\textbullet, nosep, topsep=1pt, itemsep=1pt] \small
+    \noindent\textbf{<< project.name >>}<BLOCK> if project.project_line </BLOCK> \ $|$ \ \textit{\small << project.project_line >>}<BLOCK> endif </BLOCK> \hfill <BLOCK> if project.href </BLOCK>\href{<< project.href >>}{\small\color{mainred}\underline{<< project.href | clean_domain(project.href_name if project.href_name else 'Link') >>}}\color{black}<BLOCK> endif </BLOCK>
+    \begin{itemize}[leftmargin=*, label=\small\textbullet, nosep, topsep=1.5pt, itemsep=2pt] \small
         <BLOCK> for point in project.points </BLOCK>
         \item << point >>
         <BLOCK> endfor </BLOCK>
     \end{itemize}
-    \vspace{6pt}
+    \vspace{8pt}
     <BLOCK> endfor </BLOCK>
     <BLOCK> endif </BLOCK>
-
-    % --- EDUCATION ---
-    \resumesection{EDUCATION}
-    
-    <BLOCK> for edu in static_profile.education </BLOCK>
-    \jobheader{<< edu.degree >>}{<< edu.institution >>}{<< edu.date >>}
-    <BLOCK> if edu.grade </BLOCK>
-    \begin{itemize}[leftmargin=*, nosep] \small
-        \item Grade/GPA: << edu.grade >>
-    \end{itemize}
-    <BLOCK> endif </BLOCK>
-    \vspace{4pt}
-    <BLOCK> endfor </BLOCK>
 
     % --- CERTIFICATIONS ---
+    <BLOCK> if static_profile.certifications </BLOCK>
     \resumesection{CERTIFICATIONS}
-    \begin{itemize}[leftmargin=*, nosep, topsep=1pt] \small
+    \begin{itemize}[leftmargin=*, label=\small\textbullet, nosep, topsep=1.5pt, itemsep=1.5pt] \small
         <BLOCK> for cert in static_profile.certifications </BLOCK>
-        \item << cert.name >> <BLOCK> if cert.link </BLOCK> \href{<< cert.link >>}{[Link]} <BLOCK> endif </BLOCK>
+        \item \textbf{<< cert.name >>}<BLOCK> if cert.link </BLOCK> \hfill \href{<< cert.link >>}{\small\color{mainred}\underline{[Verify Badge]}}\color{black}<BLOCK> endif </BLOCK>
         <BLOCK> endfor </BLOCK>
     \end{itemize}
+    \vspace{6pt}
+    <BLOCK> endif </BLOCK>
 
     % --- ACHIEVEMENTS ---
     <BLOCK> if job.achievements </BLOCK>
     \resumesection{ACHIEVEMENTS}
-    \begin{itemize}[leftmargin=*, nosep, topsep=1pt] \small
+    \begin{itemize}[leftmargin=*, label=\small\textbullet, nosep, topsep=1.5pt, itemsep=1.5pt] \small
         <BLOCK> for ach in job.achievements </BLOCK>
         \item \textbf{<<ach.name>>}: <<ach.description>>
         <BLOCK> endfor </BLOCK>
