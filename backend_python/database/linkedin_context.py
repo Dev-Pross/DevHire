@@ -4,13 +4,19 @@ from datetime import datetime
 def save_linkedin_context(user_id: str, context_data: dict):
     """Save LinkedIn context to database"""
     try:
-        response = supabase.table("User").update({
+        payload = {
             "linkedin_context": context_data,
-            "context_updated_at": datetime.utcnow().isoformat()
-        }).eq("email", user_id).execute()
+            "context_updated_at": datetime.utcnow().isoformat(),
+            "isConnected": True
+        }
+        query = supabase.table("User").update(payload)
+        if "@" in str(user_id):
+            response = query.eq("email", str(user_id)).execute()
+        else:
+            response = query.eq("id", str(user_id)).execute()
         
         if not response.data:
-            print(f"⚠️ No user found with email '{user_id}' - context NOT saved!")
+            print(f"⚠️ No user found with identifier '{user_id}' - context NOT saved!")
             return False
             
         print(f"✅ LinkedIn context saved for user {user_id}")
@@ -22,13 +28,17 @@ def save_linkedin_context(user_id: str, context_data: dict):
 def get_linkedin_context(user_id: str):
     """Retrieve LinkedIn context from database"""
     try:
-        response = supabase.table("User").select("linkedin_context").eq("email", user_id).execute()
+        query = supabase.table("User").select("linkedin_context")
+        if "@" in str(user_id):
+            response = query.eq("email", str(user_id)).execute()
+        else:
+            response = query.eq("id", str(user_id)).execute()
         
         if response.data and len(response.data) > 0:
             print(f"✅ Retrieved LinkedIn context for user {user_id}")
             return response.data[0].get("linkedin_context")
         
-        print(f"⚠️ No user found with email: '{user_id}'")
+        print(f"⚠️ No user found with identifier: '{user_id}'")
         return None
     except Exception as e:
         print(f"❌ Error retrieving context: {e}")
@@ -37,10 +47,16 @@ def get_linkedin_context(user_id: str):
 def clear_linkedin_context(user_id: str):
     """Clear LinkedIn context from database"""
     try:
-        supabase.table("User").update({
+        payload = {
             "linkedin_context": None,
-            "context_updated_at": None
-        }).eq("email", user_id).execute()
+            "context_updated_at": None,
+            "isConnected": False
+        }
+        query = supabase.table("User").update(payload)
+        if "@" in str(user_id):
+            response = query.eq("email", str(user_id)).execute()
+        else:
+            response = query.eq("id", str(user_id)).execute()
         
         print(f"🧹 LinkedIn context cleared for user {user_id}")
         return True

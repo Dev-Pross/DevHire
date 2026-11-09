@@ -341,7 +341,7 @@ export async function handleBrowser(ws: WebSocket, authUser: string, width: numb
                 try {
                     const sessionState = await context.storageState()
 
-                    await db.query(`UPDATE "User" SET linkedin_context = $1, context_updated_at = NOW() WHERE id = $2`, [sessionState, authUser])
+                    await db.query(`UPDATE "User" SET linkedin_context = $1, context_updated_at = NOW(), "isConnected" = true WHERE id = $2`, [sessionState, authUser])
 
                     console.log(`Session securely saved to PostgreSQL for ${authUser}.`);
                     if (session.ws && session.ws.readyState === session.ws.OPEN) {
