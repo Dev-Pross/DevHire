@@ -212,7 +212,7 @@ def _resolve_user(user_id: str) -> Optional[Dict[str, Any]]:
     if not supabase:
         return None
     try:
-        user_res = supabase.table("User").select("id, tier, \"isConnected\"").eq("email", user_id).execute()
+        user_res = supabase.table("User").select("id, tier, \"isConnected\", user_data").eq("email", user_id).execute()
         if user_res.data:
             return user_res.data[0]
     except Exception:
@@ -220,7 +220,7 @@ def _resolve_user(user_id: str) -> Optional[Dict[str, Any]]:
 
     try:
         uuid.UUID(str(user_id))
-        user_res = supabase.table("User").select("id, tier, \"isConnected\"").eq("id", user_id).execute()
+        user_res = supabase.table("User").select("id, tier, \"isConnected\", user_data").eq("id", user_id).execute()
         if user_res.data:
             return user_res.data[0]
     except (ValueError, TypeError, Exception):
@@ -286,6 +286,20 @@ async def start_job(req: JobStartRequest, background_tasks: BackgroundTasks):
     user_row = _resolve_user(req.user_id)
     if not user_row:
         raise HTTPException(status_code=404, detail=f"User {req.user_id} not found in DB")
+    
+    if req.workflow_type == 'apply_jobs':
+        raw_user_data = user_row.get("user_data") or {}
+        if isinstance(raw_user_data, str):
+            try:
+                raw_user_data = json.loads(raw_user_data)
+            except Exception:
+                raw_user_data = {}
+        prefs = raw_user_data.get("application_preferences", {})
+        if not prefs or not prefs.get("is_complete"):
+            raise HTTPException(
+                status_code=400,
+                detail="Please complete your Application Preferences in your Profile before applying to jobs."
+            )
     
     internal_user_id = str(user_row["id"])
     tier = str(user_row.get("tier", "FREE"))

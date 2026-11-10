@@ -1,6 +1,24 @@
 import prisma from "@/app/utiles/database";
 import { Prisma } from "@prisma/client";
 
+function isPlainObject(item: any): boolean {
+  return item !== null && typeof item === "object" && !Array.isArray(item);
+}
+
+function deepMerge(target: any, source: any): any {
+  if (!isPlainObject(target) || !isPlainObject(source)) {
+    return source !== undefined ? source : target;
+  }
+  const output = { ...target };
+  for (const key of Object.keys(source)) {
+    if (isPlainObject(source[key]) && isPlainObject(target[key])) {
+      output[key] = deepMerge(target[key], source[key]);
+    } else {
+      output[key] = source[key];
+    }
+  }
+  return output;
+}
 
 async function insert_user(data: any) {
   return prisma.user.create({ data })
@@ -104,6 +122,42 @@ export async function POST(request: Request) {
         return new Response(JSON.stringify({ success: true, message: "row updated" }), {
           status: 200
         })
+
+      case "patch_preferences": {
+        const { id: patchUserId, preferences, titles } = body;
+        if (!patchUserId) throw new Error("id not provided");
+        if (!preferences || typeof preferences !== "object") throw new Error("preferences object not provided");
+
+        const existingUser = await prisma.user.findUnique({
+          where: { id: patchUserId },
+          select: { user_data: true }
+        });
+
+        if (!existingUser) throw new Error("User not found");
+
+        const currentUserData = (existingUser.user_data as Record<string, any>) || {};
+        const mergedUserData = deepMerge(currentUserData, { application_preferences: preferences });
+
+        // Synchronize top-level user_data.titles (capped at 5)
+        const incomingTitles = Array.isArray(titles) && titles.length > 0
+          ? titles
+          : (preferences.target_domain?.target_roles || currentUserData.titles || []);
+        if (Array.isArray(incomingTitles)) {
+          mergedUserData.titles = incomingTitles.filter((t: any) => typeof t === "string" && t.trim().length > 0).slice(0, 5);
+        }
+
+        const updatedUser = await prisma.user.update({
+          where: { id: patchUserId },
+          data: {
+            user_data: mergedUserData
+          }
+        });
+
+        return new Response(JSON.stringify({ success: true, user_data: updatedUser.user_data }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
 
       case "resume_uploaded": {
         // Atomically replace the resume URL and wipe the stale parsed profile

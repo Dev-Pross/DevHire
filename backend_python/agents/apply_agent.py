@@ -52,6 +52,8 @@ SHORT_TO = 8_000
 MY_GENERAL_EXPERIENCE = "1"
 MY_KNOWN_TECH_EXPERIENCE = "0.6"
 MY_UNKNOWN_TECH_EXPERIENCE = "0"
+MY_EMPLOYMENT_EXPERIENCE = "0"
+MY_HANDS_ON_EXPERIENCE = "1"
 MY_CURRENT_CTC = "0"
 MY_EXPECTED_CTC = "600000"  # 6 LPA for better opportunities
 MY_NOTICE_PERIOD = "0"
@@ -70,26 +72,9 @@ MY_GITHUB_URL = ""
 MY_PORTFOLIO_URL = ""
 MY_EDUCATION = []
 
-# Known technologies database
-KNOWN_TECHNOLOGIES = [
-    # Programming Languages
-    "java", "python", "javascript", "js", "typescript",
-    # Web Technologies (MERN Stack)
-    "mongodb", "mongo", "express", "expressjs", "react", "reactjs",
-    "node", "nodejs", "html", "css", "bootstrap", "json", "xml", "next.js", "next",
-    # Frameworks & Libraries
-    "spring", "spring boot", "ajax",
-    "rest", "restful", "api",
-    # Databases
-    "mysql", "sql", "postgresql", "nosql", "database",
-    # Tools & Platforms
-    "git", "github", "postman", "vscode", "eclipse", "intellij",
-    "maven", "gradle", "npm",
-    # Basic DevOps (if you've used)
-    "linux", "ubuntu",
-    # Add more technologies you know
-    "json", "xml", "http", "https", "tcp", "ip"
-]
+# Candidate technologies database (dynamic, populated exclusively per user profile)
+DEFAULT_KNOWN_TECHNOLOGIES: list[str] = []
+KNOWN_TECHNOLOGIES: list[str] = []
 
 MAX_DAILY_APPLICATIONS = 40  # Soft throttle safety cap
 DAILY_LIMIT_REACHED = "EASY_APPLY_DAILY_LIMIT_REACHED"
@@ -107,6 +92,8 @@ class EasyApplyAgent:
         self.page = page
         self.user_id = user_id
         self.user_profile = user_profile or {}
+        self.app_prefs = self.user_profile.get("application_preferences", {})
+        self.current_job = {}
         self.collected_questions: list[dict] = []
         self._resume_uploaded = False
         self._country_not_in_list = False
@@ -118,6 +105,7 @@ class EasyApplyAgent:
         self.active_modal_sel = ".artdeco-modal"
         self._current_resume_payload = None
         self._education_has_unmatched_field = False
+        self.candidate_skills = self._extract_candidate_skills()
         self.page.on("filechooser", self._handle_file_chooser)
 
     async def _handle_file_chooser(self, file_chooser):
@@ -650,21 +638,516 @@ class EasyApplyAgent:
         log.debug("No resume upload found this step - will try next step")
 
     # ───────────────────────────────────────────────────────
-    def _get_tech_experience(self, question_text: str) -> str:
-        """Check if question contains known technologies"""
+    def _extract_candidate_skills(self) -> list[str]:
+        """Dynamically build candidate skills database from candidate profile (zero hardcoding)"""
+        profile = getattr(self, "user_profile", {}) or {}
+        raw_skills = []
+        for key in ["tech_stacks", "tools", "sure_skills", "additional_skills", "keywords"]:
+            val = profile.get(key)
+            if isinstance(val, list):
+                raw_skills.extend(val)
+            elif isinstance(val, str) and val.strip():
+                raw_skills.extend([s.strip() for s in val.split(",") if s.strip()])
+
+        # Also pull from global KNOWN_TECHNOLOGIES if populated
+        raw_skills.extend(KNOWN_TECHNOLOGIES)
+
+        skills = set()
+        for s in raw_skills:
+            clean = str(s).lower().strip()
+            if not clean or len(clean) < 2:
+                continue
+            skills.add(clean)
+
+            # Safe alias expansion ONLY for skills candidate actually possesses
+            if clean in ("react", "reactjs", "react.js"):
+                skills.update(["react", "reactjs", "react.js"])
+            elif clean in ("node", "nodejs", "node.js"):
+                skills.update(["node", "nodejs", "node.js"])
+            elif clean in ("next", "nextjs", "next.js"):
+                skills.update(["next", "nextjs", "next.js"])
+            elif clean in ("vue", "vuejs", "vue.js"):
+                skills.update(["vue", "vuejs", "vue.js"])
+            elif clean in ("express", "expressjs", "express.js"):
+                skills.update(["express", "expressjs", "express.js"])
+            elif clean in ("postgres", "postgresql"):
+                skills.update(["postgres", "postgresql", "sql"])
+            elif clean in ("mongo", "mongodb"):
+                skills.update(["mongo", "mongodb"])
+            elif clean in ("k8s", "kubernetes"):
+                skills.update(["k8s", "kubernetes"])
+            elif clean in ("golang", "go"):
+                skills.update(["golang", "go"])
+            elif clean in ("aws", "amazon web services"):
+                skills.update(["aws", "amazon web services"])
+            elif clean in ("gcp", "google cloud", "google cloud platform"):
+                skills.update(["gcp", "google cloud", "google cloud platform"])
+            elif clean in ("tailwind", "tailwindcss"):
+                skills.update(["tailwind", "tailwindcss"])
+            elif clean in ("ts", "typescript"):
+                skills.update(["typescript"])
+            elif clean in ("js", "javascript"):
+                skills.update(["javascript"])
+            elif clean in ("rest", "restful", "rest api", "rest apis", "api", "apis"):
+                skills.update(["rest", "restful", "rest api", "rest apis", "api", "apis"])
+
+        return list(skills)
+
+    def _get_tech_experience(self, question_text: str) -> str | None:
+        """Check if question contains known technologies or specific skill queries from candidate's profile"""
         q = question_text.lower()
         import math
 
-        for tech in KNOWN_TECHNOLOGIES:
-            if tech in q:
-                log.info(f"🔧 Found known technology '{tech}' in question")
+        exp_prefs = self.app_prefs.get("experience", {})
+        # Hands-on experience applies to all specific technologies and skills
+        hands_on = str(exp_prefs.get("hands_on_years") or MY_HANDS_ON_EXPERIENCE or MY_KNOWN_TECH_EXPERIENCE or "1")
+
+        candidate_techs = getattr(self, "candidate_skills", None)
+        if not candidate_techs:
+            candidate_techs = self._extract_candidate_skills()
+            self.candidate_skills = candidate_techs
+
+        for tech in candidate_techs:
+            pattern = r'(?:\b|_)' + re.escape(tech) + r'(?:\b|_)'
+            if re.search(pattern, q):
+                log.info(f"🔧 Found candidate skill '{tech}' in question: applying hands-on experience '{hands_on}'")
                 try:
-                    val = float(MY_KNOWN_TECH_EXPERIENCE)
+                    val = float(hands_on)
                     return "0" if val < 1 else str(int(math.floor(val)))
                 except Exception:
-                    return str(MY_KNOWN_TECH_EXPERIENCE)
+                    return str(hands_on)
 
-        log.info("❌ Unknown technology in question")
+        return None
+
+    def _get_experience_answer(self, question_text: str, field_type: str = "text") -> str | None:
+        """2-Way Experience Classifier: Distinguish formal corporate tenure from practical hands-on experience, and specific tech from general experience"""
+        q = question_text.lower()
+        import math
+
+        # Fresher & Early-Career Questions
+        if any(word in q for word in ["are you a fresher", "fresher", "recent graduate", "is this your first job", "entry level candidate"]):
+            exp_prefs = self.app_prefs.get("experience", {})
+            emp_yrs = float(exp_prefs.get("employment_years") or MY_EMPLOYMENT_EXPERIENCE or 0.0)
+            if emp_yrs <= 1.0:
+                return "Yes"
+            else:
+                return "No"
+
+        # Check if question relates to experience
+        if not any(word in q for word in [
+            "experience", "years", "work experience", "total experience",
+            "years of experience", "how many years", "experience do you have",
+            "years have you worked", "years working", "programming experience",
+            "development experience", "software experience", "coding experience"
+        ]):
+            return None
+
+        # 1. First, check if question specifically mentions a candidate skill
+        tech_exp = self._get_tech_experience(question_text)
+        if tech_exp is not None:
+            return tech_exp
+
+        # 2. Check if question specifically asks for corporate/employer/company tenure (strict tenure questions)
+        is_corporate_tenure = any(word in q for word in [
+            "company tenure", "corporate tenure", "employer tenure", "full-time corporate",
+            "corporate experience", "company experience", "payroll", "employed at a company",
+            "years of corporate", "years in a company"
+        ])
+        if is_corporate_tenure:
+            exp_prefs = self.app_prefs.get("experience", {})
+            emp = str(exp_prefs.get("employment_years") or MY_EMPLOYMENT_EXPERIENCE or "0")
+            try:
+                val = float(emp)
+                return "0" if val < 1 else str(int(math.floor(val)))
+            except Exception:
+                return str(emp)
+
+        # 3. Check if question asks for overall / total / general experience
+        is_general_experience = any(phrase in q for phrase in [
+            "total experience", "total years", "overall experience", "cumulative experience",
+            "aggregate experience", "total work experience", "total professional experience",
+            "years in the industry", "years in industry", "overall work", "total software",
+            "software development experience", "software engineering experience", "programming experience",
+            "coding experience", "development experience", "it experience", "professional experience",
+            "how many years of total", "how many total years"
+        ]) or ("total" in q and "experience" in q) or ("overall" in q and "experience" in q)
+
+        if is_general_experience:
+            exp_prefs = self.app_prefs.get("experience", {})
+            hands_on_yrs = str(exp_prefs.get("hands_on_years") or MY_HANDS_ON_EXPERIENCE or MY_KNOWN_TECH_EXPERIENCE or "1")
+            try:
+                val = float(hands_on_yrs)
+                return "0" if val < 1 else str(int(math.floor(val)))
+            except Exception:
+                return str(hands_on_yrs)
+
+        # 4. Check if question is asking for experience with a specific skill/tech that the candidate does NOT possess
+        is_specific_skill_query = any(phrase in q for phrase in [
+            "with ", "in ", "using ", "knowledge of ", "skills in ", "hands-on with", "hands on with"
+        ]) or "/" in q
+
+        if is_specific_skill_query:
+            log.info(f"❓ Specific skill queried but not found in candidate profile: returning '0'")
+            return "0"
+
+        # 5. Default fallback for unclassified general experience questions
+        exp_prefs = self.app_prefs.get("experience", {})
+        hands_on_yrs = str(exp_prefs.get("hands_on_years") or MY_HANDS_ON_EXPERIENCE or MY_KNOWN_TECH_EXPERIENCE or "1")
+        try:
+            val = float(hands_on_yrs)
+            return "0" if val < 1 else str(int(math.floor(val)))
+        except Exception:
+            return str(hands_on_yrs)
+
+    def _get_work_auth_answer(self, question_text: str, field_type: str = "text") -> str | None:
+        """Work authorization & Visa Sponsorship evaluation matching target_countries preferences"""
+        q = question_text.lower()
+        
+        is_auth_q = any(w in q for w in [
+            "authorized", "authorised", "authorization", "authorisation",
+            "right to work", "work permit", "eligible to work", "legally eligible",
+            "legal right", "legally authorized", "permit to work"
+        ])
+        is_sponsor_q = any(w in q for w in [
+            "sponsor", "sponsorship", "require sponsorship", "need sponsorship",
+            "visa sponsorship", "future sponsorship", "require a visa"
+        ])
+        is_citizen_q = any(w in q for w in [
+            "citizenship", "citizen of", "nationality", "passport"
+        ])
+        
+        if not (is_auth_q or is_sponsor_q or is_citizen_q):
+            return None
+
+        auth_prefs = self.app_prefs.get("work_authorization", {})
+        citizenship = auth_prefs.get("citizenship") or MY_CURRENT_COUNTRY or "India"
+        target_countries = auth_prefs.get("target_countries", [])
+        
+        if is_citizen_q:
+            if field_type in ["radio", "select"]:
+                for c_entry in target_countries:
+                    c_name = c_entry.get("country", "").lower()
+                    if c_name and c_name in q:
+                        return "Yes" if c_name == citizenship.lower() else "No"
+            return citizenship
+
+        matched_country_entry = None
+        
+        # 1. Match country directly from question text
+        for c_entry in target_countries:
+            c_name = c_entry.get("country", "").lower()
+            if c_name and c_name in q:
+                matched_country_entry = c_entry
+                break
+            if c_name in ["united states", "usa", "us"] and any(x in q.split() for x in ["us", "usa", "u.s.", "u.s.a."]):
+                matched_country_entry = c_entry
+                break
+            if c_name in ["united kingdom", "uk"] and any(x in q.split() for x in ["uk", "u.k."]):
+                matched_country_entry = c_entry
+                break
+
+        # 2. Match from current job location/country
+        if not matched_country_entry and self.current_job:
+            job_loc = str(self.current_job.get("location", "")).lower()
+            job_country = str(self.current_job.get("country", "")).lower()
+            for c_entry in target_countries:
+                c_name = c_entry.get("country", "").lower()
+                if c_name and (c_name in job_loc or c_name in job_country):
+                    matched_country_entry = c_entry
+                    break
+
+        # 3. Match from citizenship country
+        if not matched_country_entry:
+            for c_entry in target_countries:
+                if c_entry.get("country", "").lower() == citizenship.lower():
+                    matched_country_entry = c_entry
+                    break
+
+        if matched_country_entry:
+            can_work = matched_country_entry.get("can_work_without_sponsorship", True)
+            needs_sponsor = matched_country_entry.get("needs_sponsorship_now_or_future", False)
+            
+            if is_sponsor_q:
+                return "Yes" if needs_sponsor else "No"
+            if is_auth_q:
+                return "Yes" if can_work else "No"
+
+        # Fallback comparison against citizenship
+        if citizenship.lower() in q:
+            if is_sponsor_q:
+                return "No"
+            if is_auth_q:
+                return "Yes"
+
+        if is_sponsor_q:
+            return "No"
+        if is_auth_q:
+            return "Yes"
+            
+        return None
+
+    def _get_compensation_answer(self, question_text: str, field_type: str = "text") -> str | None:
+        """Compensation answering from user application preferences"""
+        q = question_text.lower()
+        comp = self.app_prefs.get("compensation", {})
+        
+        is_salary_q = any(w in q for w in [
+            "salary", "ctc", "compensation", "package", "pay", "wage",
+            "remuneration", "fixed component", "annual base", "ectc"
+        ])
+        
+        if not is_salary_q:
+            return None
+
+        is_current = any(w in q for w in ["current", "present", "existing", "currently drawing"])
+        is_expected = any(w in q for w in ["expected", "expect", "desired", "target", "ectc", "expectation", "aspiring"])
+        is_min = any(w in q for w in ["minimum", "min", "lowest", "bottom"])
+        is_max = any(w in q for w in ["maximum", "max", "highest", "upper"])
+
+        exp_amount = str(
+            comp.get("expected_salary") or 
+            comp.get("expected_amount") or 
+            MY_EXPECTED_CTC
+        )
+        period = comp.get("period", "yearly")
+        is_prefer_not_to_say = (
+            comp.get("prefer_not_to_say_current") is True or 
+            comp.get("current_salary_mode") == "prefer_not_to_say"
+        )
+        curr_amount = str(comp.get("current_salary") or comp.get("current_amount") or MY_CURRENT_CTC or "0")
+        min_amount = str(comp.get("salary_range_min") or comp.get("min_amount") or "")
+        max_amount = str(comp.get("salary_range_max") or comp.get("max_amount") or "")
+
+        asks_monthly = any(w in q for w in ["per month", "monthly", "month", "/month", "/mo", "/m"])
+        asks_annual = any(w in q for w in ["per annum", "per year", "annual", "annually", "/year", "/yr", "lpa", "ctc", "/y"])
+        asks_lpa = any(w in q for w in ["in lpa", "in lakh", "lpa", "in lakhs"])
+
+        def adjust_for_period(amt_str: str) -> str:
+            try:
+                val = float(amt_str)
+                if asks_monthly and period in ["yearly", "per_year"]:
+                    val = val / 12.0
+                elif asks_annual and period in ["monthly", "per_month"]:
+                    val = val * 12.0
+                if asks_lpa and val >= 100000:
+                    val = val / 100000.0
+                    return f"{val:.1f}".rstrip("0").rstrip(".")
+                return str(int(round(val)))
+            except Exception:
+                return amt_str
+
+        if is_current:
+            if is_prefer_not_to_say:
+                if field_type == "number":
+                    return "0"
+                return "Prefer not to say"
+            return adjust_for_period(curr_amount)
+
+        if is_expected:
+            if is_min and min_amount:
+                return adjust_for_period(min_amount)
+            if is_max and max_amount:
+                return adjust_for_period(max_amount)
+            if exp_amount and exp_amount != "0":
+                return adjust_for_period(exp_amount)
+            return "Negotiable" if field_type != "number" else "0"
+
+        # Default salary
+        if exp_amount and exp_amount != "0":
+            return adjust_for_period(exp_amount)
+        return "Negotiable" if field_type != "number" else "0"
+
+    def _get_availability_answer(self, question_text: str, field_type: str = "text") -> str | None:
+        """Notice period and availability from application preferences"""
+        q = question_text.lower()
+        is_avail_q = any(w in q for w in [
+            "notice", "notice period", "joining", "join", "joiner", "immediate",
+            "available", "availability",
+            "when can you join", "start date", "how soon", "takes to join",
+            "take you to join", "how long", "joining timeline", "earliest start",
+            "time to join", "earliest join", "days to start", "days notice",
+            "weeks notice", "months notice"
+        ])
+        if not is_avail_q:
+            return None
+
+        avail = self.app_prefs.get("availability", {})
+        np_val = avail.get("notice_period", "immediate")
+        np_days_map = {
+            "immediate": 0,
+            "15_days": 15,
+            "30_days": 30,
+            "60_days": 60,
+            "90_days": 90
+        }
+        try:
+            days = np_days_map.get(np_val, int(float(MY_NOTICE_PERIOD or 0)))
+        except Exception:
+            days = 0
+
+        earliest_date = avail.get("earliest_start_date")
+
+        # Serving notice period question (Yes / No)
+        if any(w in q for w in ["serving your notice", "serving notice", "serving a notice", "on notice period", "on notice"]):
+            return "No" if days == 0 else "Yes"
+
+        # Immediate joiner question (Yes / No)
+        if any(w in q for w in ["immediate joiner", "join immediately", "start immediately", "available immediately"]):
+            return "Yes" if days == 0 else "No"
+
+        # Specific date question
+        if any(w in q for w in ["start date", "earliest start date", "date can you start", "date you can start", "which date"]):
+            if earliest_date:
+                return earliest_date
+            from datetime import date, timedelta
+            return (date.today() + timedelta(days=days)).isoformat()
+
+        # Numeric or days/weeks/months question
+        if field_type == "number" or any(x in q for x in ["days", "weeks", "months", "how many", "number"]):
+            if "month" in q:
+                months = round(days / 30)
+                return str(max(1 if days > 0 else 0, months))
+            if "week" in q:
+                weeks = round(days / 7)
+                return str(max(1 if days > 0 else 0, weeks))
+            return str(days)
+
+        # Radio or select dropdown
+        if days == 0:
+            return "Immediate"
+        elif days <= 15:
+            return "15 days"
+        elif days <= 30:
+            return "30 days"
+        elif days <= 60:
+            return "60 days"
+        else:
+            return "90 days"
+
+    def _get_demographics_answer(self, question_text: str, field_type: str = "text") -> str | None:
+        """Demographic questions (Gender, Disability, Veteran) answering"""
+        q = question_text.lower()
+        demo = self.app_prefs.get("demographics", {})
+        
+        # Gender
+        if any(w in q for w in ["gender", "sex", "how do you identify", "pronouns"]):
+            val = demo.get("gender", "prefer_not_to_say")
+            if val == "male":
+                return "Male"
+            elif val == "female":
+                return "Female"
+            elif val == "non_binary":
+                return "Non-Binary"
+            return "Prefer not to say"
+
+        # Disability
+        if any(w in q for w in ["disability", "disabled", "handicap", "physical impairment"]):
+            val = demo.get("disability_status", "prefer_not_to_say")
+            if val == "yes":
+                return "Yes"
+            elif val == "no":
+                return "No"
+            return "Prefer not to say"
+
+        # Veteran
+        if any(w in q for w in ["veteran", "military", "armed forces", "active duty"]):
+            val = demo.get("veteran_status", "prefer_not_to_say")
+            if val == "yes":
+                return "Yes"
+            elif val == "no":
+                return "No"
+            return "Prefer not to say"
+
+        return None
+
+    def _get_work_style_answer(self, question_text: str, field_type: str = "text") -> str | None:
+        """Work style, relocation and work mode preferences"""
+        q = question_text.lower()
+        style = self.app_prefs.get("work_style", {})
+
+        # Relocation
+        if any(w in q for w in ["relocate", "relocation", "willing to relocate", "willing to move", "open to relocation", "comfortable relocating"]):
+            willing = style.get("willing_to_relocate", True)
+            if isinstance(willing, str):
+                return "Yes" if willing.lower() in ["yes", "true"] else "No"
+            return "Yes" if willing else "No"
+
+        # Remote work
+        if any(w in q for w in ["remote", "work from home", "wfh", "telecommute", "virtual"]):
+            modes = style.get("preferred_work_modes", ["remote", "hybrid", "onsite"])
+            return "Yes" if "remote" in modes else "No"
+
+        # Hybrid
+        if "hybrid" in q:
+            modes = style.get("preferred_work_modes", ["remote", "hybrid", "onsite"])
+            return "Yes" if "hybrid" in modes else "No"
+
+        # Onsite / in-office
+        if any(w in q for w in ["onsite", "in-person", "in office", "office location"]):
+            modes = style.get("preferred_work_modes", ["remote", "hybrid", "onsite"])
+            return "Yes" if "onsite" in modes else "No"
+
+        # Preferred locations
+        if any(w in q for w in ["preferred location", "desired location", "preferred cities", "target location"]):
+            pref_loc = style.get("preferred_locations")
+            if pref_loc:
+                return pref_loc
+
+        return None
+
+    def _get_referral_answer(self, question_text: str, field_type: str = "text") -> str | None:
+        """Referral questions: Safeguards against employee referral traps, defaults to LinkedIn source"""
+        q = question_text.lower()
+        if any(word in q for word in [
+            "referred", "referral", "reference", "recommended", "suggest",
+            "how did you hear", "source", "came to know", "where did you hear",
+            "how were you referred"
+        ]):
+            # 1. Critical Safeguard: If asked about employee referral, ALWAYS answer 'No'
+            # Answering 'Yes' triggers blocking required fields (employee ID, corporate email)
+            if any(w in q for w in [
+                "referred by", "employee referral", "internal referral", "know someone",
+                "current employee", "referred by an employee", "referral by"
+            ]):
+                return "No"
+
+            # 2. Source questions: 'LinkedIn' is truthful and expected for LinkedIn Easy Apply
+            return "LinkedIn"
+        return None
+
+    def _get_domain_answer(self, question_text: str, field_type: str = "text") -> str | None:
+        """Target domain, industry and role preferences answering"""
+        q = question_text.lower()
+
+        is_domain_q = any(w in q for w in [
+            "domain", "industry", "sector", "field of interest", "preferred domain",
+            "target domain", "industry experience", "target industry", "specialization"
+        ])
+        is_role_q = any(w in q for w in [
+            "target role", "target position", "functional area", "preferred role",
+            "desired role", "role interested in"
+        ])
+
+        if not (is_domain_q or is_role_q):
+            return None
+
+        td_prefs = self.app_prefs.get("target_domain", {})
+        domains = list(td_prefs.get("domains") or [])
+        custom = td_prefs.get("custom_domains", "")
+        if custom:
+            domains.extend([c.strip() for c in custom.split(",") if c.strip()])
+        target_roles = list(td_prefs.get("target_roles") or [])
+
+        if is_role_q:
+            if target_roles:
+                return ", ".join(target_roles[:2])
+            return "Software Engineer, Full Stack"
+
+        if is_domain_q:
+            if domains:
+                return ", ".join(domains[:2])
+            return "Software / Technology"
+
         return None
 
     # ───────────────────────────────────────────────────────
@@ -672,16 +1155,48 @@ class EasyApplyAgent:
         """Smart answering with technology-specific experience and location handling"""
         q = question_text.lower()
         print(f"Question : '{q}'")
-        
-        # ── Smart Hardcoding (Bypass AI entirely) ──
-        # ECTC / Expected Salary
-        if any(word in q for word in [
-            "ectc", "expected ctc", "expected fixed component", "expected salary",
-            "expectation", "desired salary", "target salary", "compensation expectation"
-        ]):
-            return "Negotiable"
 
-        # Marketing / Policy / Follow Checkboxes
+        # ── 1. Work Authorization & Sponsorship ──
+        auth_ans = self._get_work_auth_answer(question_text, field_type)
+        if auth_ans is not None:
+            return auth_ans
+
+        # ── 2. Compensation & Salary ──
+        comp_ans = self._get_compensation_answer(question_text, field_type)
+        if comp_ans is not None:
+            return comp_ans
+
+        # ── 3. Availability & Notice Period ──
+        avail_ans = self._get_availability_answer(question_text, field_type)
+        if avail_ans is not None:
+            return avail_ans
+
+        # ── 4. Work Style & Relocation ──
+        style_ans = self._get_work_style_answer(question_text, field_type)
+        if style_ans is not None:
+            return style_ans
+
+        # ── 5. Demographics ──
+        demo_ans = self._get_demographics_answer(question_text, field_type)
+        if demo_ans is not None:
+            return demo_ans
+
+        # ── 6. Referral Source ──
+        ref_ans = self._get_referral_answer(question_text, field_type)
+        if ref_ans is not None:
+            return ref_ans
+
+        # ── 7. Target Domain & Roles ──
+        domain_ans = self._get_domain_answer(question_text, field_type)
+        if domain_ans is not None:
+            return domain_ans
+
+        # ── 8. Experience & Technology (2-Way Experience) ──
+        exp_ans = self._get_experience_answer(question_text, field_type)
+        if exp_ans is not None:
+            return exp_ans
+
+        # ── 8. Marketing / Policy / Follow Checkboxes ──
         if any(word in q for word in [
             "follow ", "stay up to date", "newsletter",
             "future opportunities", "similar jobs", "terms of service",
@@ -691,18 +1206,7 @@ class EasyApplyAgent:
         ]):
             return "Yes"
 
-        # Serving/On Notice Period Yes/No
-        if any(word in q for word in ["serving your notice", "serving notice", "serving a notice", "on notice period", "on notice"]):
-            return "No"
-
-        # Notice Period
-        if any(word in q for word in [
-            "notice period", "how soon can you join",
-            "available to join", "join immediately"
-        ]):
-            return "Immediate"
-            
-        # URL / Social Links
+        # ── 9. URL / Social Links ──
         if any(word in q for word in ["github", "git profile", "github url"]):
             return MY_GITHUB_URL or "https://github.com"
         if any(word in q for word in ["portfolio", "personal website", "personal site", "blog", "portfolio url"]):
@@ -712,14 +1216,7 @@ class EasyApplyAgent:
         if any(word in q for word in ["website", "url", "link", "profile link"]):
             return MY_PORTFOLIO_URL or MY_LINKEDIN_URL or "https://www.linkedin.com"
 
-        # Fresher & Early-Career Questions
-        if any(word in q for word in ["are you a fresher", "fresher", "recent graduate", "is this your first job", "entry level candidate"]):
-            if float(MY_GENERAL_EXPERIENCE or 0.0) <= 1.5:
-                return "Yes"
-            else:
-                return "No"
-
-        # Education questions
+        # ── 10. Education Questions ──
         if any(word in q for word in ["school", "university", "college", "institution"]):
             if MY_EDUCATION and isinstance(MY_EDUCATION, list) and len(MY_EDUCATION) > 0:
                 first_edu = MY_EDUCATION[0]
@@ -741,7 +1238,7 @@ class EasyApplyAgent:
                     return first_edu["discipline"]
             return "Computer Science & Engineering"
 
-        # Location/Geography questions
+        # ── 11. Location/Geography Questions ──
         if any(word in q for word in [
             "city", "location", "where do you live", "current location",
             "currently reside", "based in", "located in", "hometown",
@@ -754,11 +1251,11 @@ class EasyApplyAgent:
             else:
                 return MY_FULL_LOCATION or "Hyderabad, Andhra Pradesh"
 
-        # Zip/Postal code questions
+        # ── 12. Zip/Postal Code Questions ──
         if any(word in q for word in ["zip", "postal code", "pincode", "pin code"]):
             return "500001"
 
-        # Country questions
+        # ── 13. Country Questions ──
         if any(word in q for word in [
             "country", "which country", "current country", "nationality",
             "citizen", "citizenship", "passport", "from which country"
@@ -768,99 +1265,7 @@ class EasyApplyAgent:
         if "middle name" in q:
             return ""
 
-        # Referral questions
-        if any(word in q for word in [
-            "referred", "referral", "reference", "recommended", "suggest",
-            "how did you hear", "source", "came to know"
-        ]):
-            return "No" if field_type in ["radio", "select"] else "Online"
-
-        # Experience related questions with technology check
-        if any(word in q for word in [
-            "experience", "years", "work experience", "total experience",
-            "years of experience", "how many years", "experience do you have",
-            "years have you worked", "years working", "programming experience",
-            "development experience", "software experience", "coding experience"
-        ]):
-            tech_experience = self._get_tech_experience(question_text)
-            if tech_experience is not None:
-                return tech_experience
-            elif any(word in q for word in ["total", "overall", "general", "programming", "development", "software"]):
-                try:
-                    import math
-                    val = float(MY_GENERAL_EXPERIENCE)
-                    return "0" if val < 1 else str(int(math.floor(val)))
-                except Exception:
-                    return str(MY_GENERAL_EXPERIENCE)
-            else:
-                return None
-
-        # Salary related questions
-        if any(word in q for word in [
-            "salary", "ctc", "current ctc", "expected ctc", "compensation",
-            "package", "current salary", "expected salary", "pay", "wage",
-            "expectations", "expectation"
-        ]):
-            if field_type == "number":
-                if any(word in q for word in ["current", "present", "existing"]):
-                    return str(int(MY_CURRENT_CTC))
-                elif any(word in q for word in ["expected", "expect", "desired", "target"]):
-                    return str(int(MY_EXPECTED_CTC))
-                return str(int(MY_CURRENT_CTC))
-            else:
-                if any(word in q for word in ["current", "present", "existing"]):
-                    return str(MY_CURRENT_CTC)
-                elif any(word in q for word in ["expected", "expect", "desired", "target"]):
-                    return "Negotiable"
-                return str(MY_CURRENT_CTC)
-
-        # Notice period / availability / joining timeline
-        if any(word in q for word in [
-            "notice", "notice period", "joining", "available", "availability",
-            "when can you join", "start date", "how soon", "takes to join",
-            "take you to join", "how long", "joining timeline", "earliest start",
-            "time to join", "earliest join", "days to start", "days notice",
-            "weeks notice", "months notice"
-        ]):
-            try:
-                days = int(float(MY_NOTICE_PERIOD))
-            except:
-                days = 0
-
-            # If it's a number field or specifically asks for number of days/weeks/months
-            if field_type == "number" or any(x in q for x in ["days", "weeks", "months", "how many", "number"]):
-                if "month" in q:
-                    months = round(days / 30)
-                    return str(max(1 if days > 0 else 0, months))
-                if "week" in q:
-                    weeks = round(days / 7)
-                    return str(max(1 if days > 0 else 0, weeks))
-                return str(days)
-            # If it's a Yes/No question about serving notice period
-            if "serving" in q or "are you on notice" in q:
-                if days == 0:
-                    return "No"
-                else:
-                    return "Yes"
-            
-            # Text or dropdown
-            if days == 0:
-                if field_type in ["radio", "select"]:
-                    return "Immediate"
-                return "Immediate"
-            else:
-                return f"{days} days"
-
-        # Authorization, Visa, and Background questions:
-        # Deliberately return None so Groq semantically evaluates candidate profile, location, and polarity
-        if any(word in q for word in [
-            "authorized", "authorised", "visa", "permit", "eligibility", "eligible",
-            "legal", "legally", "work authorization", "work permit", "right to work",
-            "sponsor", "sponsorship", "convict", "felon", "criminal", "background check"
-        ]):
-            return None
-
-        # Default answers - return None for unknown so Groq is triggered
+        # Default answers - return None so Groq AI evaluates unknown questions
         if field_type == "text":
             if any(word in q for word in ["how many", "number", "count"]):
                 tech_exp = self._get_tech_experience(question_text)
@@ -877,7 +1282,8 @@ class EasyApplyAgent:
             "relocate", "relocation", "willing to relocate", "move", "willing to move",
             "open to relocation", "comfortable relocating"
         ]):
-            return "Yes"
+            willing = self.app_prefs.get("work_style", {}).get("willing_to_relocate", "yes")
+            return "Yes" if str(willing).lower() == "yes" else "No"
 
         # Education questions
         if any(word in q for word in [
@@ -913,19 +1319,22 @@ class EasyApplyAgent:
         if any(word in q for word in [
             "remote", "work from home", "wfh", "telecommute", "virtual"
         ]):
-            return "Yes"
+            modes = self.app_prefs.get("work_style", {}).get("preferred_work_modes", ["remote", "hybrid", "onsite"])
+            return "Yes" if "remote" in modes else "No"
 
         # Cover letter or additional info
         if any(word in q for word in [
             "cover letter", "additional", "why", "motivation", "tell us",
             "describe", "explain", "reason", "additional information"
         ]):
-            return "I am a recent Computer Science graduate with 1 year of hands-on project experience, eager to contribute to your team and grow my career."
+            hands_on = self.app_prefs.get("experience", {}).get("hands_on_years", "1")
+            return f"I am a passionate software engineer with {hands_on} years of hands-on project and engineering experience, eager to contribute to your team and drive impact."
 
         # Default fallback answers
         if field_type == "text":
             if any(word in q for word in ["how many", "number", "count", "years", "experience"]):
-                return "0"
+                hands_on = self.app_prefs.get("experience", {}).get("hands_on_years", "0")
+                return str(hands_on)
             return "Yes"
         return "Yes"
 
@@ -1190,30 +1599,45 @@ ANSWERING GUIDELINES:
 1. For numeric questions (years of experience, notice period), return a single number string (e.g. "2" not "2 years").
 2. For Yes/No or binary choice questions, return strictly "Yes" or "No".
 3. Work Authorization & Visa Sponsorship:
-   - Use the candidate's location and citizenship from the profile.
-   - For domestic authorization in candidate's home country/region: Answer "Yes" (Authorized) and "No" (Do not require sponsorship).
-   - If the question asks if the candidate requires visa sponsorship for an international role in a foreign country (e.g. US, UK, EU): Answer "Yes" (Requires sponsorship).
-4. Criminal Background & Disciplinary History:
+   - Check candidate's application_preferences.work_authorization (citizenship and target_countries).
+   - Match the country the job or question refers to against target_countries.
+   - If candidate specified can_work_without_sponsorship: true for that country, answer "Yes" to authorization and "No" to requiring sponsorship.
+   - If candidate specified can_work_without_sponsorship: false, answer "No" to authorization and "Yes" to requiring sponsorship.
+4. Experience (2-Way Experience Policy):
+   - Check candidate's application_preferences.experience.
+   - If question asks about corporate/organization/company/employer tenure, use employment_years (e.g. "0" for freshers).
+   - If question asks about hands-on coding, projects, or specific technologies (Python, React, AWS, etc.), use hands_on_years.
+   - For fresher/recent graduate questions: if employment_years is "0" or <= 1, answer "Yes".
+5. Compensation:
+   - Check candidate's application_preferences.compensation.
+   - If current salary mode is prefer_not_to_say, return "Negotiable" (or "0" if numeric field).
+   - For expected salary, use expected_amount (or range min_amount / max_amount if a range is requested).
+6. Availability & Notice Period:
+   - Check candidate's application_preferences.availability.
+   - Notice period map: immediate = 0 days, 15_days = 15, 30_days = 30, 60_days = 60, 90_days = 90.
+7. Work Style & Relocation:
+   - Check candidate's application_preferences.work_style.
+   - willing_to_relocate: "yes" -> "Yes", "no" -> "No".
+   - preferred_work_modes: remote, hybrid, onsite.
+8. Demographics (Gender, Disability, Veteran Status):
+   - Check candidate's application_preferences.demographics.
+   - If "prefer_not_to_say", answer "Prefer not to say" or "I do not wish to answer".
+9. Criminal Background & Disciplinary History:
    - The candidate has a completely clean background with no criminal history, no felony or misdemeanor convictions, and no disciplinary actions.
    - Pay critical attention to linguistic polarity and double negatives:
      * "Have you been convicted of a crime / felony?": "No"
      * "Do you certify that you have NO criminal record / are free of convictions?": "Yes"
      * "Are you willing to undergo background checks and drug screenings?": "Yes"
      * "Are you subject to any non-compete agreements?": "No"
-5. Skills & Experience:
-   - Explicitly extract matching keywords and technologies from the profile.
-   - If the profile doesn't have the info, make a reasonable, professional, advantageous guess.
-6. Fresher & Early Career Status:
-   - If candidate's general_experience_years <= 1.5, questions like "Are you a fresher?", "Are you a recent graduate?", or "Is this your first full-time role?" MUST strictly be answered "Yes".
-7. Social Profiles & Links:
-   - For GitHub, return the candidate's GitHub URL from profile.links or "https://github.com".
-   - For Portfolio/Website, return the candidate's portfolio URL from profile.links.
-   - For LinkedIn, return the candidate's LinkedIn URL from profile.links.
-8. Education & Degrees:
-   - For School/College: return candidate's education[0].school if available, else standard university name.
-   - For Degree: return candidate's education[0].degree (or "Bachelor's Degree").
-   - For Discipline/Major: return candidate's education[0].discipline (or "Computer Science").
-9. Do NOT ask to confirm user details or output conversational text. Output ONLY valid JSON.
+10. Social Profiles & Links:
+    - For GitHub, return the candidate's GitHub URL from profile.links or "https://github.com".
+    - For Portfolio/Website, return the candidate's portfolio URL from profile.links.
+    - For LinkedIn, return the candidate's LinkedIn URL from profile.links.
+11. Education & Degrees:
+    - For School/College: return candidate's education[0].school if available, else standard university name.
+    - For Degree: return candidate's education[0].degree (or "Bachelor's Degree").
+    - For Discipline/Major: return candidate's education[0].discipline (or "Computer Science").
+12. Do NOT ask to confirm user details or output conversational text. Output ONLY valid JSON.
 
 User Profile:
 {json.dumps(clean_profile, indent=2)}
@@ -1309,7 +1733,8 @@ Questions:
         # 3. Last resort fallback
         if field_type == "text":
             if any(word in question.lower() for word in ["how many", "number", "count", "years", "experience"]):
-                return "0"
+                hands_on = self.app_prefs.get("experience", {}).get("hands_on_years") or MY_HANDS_ON_EXPERIENCE or "1"
+                return str(hands_on)
             return "Yes"
         return "Yes"
 
@@ -1897,7 +2322,8 @@ Questions:
                                     ans_lower = original_answer.lower()
                                     if ans_lower in ["negotiable", "immediate"]:
                                         if any(x in question.lower() for x in ["expected ctc", "expected salary", "expected fixed", "desired salary", "ectc"]):
-                                            val = MY_EXPECTED_CTC
+                                            comp_ans = self._get_compensation_answer(question, "number")
+                                            val = comp_ans if comp_ans is not None else str(MY_EXPECTED_CTC or "0")
                                         else:
                                             val = "0"
                                     else:
@@ -2457,7 +2883,7 @@ async def main(
 
 
 
-    global RESUME_FILENAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, MY_GENERAL_EXPERIENCE, MY_KNOWN_TECH_EXPERIENCE, MY_UNKNOWN_TECH_EXPERIENCE, MY_CURRENT_CTC, MY_EXPECTED_CTC, MY_NOTICE_PERIOD, MY_CURRENT_CITY, MY_CURRENT_STATE, MY_CURRENT_COUNTRY, MY_FULL_LOCATION, KNOWN_TECHNOLOGIES, MY_LINKEDIN_URL, MY_GITHUB_URL, MY_PORTFOLIO_URL, MY_EDUCATION
+    global RESUME_FILENAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, MY_GENERAL_EXPERIENCE, MY_KNOWN_TECH_EXPERIENCE, MY_UNKNOWN_TECH_EXPERIENCE, MY_EMPLOYMENT_EXPERIENCE, MY_HANDS_ON_EXPERIENCE, MY_CURRENT_CTC, MY_EXPECTED_CTC, MY_NOTICE_PERIOD, MY_CURRENT_CITY, MY_CURRENT_STATE, MY_CURRENT_COUNTRY, MY_FULL_LOCATION, KNOWN_TECHNOLOGIES, MY_LINKEDIN_URL, MY_GITHUB_URL, MY_PORTFOLIO_URL, MY_EDUCATION
     
     try:    
 
@@ -2518,13 +2944,49 @@ async def main(
         if parsed.get("notice_period") is not None:
             MY_NOTICE_PERIOD = float(parsed["notice_period"])
 
-        if parsed.get("tech_stacks") or parsed.get("tools") or parsed.get("sure_skills") or parsed.get("additional_skills"):
-            KNOWN_TECHNOLOGIES = (
-                parsed.get("tech_stacks", []) + 
-                parsed.get("tools", []) + 
-                parsed.get("sure_skills", []) + 
-                parsed.get("additional_skills", [])
-            )
+        # Override/Hydrate from structured application_preferences if present
+        app_prefs = parsed.get("application_preferences") or {}
+        if app_prefs:
+            # 1. Experience: 2-way classification (Employment vs Hands-on)
+            exp_prefs = app_prefs.get("experience") or {}
+            if exp_prefs.get("hands_on_years") is not None:
+                MY_HANDS_ON_EXPERIENCE = str(exp_prefs.get("hands_on_years"))
+                MY_KNOWN_TECH_EXPERIENCE = str(exp_prefs.get("hands_on_years"))
+                MY_GENERAL_EXPERIENCE = str(exp_prefs.get("hands_on_years"))
+            if exp_prefs.get("employment_years") is not None:
+                MY_EMPLOYMENT_EXPERIENCE = str(exp_prefs.get("employment_years"))
+
+            # 2. Compensation
+            comp_prefs = app_prefs.get("compensation") or {}
+            expected_val = comp_prefs.get("expected_salary") or comp_prefs.get("expected_amount")
+            if expected_val is not None and str(expected_val).strip() != "":
+                MY_EXPECTED_CTC = str(expected_val)
+            if comp_prefs.get("prefer_not_to_say_current") is True or comp_prefs.get("current_salary_mode") == "prefer_not_to_say":
+                MY_CURRENT_CTC = "0"
+            elif comp_prefs.get("current_salary") or comp_prefs.get("current_amount"):
+                MY_CURRENT_CTC = str(comp_prefs.get("current_salary") or comp_prefs.get("current_amount"))
+
+            # 3. Availability
+            avail_prefs = app_prefs.get("availability") or {}
+            np_val = avail_prefs.get("notice_period")
+            if np_val:
+                np_map = {"immediate": "0", "15_days": "15", "30_days": "30", "60_days": "60", "90_days": "90"}
+                MY_NOTICE_PERIOD = np_map.get(np_val, "0")
+
+            # 4. Work authorization
+            auth_prefs = app_prefs.get("work_authorization") or {}
+            if auth_prefs.get("citizenship"):
+                MY_CURRENT_COUNTRY = auth_prefs.get("citizenship")
+
+        # Dynamically build candidate skills from parsed profile (zero hardcoding)
+        candidate_skills = (
+            (parsed.get("tech_stacks") or []) + 
+            (parsed.get("tools") or []) + 
+            (parsed.get("sure_skills") or []) + 
+            (parsed.get("additional_skills") or []) +
+            (parsed.get("keywords") or [])
+        )
+        KNOWN_TECHNOLOGIES = list(set([str(t).lower().strip() for t in candidate_skills if str(t).strip() and len(str(t).strip()) >= 2]))
 
         links = parsed.get("links", {}) or {}
         if isinstance(links, dict):
@@ -2658,8 +3120,10 @@ async def main(
             url, b64 = job.get("job_url"), job.get("resume_binary")
             company_name = job.get("company_name")
             if not url or not b64:
-                log.warning(f"Job {idx}: missing data - skipped")
-                emit(False, url, company_name, "incomplete job data") 
+                log.warning(f"Job {idx}: missing data (url={bool(url)}, b64={bool(b64)}) - skipped")
+                if url:
+                    failed.append(url)
+                emit(False, url, company_name, "incomplete job data: missing resume") 
                 return
 
             log.info(f"\n{'='*60}")
@@ -2699,6 +3163,7 @@ async def main(
                 raise e
 
             try:
+                agent.current_job = job
                 success = await agent.fill_and_submit_modal(
                     user={
                         "first": FIRST_NAME,
@@ -2805,6 +3270,7 @@ async def main(
 
             jobs_to_retry = list(deferred_jobs)
             for d_job in jobs_to_retry:
+                agent.current_job = d_job
                 d_url = d_job.get("job_url")
                 if d_url in job_tracker:
                     q_list = job_tracker[d_url]
@@ -2838,18 +3304,42 @@ async def main(
         log.info(f"🎯 FINAL RESULTS:")
         log.info(f"✅ Successfully applied: {len(applied)}")
         log.info(f"❌ Failed applications: {len(failed)}")
-        log.info(f"📊 Success rate: {(len(applied)/(len(applied)+len(failed))*100):.1f}%")
+        total_processed = len(applied) + len(failed)
+        success_rate = (len(applied) / total_processed * 100) if total_processed > 0 else 0.0
+        log.info(f"📊 Success rate: {success_rate:.1f}%")
         log.info(f"{'='*60}")
 
         # ── Delayed DB Write ─────────────────────────────────────────────
         if user_id and agent.user_profile:
             from config import supabase
             try:
-                # Use email for update as per instructions
                 user_email = agent.user_profile.get("email", "")
+                q_user = supabase.table("User").select("user_data").limit(1)
                 if user_email:
-                    supabase.table("User").update({"user_data": agent.user_profile}).eq("email", user_email).execute()
-                    log.info("💾 Saved all new AI answers to Supabase permanent cache")
+                    q_user = q_user.eq("email", user_email)
+                else:
+                    q_user = q_user.eq("id", user_id)
+                res_u = q_user.execute()
+                existing_ud = (res_u.data[0].get("user_data") or {}) if (res_u.data and len(res_u.data) > 0) else {}
+
+                # Deep merge so application_preferences and other fields are never lost
+                merged_ud = dict(existing_ud)
+                for k, v in agent.user_profile.items():
+                    if k == "cached_answers" and isinstance(v, dict):
+                        merged_ud["cached_answers"] = {**(merged_ud.get("cached_answers") or {}), **v}
+                    else:
+                        merged_ud[k] = v
+
+                if "application_preferences" in existing_ud and "application_preferences" not in agent.user_profile:
+                    merged_ud["application_preferences"] = existing_ud["application_preferences"]
+
+                update_q = supabase.table("User").update({"user_data": merged_ud})
+                if user_email:
+                    update_q = update_q.eq("email", user_email)
+                else:
+                    update_q = update_q.eq("id", user_id)
+                update_q.execute()
+                log.info("💾 Saved updated user profile to Supabase with preserved application preferences")
             except Exception as db_e:
                 log.error(f"Failed to update Supabase cache: {db_e}")
 
@@ -2953,8 +3443,10 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
     total_jobs = len(jobs_to_apply)
 
     # Fetch pre-parsed user profile + prior apply history for resume-aware idempotency.
-    user_res = supabase.table("User").select("user_data, applied_jobs, daily_apply_count, daily_apply_date").eq("email", email).execute()
+    user_res = supabase.table("User").select("resume_url, user_data, applied_jobs, daily_apply_count, daily_apply_date").eq("email", email).execute()
     user_row = user_res.data[0] if user_res.data else {}
+    if not resume_url:
+        resume_url = user_row.get("resume_url") or ""
     user_profile = user_row.get("user_data", {}) or {}
     history_applied = set(user_row.get("applied_jobs") or [])
 
@@ -3140,11 +3632,16 @@ async def _async_apply_pipeline(job_id: str, job_data: dict, log_callback):
                 # remaining batches. On failure, enqueue the jobs with default resume_binary
                 # so the consumer still processes them.
                 try:
-                    tailored_batch = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0)
+                    raw_tailored = await asyncio.to_thread(process_batch, resume_url, batch_jobs, user_data_str, 0)
+                    batch_job_map = {j.get("job_url"): j for j in batch_jobs}
+                    tailored_batch = []
+                    for t_item in raw_tailored:
+                        orig = batch_job_map.get(t_item.get("job_url"), {})
+                        tailored_batch.append({**orig, **t_item})
                 except Exception as be:
                     print(f"[tailor] Batch {(i//batch_size)+1} failed ({be}); enqueueing with default resume")
                     tailored_batch = [
-                        {"job_url": j.get("job_url"), "resume_binary": default_base64_resume, "company_name": j.get("company_name")}
+                        {**j, "resume_binary": default_base64_resume, "company_name": j.get("company_name"), "job_url": j.get("job_url")}
                         for j in batch_jobs
                     ]
                 await jobs_queue.put(tailored_batch)

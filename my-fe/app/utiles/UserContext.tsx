@@ -16,6 +16,7 @@ interface UserData {
   daily_apply_count: number;
   daily_apply_date: string | null;
   max_daily_applies: number;
+  user_data: any | null;
 }
 
 interface UserContextType {
@@ -40,6 +41,7 @@ const defaultUser: UserData = {
   daily_apply_count: 0,
   daily_apply_date: null,
   max_daily_applies: 40,
+  user_data: null,
 };
 
 const UserContext = createContext<UserContextType>({
@@ -78,27 +80,30 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       // Immediately set basic user state so isLoggedIn becomes true instantly
       const cachedTier = sessionStorage.getItem("tier") || "";
+      const cachedResume = sessionStorage.getItem("resume") || null;
       setUser((prev) => ({
         ...prev,
         id: userId,
         email: metadata.email || authUser.email || null,
         name: metadata.username || metadata.full_name || metadata.name || null,
         profile_image: metadata.avatar_url || metadata.picture || null,
+        resume_url: cachedResume,
         tier: cachedTier,
       }));
 
       // Fetch additional data from public.User table
-      let resumeUrl: string | null = null;
+      let resumeUrl: string | null = cachedResume;
       let profileImage: string | null = metadata.avatar_url || metadata.picture || null;
       let linkedinContext = false;
       let dbName: string | null = null;
       let appliedJobs: string[] = [];
-      let tier = "FREE";
+      let tier = cachedTier || "FREE";
       let sharedGenerationCredits = 0;
       let fetchJobsCredits = 0;
       let dailyApplyCount = 0;
       let dailyApplyDate: string | null = null;
       let maxDailyApplies = 40;
+      let userDataPayload: any = null;
 
       try {
         const res = await fetch(`/api/User?id=${userId}`, {
@@ -109,7 +114,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const userData = await res.json();
 
         if (userData.user) {
-          resumeUrl = userData.user.resume_url || null;
+          userDataPayload = userData.user.user_data || null;
+          resumeUrl = userData.user.resume_url || resumeUrl || null;
           if (userData.user.profile_image) {
             profileImage = userData.user.profile_image;
           }
@@ -168,6 +174,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         daily_apply_count: dailyApplyCount,
         daily_apply_date: dailyApplyDate,
         max_daily_applies: maxDailyApplies,
+        user_data: userDataPayload,
       });
       setLoading(false);
     } catch (err) {

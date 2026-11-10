@@ -6,12 +6,23 @@ import Navbar from "../../Components/Navbar";
 import { supabase } from "../../utiles/supabaseClient";
 import toast from "react-hot-toast";
 import { API_URL } from "../../utiles/api";
+import { ApplicationPreferencesForm } from "./ApplicationPreferencesForm";
 
 const ProfilePage = () => {
   const [data, setDbData] = useState<any | null>(null);
   const [jobCount, setJobCount] = useState<string | null>(null);
   const [workflowHistory, setWorkflowHistory] = useState<any[]>([]);
   const [showDisconnectModal, setShowDisconnectModal] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"profile" | "preferences">("profile");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") === "preferences") {
+        setActiveTab("preferences");
+      }
+    }
+  }, []);
 
   const handleLinkedInToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const isChecked = e.target.checked;
@@ -128,9 +139,13 @@ const ProfilePage = () => {
   return (
     <div className="page-section">
       <Navbar />
-      <div className="min-h-screen flex flex-col lg:flex-row gap-4 md:gap-6 lg:gap-8 items-center justify-center px-4 py-8">
+      <div className={`min-h-screen flex flex-col lg:flex-row gap-6 lg:gap-8 justify-center px-4 py-8 max-w-7xl mx-auto ${
+        activeTab === "preferences" ? "items-start" : "items-center"
+      }`}>
         {/* Profile Card */}
-        <div className="surface-card p-6 md:p-8 w-full max-w-sm lg:max-w-none lg:w-auto">
+        <div className={`surface-card p-6 md:p-8 w-full lg:w-80 flex-shrink-0 transition-all ${
+          activeTab === "preferences" ? "lg:sticky lg:top-24" : ""
+        }`}>
           <div className="flex flex-col items-center space-y-4 md:space-y-6">
             {/* Profile Image */}
             <div className="relative group">
@@ -209,17 +224,48 @@ const ProfilePage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="surface-card p-6 md:p-8 flex-1 max-w-3xl w-full">
+        <div className={`surface-card p-6 md:p-8 flex-1 w-full min-w-0 transition-all ${activeTab === 'preferences' ? 'max-w-4xl' : 'max-w-3xl'}`}>
           {/* Tab Header */}
-          <div className="flex mb-6 md:mb-8 bg-white/[0.03] rounded-xl p-1">
-            <div className="flex-1 relative">
-              <button className="w-full py-2 md:py-3 px-4 md:px-6 text-black font-medium text-sm md:text-base rounded-lg bg-emerald-500 shadow-lg transition-all duration-300 cursor-default">
-                Profile Info
-              </button>
-            </div>
+          <div className="flex mb-6 md:mb-8 bg-white/[0.03] border border-white/[0.06] rounded-xl p-1 gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab("profile")}
+              className={`flex-1 py-2.5 md:py-3 px-4 md:px-6 font-medium text-xs sm:text-sm md:text-base rounded-lg transition-all duration-300 cursor-pointer ${
+                activeTab === "profile"
+                  ? "bg-emerald-500 text-black shadow-lg font-semibold"
+                  : "text-gray-400 hover:text-white hover:bg-white/[0.03]"
+              }`}
+            >
+              Profile Info
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("preferences")}
+              className={`flex-1 py-2.5 md:py-3 px-4 md:px-6 font-medium text-xs sm:text-sm md:text-base rounded-lg transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+                activeTab === "preferences"
+                  ? "bg-emerald-500 text-black shadow-lg font-semibold"
+                  : "text-gray-400 hover:text-white hover:bg-white/[0.03]"
+              }`}
+            >
+              <span>Application Preferences</span>
+              {data?.user_data?.application_preferences?.is_complete ? (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  activeTab === "preferences" ? "bg-black/20 text-black" : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                }`}>
+                  Ready
+                </span>
+              ) : (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  activeTab === "preferences" ? "bg-black/20 text-black" : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                }`}>
+                  Setup Needed
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Profile Information */}
+          {activeTab === "profile" && (
           <div className="space-y-4 md:space-y-6">
             <div className="grid gap-4 md:gap-6">
               {/* User Name */}
@@ -345,6 +391,26 @@ const ProfilePage = () => {
               </div>
             </div>
           </div>
+          )}
+
+          {/* Application Preferences Form */}
+          {activeTab === "preferences" && (
+            <ApplicationPreferencesForm
+              userId={data?.id || ""}
+              initialPreferences={data?.user_data?.application_preferences}
+              initialUserData={data?.user_data}
+              onSaveSuccess={(updated) => {
+                setDbData((prev: any) => ({
+                  ...prev,
+                  user_data: {
+                    ...(prev?.user_data || {}),
+                    application_preferences: updated,
+                    titles: updated.target_domain?.target_roles || prev?.user_data?.titles,
+                  },
+                }));
+              }}
+            />
+          )}
         </div>
       </div>
 

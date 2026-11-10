@@ -1573,8 +1573,17 @@ async def _async_scraper_pipeline(job_id: str, job_data: dict, log_callback, sta
                 "resume_url": resume_url
             }).eq("id", user_id).execute()
         
-        titles = user_data_parsed.get("titles", [])
+        # Target job titles: unified SSOT (user_data.titles with fallback to application_preferences.target_domain.target_roles)
+        raw_titles = user_data_parsed.get("titles")
+        if not raw_titles and isinstance(user_data_parsed.get("application_preferences"), dict):
+            raw_titles = user_data_parsed["application_preferences"].get("target_domain", {}).get("target_roles", [])
+        if isinstance(raw_titles, list):
+            titles = [str(t).strip() for t in raw_titles if str(t).strip()][:5]
+        else:
+            titles = []
+        
         exp_years = float(user_data_parsed.get("general_experience_years") or 0.0)
+        print(f"🎯 Candidate target titles for scraping (max 5): {titles}")
         print(f"🎯 Candidate experience profile: {exp_years} yrs across {len(titles)} target titles")
         
         # Phase 3: Playwright Scraping

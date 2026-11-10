@@ -150,6 +150,12 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
       setShowPopup(true);
       return;
     }
+    const isPreferencesComplete = !!user?.user_data?.application_preferences?.is_complete;
+    if (!isPreferencesComplete) {
+      toast.error("Please complete your Application Preferences before applying.", { duration: 5000 });
+      router.push("/Jobs/profile?tab=preferences");
+      return;
+    }
     if (selectedIds.length === 0) {
       toast.error("Please select jobs to proceed");
       return;
@@ -262,6 +268,30 @@ const JobCards: React.FC<JobCardsProps> = ({ jobs = [] }) => {
           </button>
         </div>
       </div>
+
+      {/* ─── Application Preferences Incomplete Warning Banner ─── */}
+      {!userLoading && !user?.user_data?.application_preferences?.is_complete && (
+        <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-400 font-bold text-lg flex-shrink-0">
+              ⚡
+            </div>
+            <div>
+              <h4 className="text-white font-semibold text-sm sm:text-base">Application Preferences Required</h4>
+              <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
+                Set up your expected salary, work authorization matrix, and notice period before applying to prevent bot rejections.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/Jobs/profile?tab=preferences")}
+            className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs sm:text-sm px-5 py-2.5 rounded-xl transition-all shadow-md flex-shrink-0 cursor-pointer"
+          >
+            Complete Setup →
+          </button>
+        </div>
+      )}
 
       {/* ─── Job Cards Grid ─── */}
       <motion.div

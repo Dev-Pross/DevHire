@@ -119,8 +119,8 @@ const SAMPLE_TAILORED_RESUME: any = {
 };
 
 export const TailorResumeV2 = () => {
-  const { user } = useUser();
-  const resume = user?.resume_url;
+  const { user, loading } = useUser();
+  const resume = user?.resume_url || (typeof window !== "undefined" ? sessionStorage.getItem("resume") : null);
 
   const [mode, setMode] = useState<"generate" | "revise">("generate");
   const [description, setDescription] = useState<string>("");
@@ -176,6 +176,10 @@ export const TailorResumeV2 = () => {
   // -------------------------------------------------------------
   const handleGenerate = async () => {
     if (!resume) {
+      if (loading) {
+        toast("Loading profile details, please retry in a second...", { icon: "⏳" });
+        return;
+      }
       toast.error("Please upload a resume first.");
       fileInputRef.current?.click();
       return;

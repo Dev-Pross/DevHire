@@ -31,3 +31,5 @@ backend_python/myenv/
 backend_python/.devhire_backend/
 auth-server/dist/
 my-fe/prisma/schema.prisma.backup
+bench/
+my-fe/public/test-ats-form.html

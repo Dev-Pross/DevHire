@@ -5,6 +5,8 @@ import requests
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import HttpUrl
+import hashlib
+from config import redis_client
 
 from agents.tailor import (
     tailor_jobs,
@@ -71,13 +73,29 @@ def generate_v2_resume(request: TailorV2GenerateRequest):
             version=existing_session["version"]
         )
 
-    # 1. Download original PDF and extract raw text
-    try:
-        pdf_bytes = requests.get(str(request.resume_url), timeout=60).content
-        original_txt = extract_resume_text_from_bytes(pdf_bytes)
-    except Exception as e:
-        log.error("Failed to download or extract resume text: %s", e)
-        raise HTTPException(status_code=400, detail=f"Failed to extract resume from URL: {e}")
+    # 1. Check Redis for cached raw resume text or download & extract
+    original_txt = None
+    resume_cache_key = None
+    if redis_client and request.resume_url:
+        resume_cache_key = f"resume_raw_text:{request.user_id}:{hashlib.md5(str(request.resume_url).encode()).hexdigest()}"
+        try:
+            cached_txt = redis_client.get(resume_cache_key)
+            if cached_txt:
+                original_txt = cached_txt.decode("utf-8") if isinstance(cached_txt, bytes) else str(cached_txt)
+                log.info("⚡ [Resume Text Cache Hit] Loaded cached text for user %s", request.user_id)
+        except Exception as e:
+            log.warning("Redis error fetching cached resume text: %s", e)
+
+    if not original_txt:
+        try:
+            pdf_bytes = requests.get(str(request.resume_url), timeout=60).content
+            original_txt = extract_resume_text_from_bytes(pdf_bytes)
+            if redis_client and resume_cache_key and original_txt:
+                redis_client.setex(resume_cache_key, 604800, original_txt)
+                log.info("💾 Cached extracted resume text in Redis for user %s", request.user_id)
+        except Exception as e:
+            log.error("Failed to download or extract resume text: %s", e)
+            raise HTTPException(status_code=400, detail=f"Failed to extract resume from URL: {e}")
 
     # 2. Run tailor_jobs to generate structured Format (no LaTeX escaping here!)
     banner_message = None

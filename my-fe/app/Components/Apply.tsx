@@ -178,6 +178,12 @@ const Apply: React.FC = () => {
         return;
       }
 
+      if (!globalUser?.user_data?.application_preferences?.is_complete) {
+        toast.error("Please complete your Application Preferences before applying.", { duration: 5000 });
+        router.push("/Jobs/profile?tab=preferences");
+        return;
+      }
+
       // Read from user context instead of sessionStorage to avoid race conditions
       const pdf = globalUser.resume_url;
       const context = globalUser.linkedin_context;
